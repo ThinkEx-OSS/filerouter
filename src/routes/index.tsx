@@ -1,9 +1,13 @@
 import { ArrowRight } from "@phosphor-icons/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useState } from "react"
-import type { ProviderId } from "@file_router/sdk/catalog"
+import { useEffect } from "react"
 
+import { LatestBlogSection } from "@/components/blog/latest-blog-section"
+import { BenchmarkSection } from "@/components/benchmark-section"
+import { DitherButton } from "@/components/dither-kit/button"
+import { PricingSection } from "@/components/pricing-section"
 import { PublicPageShell } from "@/components/public-page-shell"
+import { availableProviders, RoutingCanvas } from "@/components/routing-canvas"
 import { SdkExample } from "@/components/sdk-example"
 import { Button } from "@/components/ui/button"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
@@ -58,29 +62,8 @@ export const Route = createFileRoute("/")({
   component: App,
 })
 
-const providers = [
-  {
-    darkLogo: "/providers/llamaparse-dark.svg",
-    id: "llamaparse",
-    label: "LlamaParse",
-    logo: "/providers/llamaparse.svg",
-  },
-  {
-    darkLogo: "/providers/datalab-dark.svg",
-    id: "datalab",
-    label: "Datalab",
-    logo: "/providers/datalab.svg",
-  },
-  {
-    darkLogo: "/providers/mistral-dark.png",
-    id: "mistral-ocr",
-    label: "Mistral OCR",
-    logo: "/providers/mistral.png",
-  },
-] as const satisfies ReadonlyArray<{ id: ProviderId } & Record<string, string>>
-
 const providerLogos = [
-  providers[0],
+  availableProviders[0],
   {
     darkLogo: "/providers/firecrawl-dark.svg",
     label: "Firecrawl",
@@ -91,8 +74,8 @@ const providerLogos = [
     label: "Reducto",
     logo: "/providers/reducto.svg",
   },
-  providers[1],
-  providers[2],
+  availableProviders[1],
+  availableProviders[2],
 ] as const
 
 function getProviderLogoHeightClass(label: string) {
@@ -112,33 +95,38 @@ function App() {
             One API for document parsing.
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
-            Durable execution across providers, with one place to optimize for
-            accuracy, reliability, latency, and cost.
+            Durable document parsing across providers: optimized for accuracy,
+            reliability, latency, and cost.
           </p>
 
           <div className="mt-9 flex w-full max-w-[21rem] flex-col items-center gap-4">
             <div className="grid w-full gap-3 sm:grid-cols-2">
               {session ? (
-                <Link
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-5 text-sm font-normal text-background transition-opacity hover:opacity-80"
-                  to="/dashboard"
+                <Button
+                  asChild
+                  className="h-11 w-full px-5 text-base font-normal"
                 >
-                  Dashboard
-                  <ArrowRight className="size-4" weight="bold" />
-                </Link>
+                  <Link to="/dashboard">
+                    Dashboard
+                    <ArrowRight className="size-4" weight="bold" />
+                  </Link>
+                </Button>
               ) : (
-                <Link
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-5 text-sm font-normal text-background transition-opacity hover:opacity-80"
-                  search={{ redirect: "/dashboard" }}
-                  to="/sign-in"
+                <DitherButton
+                  asChild
+                  bloom="aura"
+                  className="h-11 w-full px-5 text-base font-normal"
+                  color="blue"
                 >
-                  Start for free
-                  <ArrowRight className="size-4" weight="bold" />
-                </Link>
+                  <Link search={{ redirect: "/dashboard" }} to="/sign-in">
+                    Start for free
+                    <ArrowRight className="size-4" weight="bold" />
+                  </Link>
+                </DitherButton>
               )}
               <TalkToTeamButton />
             </div>
-            <code className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 font-mono text-sm text-muted-foreground">
+            <code className="inline-flex min-h-10 w-full items-center justify-center rounded-none border border-border bg-card px-4 py-2 font-mono text-sm text-muted-foreground">
               npx @file_router/cli@latest login
             </code>
           </div>
@@ -165,37 +153,18 @@ function App() {
         </div>
       </section>
 
-      <section className="border-y border-border">
-        <div className="mx-auto grid w-full max-w-6xl px-5 md:grid-cols-3">
-          {foundations.map((foundation, index) => (
-            <article
-              className="py-8 md:px-8 md:py-10 md:not-first:border-l md:not-first:border-border md:first:pl-0 md:last:pr-0"
-              key={foundation.title}
-            >
-              <p className="font-mono text-xs text-muted-foreground">
-                0{index + 1}
-              </p>
-              <h2 className="mt-4 text-lg font-medium">{foundation.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {foundation.description}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-b border-border bg-muted/25" id="sdk">
+      <section className="border-y border-border bg-muted/25" id="sdk">
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
             <p className="text-sm font-normal text-muted-foreground">
               TypeScript SDK
             </p>
             <h2 className="mt-3 text-3xl font-medium md:text-4xl">
-              Start with one provider. Compare when you need to.
+              Change providers. Keep your pipeline.
             </h2>
             <p className="mt-4 max-w-lg leading-7 text-muted-foreground">
-              Keep provider-specific behavior behind a stable input and result
-              contract.
+              Parse with one provider or compare several through the same typed
+              interface.
             </p>
           </div>
 
@@ -203,73 +172,63 @@ function App() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
-        <div className="max-w-2xl">
-          <p className="text-sm font-normal text-muted-foreground">
-            Processing modes
-          </p>
-          <h2 className="mt-3 text-3xl font-medium md:text-4xl">
-            Choose how documents move.
+      <section>
+        <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
+          <p className="text-sm font-normal text-muted-foreground">Routing</p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-medium md:text-4xl">
+            Route every document on your terms.
           </h2>
-          <p className="mt-4 leading-7 text-muted-foreground">
-            Use FileRouter-hosted processing for managed jobs, or call providers
-            directly with your own keys.
+          <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
+            Run through FileRouter, call providers directly, or compare routes
+            before you switch.
           </p>
-        </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <article className="rounded-lg border border-border p-6">
-            <p className="font-mono text-xs text-muted-foreground uppercase">
-              Hosted
-            </p>
-            <h3 className="mt-4 text-xl font-medium">
-              File → FileRouter → provider
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              FileRouter manages the upload, durable provider polling, result,
-              and cleanup behind one API key.
-            </p>
-          </article>
-          <article className="rounded-lg border border-border p-6">
-            <p className="font-mono text-xs text-muted-foreground uppercase">
-              Direct / BYOK
-            </p>
-            <h3 className="mt-4 text-xl font-medium">File → provider</h3>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              The SDK calls the selected provider with credentials from your
-              environment. FileRouter does not receive that request.
-            </p>
-          </article>
+          <RoutingCanvas />
         </div>
       </section>
 
-      <section className="mt-14 bg-muted/45 py-16 text-center sm:mt-20 sm:py-24 dark:bg-white/[0.055]">
+      <BenchmarkSection />
+
+      <PricingSection />
+
+      <LatestBlogSection />
+
+      <section className="py-16 text-center sm:py-24">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-6">
           <h2 className="mx-auto max-w-3xl text-4xl font-medium tracking-tight text-balance sm:text-6xl">
-            Stop rebuilding document integrations.
+            Your pipeline should outlast any provider.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Start with one API and keep the freedom to switch.
+            Start with one route. Change it without rebuilding.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button asChild className="h-12 px-6 font-normal" size="lg">
-              {session ? (
+            {session ? (
+              <Button
+                asChild
+                className="h-12 px-6 text-base font-normal"
+                size="lg"
+              >
                 <Link to="/dashboard">Open dashboard</Link>
-              ) : (
+              </Button>
+            ) : (
+              <DitherButton
+                asChild
+                bloom="aura"
+                className="h-12 px-6 text-base font-normal"
+                color="blue"
+              >
                 <Link search={{ redirect: "/dashboard" }} to="/sign-in">
                   Start for free
                 </Link>
-              )}
-            </Button>
+              </DitherButton>
+            )}
             <Button
               asChild
-              className="h-12 px-6 font-normal"
+              className="h-12 px-6 text-base font-normal"
               size="lg"
               variant="outline"
             >
-              <a href="https://github.com/ThinkEx-OSS/filerouter">
-                View GitHub
-              </a>
+              <a href="https://docs.filerouter.dev">Read the docs</a>
             </Button>
           </div>
         </div>
@@ -279,58 +238,36 @@ function App() {
 }
 
 function TalkToTeamButton() {
-  const [opening, setOpening] = useState(false)
-
-  async function openCalendar() {
-    setOpening(true)
-
-    try {
+  useEffect(() => {
+    async function initializeCalendar() {
       const { getCalApi } = await import("@calcom/embed-react")
-      const cal = await getCalApi({ namespace: "30min" })
-      cal("ui", { hideEventTypeDetails: false, layout: "month_view" })
-      cal("modal", {
-        calLink: "thinkex-team-vuzyak/30min",
-        config: {
-          layout: "month_view",
-          useSlotsViewOnSmallScreen: "true",
+      const cal = await getCalApi({ namespace: "15min" })
+      cal("ui", {
+        cssVarsPerTheme: {
+          light: { "cal-brand": "#00BDF7" },
+          dark: { "cal-brand": "#00BDF7" },
         },
+        hideEventTypeDetails: false,
+        layout: "month_view",
       })
-    } catch {
-      window.location.assign("https://cal.com/thinkex-team-vuzyak/30min")
-    } finally {
-      setOpening(false)
     }
-  }
+
+    void initializeCalendar()
+  }, [])
 
   return (
-    <button
-      className="inline-flex h-11 w-full items-center justify-center rounded-sm border border-border bg-background px-5 text-sm font-normal transition-colors hover:bg-muted"
-      disabled={opening}
-      onClick={openCalendar}
+    <Button
+      className="h-11 w-full px-5 text-base font-normal"
+      data-cal-config='{"layout":"month_view","useSlotsViewOnSmallScreen":"true"}'
+      data-cal-link="thinkex-team-vuzyak/15min"
+      data-cal-namespace="15min"
       type="button"
+      variant="outline"
     >
-      {opening ? "Opening…" : "Talk to the team"}
-    </button>
+      Talk to the team
+    </Button>
   )
 }
-
-const foundations = [
-  {
-    description:
-      "Send files, URLs, blobs, buffers, or streams through the same typed interface.",
-    title: "One input contract",
-  },
-  {
-    description:
-      "Hosted jobs handle provider submission, polling, timeouts, storage, and cleanup.",
-    title: "Durable execution",
-  },
-  {
-    description:
-      "Run the same document across providers and receive consistently shaped results.",
-    title: "Built-in comparison",
-  },
-] as const
 
 const homeStructuredData = {
   "@context": "https://schema.org",

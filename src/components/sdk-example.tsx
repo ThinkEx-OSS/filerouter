@@ -1,14 +1,8 @@
-import { useState } from "react"
+import { Highlight, themes } from "prism-react-renderer"
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const examples = {
-  compare: `import { FileRouterClient } from "@file_router/sdk"
-
-const client = new FileRouterClient()
-
-const results = await client.compare(file, {
-  providers: ["llamaparse", "mistral-ocr", "datalab"],
-  outputs: ["markdown"],
-})`,
   parse: `import { FileRouterClient } from "@file_router/sdk"
 
 const client = new FileRouterClient()
@@ -17,34 +11,83 @@ const result = await client.parse(file, {
   provider: "llamaparse",
   outputs: ["markdown", "tables"],
 })`,
+  compare: `import { FileRouterClient } from "@file_router/sdk"
+
+const client = new FileRouterClient()
+
+const results = await client.compare(file, {
+  providers: ["llamaparse", "mistral-ocr", "datalab"],
+  outputs: ["markdown"],
+})`,
 } as const
 
-type ExampleId = keyof typeof examples
+const codeThemes = [
+  { className: "dark:hidden", name: "light", theme: themes.vsLight },
+  { className: "hidden dark:block", name: "dark", theme: themes.vsDark },
+] as const
 
 export function SdkExample() {
-  const [activeExample, setActiveExample] = useState<ExampleId>("parse")
-
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card text-left">
-      <div className="flex items-center gap-1 border-b border-border px-3 py-2">
-        {Object.keys(examples).map((example) => {
-          const id = example as ExampleId
-          return (
-            <button
-              aria-pressed={activeExample === id}
-              className="rounded-sm px-3 py-1.5 text-sm font-normal text-muted-foreground capitalize transition-colors hover:text-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
-              key={id}
-              onClick={() => setActiveExample(id)}
-              type="button"
-            >
-              {id}
-            </button>
-          )
-        })}
-      </div>
-      <pre className="overflow-x-auto p-5 font-mono text-sm leading-7 md:p-7">
-        <code>{examples[activeExample]}</code>
-      </pre>
-    </div>
+    <Tabs
+      className="gap-0 overflow-hidden rounded-none border border-border bg-card text-left"
+      defaultValue="parse"
+    >
+      <TabsList
+        className="grid w-full grid-cols-2 border-b border-border"
+        variant="panel"
+      >
+        {Object.keys(examples).map((id) => (
+          <TabsTrigger
+            className="h-14 capitalize not-first:border-l not-first:border-border"
+            key={id}
+            value={id}
+          >
+            {id}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {Object.entries(examples).map(([id, example]) => (
+        <TabsContent className="min-w-0" key={id} value={id}>
+          <SyntaxHighlight code={example} id={id} />
+        </TabsContent>
+      ))}
+    </Tabs>
   )
+}
+
+function SyntaxHighlight({ code, id }: { code: string; id: string }) {
+  return codeThemes.map(({ className, name, theme }) => (
+    <Highlight code={code} key={name} language="tsx" theme={theme}>
+      {({
+        className: syntaxClassName,
+        getLineProps,
+        getTokenProps,
+        style,
+        tokens,
+      }) => (
+        <pre
+          className={`${syntaxClassName} ${className} overflow-x-auto p-5 font-mono text-sm leading-7 md:p-7`}
+          style={{ ...style, backgroundColor: "transparent" }}
+        >
+          <code>
+            {tokens.map((line, lineIndex) => (
+              <span
+                key={`${id}-${name}-line-${lineIndex}`}
+                {...getLineProps({ line })}
+                className="block"
+              >
+                {line.map((token, tokenIndex) => (
+                  <span
+                    key={`${id}-${name}-token-${lineIndex}-${tokenIndex}`}
+                    {...getTokenProps({ token })}
+                  />
+                ))}
+                {"\n"}
+              </span>
+            ))}
+          </code>
+        </pre>
+      )}
+    </Highlight>
+  ))
 }

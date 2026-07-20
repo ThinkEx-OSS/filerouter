@@ -5,6 +5,7 @@ import {
   DISCORD_URL,
   communityLinks,
 } from "@/components/community-links"
+import { DitherGradient } from "@/components/dither-kit/gradient"
 import { FileRouterLogo } from "@/components/file-router-logo"
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 
@@ -26,6 +27,7 @@ const footerColumns = [
         label: "Documentation",
         href: "https://docs.filerouter.dev",
       },
+      { label: "Blog", to: "/blog" },
       {
         label: "GitHub",
         href: "https://github.com/ThinkEx-OSS/filerouter",
@@ -54,8 +56,9 @@ export function SiteFooter() {
   const { copied, copy } = useCopyToClipboard({ resetTimeoutMs: 2000 })
 
   return (
-    <footer className="border-t border-border bg-background text-foreground">
-      <div className="mx-auto w-full max-w-7xl px-6 py-14 sm:py-16">
+    <footer className="relative overflow-hidden bg-background text-foreground">
+      <DitherGradient className="dark:opacity-50" from="blue" opacity={0.16} />
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-6 py-14 sm:py-16">
         <div className="grid gap-10 lg:grid-cols-[minmax(12rem,1.1fr)_minmax(0,3fr)] lg:gap-16">
           <div>
             <Link
