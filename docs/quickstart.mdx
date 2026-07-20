@@ -1,0 +1,62 @@
+---
+title: "Quickstart"
+description: "Install the TypeScript SDK and parse a document with FileRouter."
+---
+
+## Requirements
+
+- Node.js 22.14 or newer
+- A FileRouter API key from the [dashboard](https://filerouter.dev/dashboard)
+
+## Install the SDK
+
+<CodeGroup>
+```bash npm
+npm install @file_router/sdk
+```
+
+```bash pnpm
+pnpm add @file_router/sdk
+```
+
+```bash yarn
+yarn add @file_router/sdk
+```
+
+</CodeGroup>
+
+## Parse a document
+
+```ts
+import { FileRouterClient } from "@file_router/sdk"
+
+const client = new FileRouterClient({
+  apiKey: process.env.FILEROUTER_API_KEY,
+})
+
+const result = await client.parse("https://example.com/report.pdf", {
+  provider: "llamaparse",
+  outputs: ["markdown"],
+})
+
+console.log(result.outputs.markdown)
+```
+
+`FileRouterClient` creates a hosted job, waits for it to finish, and returns the normalized result. Its default timeout is ten minutes.
+
+## Use an environment variable
+
+If `FILEROUTER_API_KEY` is set, you can omit the constructor options:
+
+```bash
+export FILEROUTER_API_KEY="fr_..."
+```
+
+```ts
+const client = new FileRouterClient()
+```
+
+<Tip>
+  Prefer direct processing instead? See [Processing
+  modes](/concepts/processing-modes) before choosing a setup.
+</Tip>

@@ -65,6 +65,9 @@ function App() {
   return (
     <main className="min-h-svh bg-background text-foreground">
       <AppNavbar>
+        <Button asChild className="hidden sm:inline-flex" variant="ghost">
+          <a href="https://docs.filerouter.dev">Docs</a>
+        </Button>
         <ModeToggle className="size-9" />
         <Button asChild className="hidden sm:inline-flex" variant="outline">
           <a href="https://github.com/ThinkEx-OSS/filerouter">

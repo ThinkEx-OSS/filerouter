@@ -1,0 +1,59 @@
+---
+title: "Jobs"
+description: "Create and poll hosted parse and comparison jobs."
+---
+
+## Create a job from a URL
+
+Every create request requires an `Idempotency-Key` between 8 and 255 characters.
+
+```bash
+curl https://filerouter.dev/api/v1/jobs \
+  --request POST \
+  --header "Authorization: Bearer $FILEROUTER_API_KEY" \
+  --header "Content-Type: application/json" \
+  --header "Idempotency-Key: 01J2Y9QX3MXJQHD2YQ9N7J93M4" \
+  --data '{
+    "operation": "parse",
+    "source": { "url": "https://example.com/report.pdf" },
+    "provider": "llamaparse",
+    "outputs": ["markdown"]
+  }'
+```
+
+A new job returns `202 Accepted`:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "queued"
+}
+```
+
+Reusing the key with the same request returns the existing job with `200 OK` and `Idempotent-Replayed: true`. Reusing it with different request data returns a conflict.
+
+## Poll a job
+
+```bash
+curl https://filerouter.dev/api/v1/jobs/550e8400-e29b-41d4-a716-446655440000 \
+  --header "Authorization: Bearer $FILEROUTER_API_KEY"
+```
+
+Jobs move through `queued`, `running`, and then either `complete` or `failed`.
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "complete",
+  "result": {
+    "provider": "llamaparse",
+    "outputs": {
+      "markdown": "# Parsed document"
+    }
+  }
+}
+```
+
+## Binary uploads
+
+The endpoint also accepts an `application/octet-stream` body with `X-FileRouter-*` headers describing the filename, operation, provider, and outputs. Prefer `FileRouterClient` unless you need to implement the transport directly; it handles those headers and polling for you.

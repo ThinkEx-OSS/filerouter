@@ -1,0 +1,41 @@
+---
+title: "FileRouter"
+description: "Durable document parsing across providers through one API."
+---
+
+# One API for document parsing
+
+FileRouter gives your application one contract for sending documents to parsing providers. Start with one provider, compare outputs when you need to, and keep provider-specific uploads, async jobs, and result shapes out of your application code.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Parse your first document with the hosted TypeScript client.
+  </Card>
+  <Card
+    title="Choose a processing mode"
+    icon="route"
+    href="/concepts/processing-modes"
+  >
+    Understand what FileRouter receives in hosted and direct processing.
+  </Card>
+  <Card title="TypeScript SDK" icon="braces" href="/sdk/parse">
+    Parse and compare documents with typed inputs and results.
+  </Card>
+  <Card title="CLI" icon="terminal" href="/cli/overview">
+    Run the same workflows from your terminal.
+  </Card>
+</CardGroup>
+
+## What FileRouter handles
+
+- Files, URLs, blobs, buffers, and streams through one input contract
+- Provider submission and polling for long-running jobs
+- Consistent page numbers, outputs, timing, warnings, and errors
+- Side-by-side provider comparisons that preserve individual failures
+- Hosted processing with one FileRouter key or direct processing with your provider keys
+
+<Note>
+  FileRouter standardizes the workflow around document parsers. Provider
+  capabilities still differ, so request only outputs supported by the provider
+  you select.
+</Note>

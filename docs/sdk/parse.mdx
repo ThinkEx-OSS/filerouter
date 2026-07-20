@@ -1,0 +1,44 @@
+---
+title: "Parse"
+description: "Parse a document with one provider using the TypeScript SDK."
+---
+
+Use `FileRouterClient` for hosted jobs or `FileRouter` for direct provider calls. Both expose the same `parse(input, options)` shape.
+
+```ts
+const result = await client.parse("./invoice.pdf", {
+  provider: "mistral-ocr",
+  outputs: ["markdown", "pages", "tables"],
+  pages: [1, 2, 3],
+  timeoutMs: 120_000,
+})
+```
+
+## Inputs
+
+The SDK accepts:
+
+- A file path or public HTTP(S) URL as a string
+- `URL`, `File`, or `Blob`
+- `ArrayBuffer` or an array-buffer view
+- `ReadableStream<Uint8Array>`
+- Explicit `{ kind: "file", path }`, `{ kind: "url", url }`, or byte input objects
+
+## Options
+
+| Option            | Type            | Purpose                                              |
+| ----------------- | --------------- | ---------------------------------------------------- |
+| `provider`        | `string`        | Provider ID to use                                   |
+| `outputs`         | `ParseOutput[]` | Requested normalized outputs; defaults to `markdown` |
+| `pages`           | `number[]`      | One-based page selection                             |
+| `providerOptions` | `object`        | Namespaced provider-native settings                  |
+| `includeRaw`      | `boolean`       | Include the provider response                        |
+| `timeoutMs`       | `number`        | Abort the operation after this duration              |
+| `signal`          | `AbortSignal`   | Cancel from your application                         |
+
+Hosted calls also accept `idempotencyKey`. When omitted, the client generates a UUID for the request.
+
+<Note>
+  FileRouter rejects outputs the selected provider does not advertise before
+  starting the provider request.
+</Note>

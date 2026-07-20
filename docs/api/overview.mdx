@@ -1,0 +1,42 @@
+---
+title: "Hosted API"
+description: "Create durable document parsing jobs over HTTP."
+---
+
+The hosted API is available at:
+
+```text
+https://filerouter.dev/api/v1
+```
+
+Authenticate with a FileRouter API key:
+
+```http
+Authorization: Bearer fr_...
+```
+
+## Endpoints
+
+| Method | Path                   | Purpose                                  |
+| ------ | ---------------------- | ---------------------------------------- |
+| `POST` | `/api/v1/jobs`         | Create or replay a parse or compare job  |
+| `GET`  | `/api/v1/jobs/{jobId}` | Read job status and the completed result |
+| `GET`  | `/api/v1/health`       | Check API and database availability      |
+
+The complete OpenAPI 3.1 contract is published at [filerouter.dev/api/openapi.json](https://filerouter.dev/api/openapi.json).
+
+## Errors
+
+API errors use `application/problem+json` and include a stable code, HTTP status, request ID, and human-readable detail:
+
+```json
+{
+  "type": "https://filerouter.dev/problems/invalid_request",
+  "title": "Invalid request",
+  "status": 400,
+  "detail": "A description of the invalid field.",
+  "instance": "/api/v1/jobs",
+  "code": "invalid_request",
+  "request_id": "..."
+}
+```

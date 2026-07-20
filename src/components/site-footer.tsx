@@ -23,7 +23,7 @@ const footerColumns = [
     links: [
       {
         label: "Documentation",
-        href: "https://github.com/ThinkEx-OSS/filerouter#readme",
+        href: "https://docs.filerouter.dev",
       },
       {
         label: "GitHub",

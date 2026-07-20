@@ -1,0 +1,43 @@
+---
+title: "Hosted and direct processing"
+description: "Choose where FileRouter runs and where your documents travel."
+---
+
+FileRouter supports two explicit processing modes. Neither mode silently falls back to the other.
+
+|                        | Hosted                           | Direct / BYOK        |
+| ---------------------- | -------------------------------- | -------------------- |
+| TypeScript entry point | `FileRouterClient`               | `FileRouter`         |
+| Authentication         | FileRouter API key               | Provider API keys    |
+| Document route         | Your app → FileRouter → provider | Your app → provider  |
+| Job orchestration      | Managed by FileRouter            | Runs in your process |
+| CLI                    | Default after `login`            | Add `--local`        |
+
+## Hosted
+
+Hosted processing is the shortest path to production. FileRouter accepts the input, creates a durable job, submits it to the selected provider, polls long-running provider jobs, stores the result, and cleans up uploaded source documents after the job reaches a terminal state.
+
+Hosted binary uploads are limited to **100 MB**. Completed results expire after **7 days**, and job records are retained for **30 days**.
+
+## Direct / BYOK
+
+Direct processing uses provider adapters from `@file_router/sdk` inside your runtime. Your document and provider credential do not pass through FileRouter, but the selected provider still receives the document.
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+import { llamaparse } from "@file_router/sdk/llamaparse"
+
+const router = new FileRouter({
+  providers: { llamaparse: llamaparse() },
+})
+
+const result = await router.parse("./report.pdf", {
+  provider: "llamaparse",
+  outputs: ["markdown"],
+})
+```
+
+<Warning>
+  Direct means the request bypasses FileRouter infrastructure. It does not mean
+  the document stays on the machine.
+</Warning>
