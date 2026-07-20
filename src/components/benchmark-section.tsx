@@ -29,8 +29,9 @@ export function BenchmarkSection() {
           (right.scores[metric.id] ?? 0) - (left.scores[metric.id] ?? 0)
       )
     const leaders = ranked.slice(0, 6)
+    const leaderNames = new Set(leaders.map((entry) => entry.name))
     const featured = ranked.filter(
-      (entry) => entry.featured && !leaders.includes(entry)
+      (entry) => entry.featured && !leaderNames.has(entry.name)
     )
 
     return [...leaders, ...featured]

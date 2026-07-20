@@ -1,5 +1,3 @@
-import { Link } from "@tanstack/react-router"
-
 const linkClassName =
   "text-sm font-normal text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 
@@ -21,3 +19,4 @@ export function PublicNavLinks() {
     </div>
   )
 }
+import { Link } from "@tanstack/react-router"

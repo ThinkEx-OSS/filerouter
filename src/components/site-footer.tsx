@@ -57,7 +57,7 @@ export function SiteFooter() {
 
   return (
     <footer className="relative overflow-hidden bg-background text-foreground">
-      <DitherGradient className="dark:opacity-50" from="blue" opacity={0.16} />
+      <DitherGradient className="dark:opacity-50" opacity={0.16} />
       <div className="relative z-10 mx-auto w-full max-w-7xl px-6 py-14 sm:py-16">
         <div className="grid gap-10 lg:grid-cols-[minmax(12rem,1.1fr)_minmax(0,3fr)] lg:gap-16">
           <div>

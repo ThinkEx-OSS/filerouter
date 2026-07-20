@@ -2,15 +2,16 @@ import { ArrowRight } from "@phosphor-icons/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useEffect } from "react"
 
-import { LatestBlogSection } from "@/components/blog/latest-blog-section"
 import { BenchmarkSection } from "@/components/benchmark-section"
+import { LatestBlogSection } from "@/components/blog/latest-blog-section"
 import { DitherButton } from "@/components/dither-kit/button"
 import { PricingSection } from "@/components/pricing-section"
 import { PublicPageShell } from "@/components/public-page-shell"
-import { availableProviders, RoutingCanvas } from "@/components/routing-canvas"
+import { RoutingCanvas } from "@/components/routing-canvas"
 import { SdkExample } from "@/components/sdk-example"
 import { Button } from "@/components/ui/button"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
+import { availableProviders } from "@/lib/provider-display"
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
@@ -114,9 +115,7 @@ function App() {
               ) : (
                 <DitherButton
                   asChild
-                  bloom="aura"
                   className="h-11 w-full px-5 text-base font-normal"
-                  color="blue"
                 >
                   <Link search={{ redirect: "/dashboard" }} to="/sign-in">
                     Start for free
@@ -211,12 +210,7 @@ function App() {
                 <Link to="/dashboard">Open dashboard</Link>
               </Button>
             ) : (
-              <DitherButton
-                asChild
-                bloom="aura"
-                className="h-12 px-6 text-base font-normal"
-                color="blue"
-              >
+              <DitherButton asChild className="h-12 px-6 text-base font-normal">
                 <Link search={{ redirect: "/dashboard" }} to="/sign-in">
                   Start for free
                 </Link>

@@ -8,33 +8,11 @@ import {
   FilePdf,
   Key,
 } from "@phosphor-icons/react"
-import type { ProviderId } from "@file_router/sdk/catalog"
-
 import { DitherGradient } from "@/components/dither-kit/gradient"
 import { FileRouterLogo } from "@/components/file-router-logo"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { availableProviders } from "@/lib/provider-display"
 import { cn } from "@/lib/utils"
-
-export const availableProviders = [
-  {
-    darkLogo: "/providers/llamaparse-dark.svg",
-    id: "llamaparse",
-    label: "LlamaParse",
-    logo: "/providers/llamaparse.svg",
-  },
-  {
-    darkLogo: "/providers/datalab-dark.svg",
-    id: "datalab",
-    label: "Datalab",
-    logo: "/providers/datalab.svg",
-  },
-  {
-    darkLogo: "/providers/mistral-dark.png",
-    id: "mistral-ocr",
-    label: "Mistral OCR",
-    logo: "/providers/mistral.png",
-  },
-] as const satisfies ReadonlyArray<{ id: ProviderId } & Record<string, string>>
 
 const modes = [
   { icon: CloudArrowUp, id: "hosted", label: "Hosted", shortLabel: "Hosted" },
@@ -109,11 +87,9 @@ function RouteStage({
   return (
     <div className="relative overflow-hidden bg-background">
       <DitherGradient
-        bloom="off"
         cell={5}
         className="opacity-55"
         direction="left"
-        from="blue"
         opacity={0.12}
       />
 

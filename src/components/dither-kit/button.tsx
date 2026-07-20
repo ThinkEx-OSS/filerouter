@@ -1,21 +1,16 @@
 import * as React from "react"
 
-import { cn } from "./lib"
-import { rgb } from "./palette"
+import { cn } from "@/lib/utils"
 import {
+  auraStyle,
   BAYER4,
+  brandRgb,
   clamp01,
-  fillOf,
-  type PixelBloom,
-  type PixelColor,
-  pixelBloomStyle,
-  pixelPrefersReducedMotion,
-} from "./pixel"
+  prefersReducedMotion,
+} from "./dither"
 
 export type DitherButtonProps = React.ComponentProps<"button"> & {
   asChild?: boolean
-  bloom?: PixelBloom
-  color?: PixelColor
 }
 
 type Interaction = "idle" | "hover" | "pressed"
@@ -43,15 +38,7 @@ const DITHER_STATE: Record<
 const baseClassName =
   "relative isolate inline-flex shrink-0 items-center justify-center overflow-hidden rounded-none border border-transparent bg-primary bg-clip-padding text-primary-foreground whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
 
-function ReactiveDitherSurface({
-  bloom,
-  color,
-  interaction,
-}: {
-  bloom: PixelBloom
-  color: PixelColor
-  interaction: Interaction
-}) {
+function ReactiveDitherSurface({ interaction }: { interaction: Interaction }) {
   const wrapRef = React.useRef<HTMLSpanElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const bloomRef = React.useRef<HTMLCanvasElement>(null)
@@ -83,8 +70,6 @@ function ReactiveDitherSurface({
 
       canvas.width = cols
       canvas.height = rows
-      const fill = fillOf(color)
-
       for (let y = 0; y < rows; y++) {
         const verticalBias = 0.22 - ((y + 0.5) / rows) * 0.44
         const rowDensity = clamp01(density + verticalBias)
@@ -94,7 +79,7 @@ function ReactiveDitherSurface({
           const transition = clamp01((rowDensity - threshold + 0.1) / 0.2)
           const softened = transition * transition * (3 - 2 * transition)
           const scale = darkScale + (1 - darkScale) * softened
-          ctx.fillStyle = rgb(fill, scale)
+          ctx.fillStyle = brandRgb(scale)
           ctx.fillRect(x, y, 1, 1)
         }
       }
@@ -121,7 +106,7 @@ function ReactiveDitherSurface({
       if (progress < 1) animationFrame = window.requestAnimationFrame(animate)
     }
 
-    if (pixelPrefersReducedMotion()) {
+    if (prefersReducedMotion()) {
       densityRef.current = targetState.density
       darkScaleRef.current = targetState.darkScale
       paint(targetState.density, targetState.darkScale)
@@ -141,9 +126,7 @@ function ReactiveDitherSurface({
       window.cancelAnimationFrame(animationFrame)
       resizeObserver?.disconnect()
     }
-  }, [color, interaction])
-
-  const bloomStyle = pixelBloomStyle(bloom)
+  }, [interaction])
 
   return (
     <span
@@ -156,23 +139,19 @@ function ReactiveDitherSurface({
         className="absolute inset-0 h-full w-full"
         style={{ imageRendering: "pixelated" }}
       />
-      {bloomStyle && (
-        <canvas
-          ref={bloomRef}
-          className="absolute inset-0 h-full w-full"
-          style={bloomStyle}
-        />
-      )}
+      <canvas
+        ref={bloomRef}
+        className="absolute inset-0 h-full w-full"
+        style={auraStyle}
+      />
     </span>
   )
 }
 
 export function DitherButton({
   asChild = false,
-  bloom = "off",
   children,
   className,
-  color = "blue",
   onKeyDown,
   onKeyUp,
   onPointerDown,
@@ -194,11 +173,7 @@ export function DitherButton({
 
   const content = (
     <>
-      <ReactiveDitherSurface
-        bloom={bloom}
-        color={color}
-        interaction={interaction}
-      />
+      <ReactiveDitherSurface interaction={interaction} />
       <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
         {child ? child.props.children : children}
       </span>

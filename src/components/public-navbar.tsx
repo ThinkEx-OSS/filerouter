@@ -21,12 +21,7 @@ export function PublicNavbar() {
           GitHub
         </a>
       </Button>
-      <DitherButton
-        asChild
-        bloom="aura"
-        className="h-9 px-3 text-sm"
-        color="blue"
-      >
+      <DitherButton asChild className="h-9 px-3 text-sm">
         <Link to="/dashboard">Dashboard</Link>
       </DitherButton>
     </AppNavbar>

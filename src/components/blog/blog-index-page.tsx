@@ -7,9 +7,9 @@ import { blogCategories, type BlogCategory } from "@/lib/blog-categories"
 import { formatBlogDate, publishedBlogPosts } from "@/lib/blog"
 
 type CategoryFilter = "All" | BlogCategory
+const categoryFilters: CategoryFilter[] = ["All", ...blogCategories]
 
 export function BlogIndexPage() {
-  const categories: CategoryFilter[] = ["All", ...blogCategories]
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>("All")
   const posts =
@@ -30,7 +30,7 @@ export function BlogIndexPage() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3 border-b border-border pb-5 text-sm">
-            {categories.map((category) => (
+            {categoryFilters.map((category) => (
               <button
                 className={
                   category === selectedCategory
