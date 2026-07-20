@@ -19,7 +19,7 @@
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "lint": "vp lint",
     "format": "vp fmt",
-    "check": "vp check",
+    "check": "pnpm build:packages && vp check",
     "typecheck": "pnpm build:packages && tsc --noEmit && pnpm --filter @file_router/sdk typecheck && pnpm --filter @file_router/cli typecheck",
     "cli": "pnpm build:packages && node packages/cli/dist/cli.js"
   },
