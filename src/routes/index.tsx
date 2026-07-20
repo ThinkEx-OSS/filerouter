@@ -3,11 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { useState } from "react"
 import type { ProviderId } from "@file_router/sdk/catalog"
 
-import { AppNavbar } from "@/components/app-navbar"
-import { GitHubIcon } from "@/components/community-links"
-import { FileRouterHeroMark } from "@/components/file-router-hero-mark"
-import { ModeToggle } from "@/components/mode-toggle"
-import { SiteFooter } from "@/components/site-footer"
+import { PublicPageShell } from "@/components/public-page-shell"
 import { SdkExample } from "@/components/sdk-example"
 import { Button } from "@/components/ui/button"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
@@ -60,38 +56,28 @@ const providerLogos = [
   providers[2],
 ] as const
 
+function getProviderLogoHeightClass(label: string) {
+  if (label === "Firecrawl") return "h-7"
+  if (label === "Reducto") return "h-[1.375rem]"
+  return "h-6"
+}
+
 function App() {
   const { session } = Route.useRouteContext()
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <AppNavbar>
-        <Button asChild className="hidden sm:inline-flex" variant="ghost">
-          <a href="https://docs.filerouter.dev">Docs</a>
-        </Button>
-        <ModeToggle className="size-9" />
-        <Button asChild className="hidden sm:inline-flex" variant="outline">
-          <a href="https://github.com/ThinkEx-OSS/filerouter">
-            <GitHubIcon className="size-4" />
-            GitHub
-          </a>
-        </Button>
-        <Button asChild>
-          <Link to="/dashboard">Dashboard</Link>
-        </Button>
-      </AppNavbar>
-
-      <section className="mx-auto grid w-full max-w-6xl px-5 pt-20 pb-16 text-left md:pt-28 md:pb-20 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center lg:gap-12">
-        <div className="min-w-0">
+    <PublicPageShell>
+      <section className="mx-auto flex w-full max-w-6xl flex-col items-start px-5 pt-20 pb-16 text-left md:pt-28 md:pb-20">
+        <div className="w-full min-w-0">
           <h1 className="max-w-5xl text-4xl font-medium tracking-normal text-balance md:text-6xl lg:text-7xl">
             One API for document parsing.
           </h1>
-          <p className="mt-6 max-w-4xl text-lg leading-8 text-muted-foreground md:text-xl">
+          <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
             Durable execution across providers, with one place to optimize for
             accuracy, reliability, latency, and cost.
           </p>
 
-          <div className="mt-9 flex w-full max-w-sm flex-col items-start gap-4">
+          <div className="mt-9 flex w-full max-w-[21rem] flex-col items-start gap-4">
             <div className="grid w-full gap-3 sm:grid-cols-2">
               {session ? (
                 <Link
@@ -126,20 +112,18 @@ function App() {
               <div className="inline-flex items-center" key={provider.label}>
                 <img
                   alt={provider.label}
-                  className="h-6 w-auto max-w-40 dark:hidden"
+                  className={`${getProviderLogoHeightClass(provider.label)} w-auto max-w-40 dark:hidden`}
                   src={provider.logo}
                 />
                 <img
                   alt={provider.label}
-                  className="hidden h-6 w-auto max-w-40 dark:block"
+                  className={`${getProviderLogoHeightClass(provider.label)} hidden w-auto max-w-40 dark:block`}
                   src={provider.darkLogo}
                 />
               </div>
             ))}
           </div>
         </div>
-
-        <FileRouterHeroMark />
       </section>
 
       <section className="border-y border-border">
@@ -251,9 +235,7 @@ function App() {
           </div>
         </div>
       </section>
-
-      <SiteFooter />
-    </main>
+    </PublicPageShell>
   )
 }
 

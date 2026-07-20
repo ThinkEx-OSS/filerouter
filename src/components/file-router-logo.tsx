@@ -1,16 +1,7 @@
-import type { CSSProperties } from "react"
-
-export function FileRouterLogo({
-  className,
-  style,
-}: {
-  className?: string
-  style?: CSSProperties
-}) {
+export function FileRouterLogo({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      style={style}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 354 460"
       role="img"

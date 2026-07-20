@@ -6,6 +6,7 @@ import {
   communityLinks,
 } from "@/components/community-links"
 import { FileRouterLogo } from "@/components/file-router-logo"
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 
 const footerLinkClassName =
   "text-base font-normal text-foreground/80 underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -35,7 +36,7 @@ const footerColumns = [
     title: "Company",
     links: [
       { label: "ThinkEx", href: "https://thinkex.app" },
-      { label: "Email", href: `mailto:${CONTACT_EMAIL}` },
+      { label: "Email", action: "copyEmail" },
       { label: "Community", href: DISCORD_URL },
     ],
   },
@@ -50,6 +51,8 @@ const footerColumns = [
 ] as const
 
 export function SiteFooter() {
+  const { copied, copy } = useCopyToClipboard({ resetTimeoutMs: 2000 })
+
   return (
     <footer className="border-t border-border bg-background text-foreground">
       <div className="mx-auto w-full max-w-7xl px-6 py-14 sm:py-16">
@@ -76,7 +79,18 @@ export function SiteFooter() {
                 <ul className="mt-4 grid gap-3.5">
                   {column.links.map((link) => (
                     <li key={link.label}>
-                      {"to" in link ? (
+                      {"action" in link ? (
+                        <button
+                          aria-label={
+                            copied ? "Email copied" : `Copy ${CONTACT_EMAIL}`
+                          }
+                          className={`${footerLinkClassName} text-left`}
+                          onClick={() => void copy(CONTACT_EMAIL)}
+                          type="button"
+                        >
+                          {copied ? "Copied" : link.label}
+                        </button>
+                      ) : "to" in link ? (
                         <Link className={footerLinkClassName} to={link.to}>
                           {link.label}
                         </Link>
