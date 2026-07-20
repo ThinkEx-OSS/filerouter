@@ -1,0 +1,21 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-job-objects",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "jobs/"
+      },
+      "Expiration": {
+        "Days": 8
+      }
+    },
+    {
+      "ID": "abort-incomplete-multipart-uploads",
+      "Status": "Enabled",
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "filerouter",
+  "compatibility_date": "2026-07-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/server.ts",
+  "observability": {
+    "enabled": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "filerouter",
+      "migrations_dir": "drizzle",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FILEROUTER_FILES",
+      "bucket_name": "filerouter-files",
+    },
+  ],
+  "triggers": {
+    "crons": ["17 * * * *"],
+  },
+  "workflows": [
+    {
+      "name": "filerouter-document",
+      "binding": "DOCUMENT_WORKFLOW",
+      "class_name": "DocumentWorkflow",
+    },
+  ],
+}

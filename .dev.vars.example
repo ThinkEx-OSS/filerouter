@@ -1,0 +1,15 @@
+# Copy this file to `.dev.vars` for local development.
+# `.dev.vars` is ignored by git and loaded automatically by the Cloudflare
+# development runtime used by `pnpm dev`.
+
+BETTER_AUTH_SECRET="replace-with-a-random-secret"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Google sign-in is required to access the developer dashboard.
+# GOOGLE_CLIENT_ID=""
+# GOOGLE_CLIENT_SECRET=""
+
+# Provider credentials. Add only the providers you intend to call locally.
+# LLAMA_CLOUD_API_KEY=""
+# MISTRAL_API_KEY=""
+# DATALAB_API_KEY=""
