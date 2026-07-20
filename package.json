@@ -26,8 +26,9 @@
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.23",
-    "@carrot-kpi/switzer-font": "^0.1.0",
+    "@calcom/embed-react": "^1.5.3",
     "@file_router/sdk": "workspace:*",
+    "@fontsource-variable/geist": "5.2.9",
     "@hono/zod-openapi": "^1.5.1",
     "@llamaindex/llama-cloud": "^2.10.0",
     "@mistralai/mistralai": "^2.5.0",

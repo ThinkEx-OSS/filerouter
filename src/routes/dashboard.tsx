@@ -1,9 +1,10 @@
 import { SignOut } from "@phosphor-icons/react"
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { FILEROUTER_API_KEY_PREFIX } from "@file_router/sdk/hosted"
 
 import { ApiKeys } from "@/components/api-keys"
-import { FileRouterBrand } from "@/components/file-router-brand"
+import { AppNavbar } from "@/components/app-navbar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
@@ -41,24 +42,13 @@ function DashboardPage() {
 
   return (
     <main className="min-h-svh bg-background text-foreground">
-      <header className="border-b border-border">
-        <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5">
-          <FileRouterBrand />
-
-          <div className="flex items-center gap-2">
-            <ModeToggle className="size-9" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={signOut}
-              disabled={signingOut}
-            >
-              <SignOut weight="bold" />
-              Sign out
-            </Button>
-          </div>
-        </nav>
-      </header>
+      <AppNavbar>
+        <ModeToggle className="size-9" />
+        <Button variant="outline" onClick={signOut} disabled={signingOut}>
+          <SignOut weight="bold" />
+          Sign out
+        </Button>
+      </AppNavbar>
 
       <section className="mx-auto w-full max-w-4xl px-5 py-10">
         <p className="text-sm text-muted-foreground">{session.user.email}</p>
@@ -76,7 +66,10 @@ function DashboardPage() {
           <div className="mt-4 grid gap-3">
             {[
               ["CLI", "npx @file_router/cli login"],
-              ["Environment", "export FILEROUTER_API_KEY=fr_..."],
+              [
+                "Environment",
+                `export FILEROUTER_API_KEY=${FILEROUTER_API_KEY_PREFIX}...`,
+              ],
             ].map(([label, command]) => (
               <div
                 className="grid gap-1 md:grid-cols-[8rem_minmax(0,1fr)] md:items-center"

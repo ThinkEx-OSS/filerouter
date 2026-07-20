@@ -1,3 +1,4 @@
+import geistLatinWoff2 from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url"
 import {
   HeadContent,
   Scripts,
@@ -50,6 +51,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
     ],
     links: [
+      {
+        rel: "preload",
+        href: geistLatinWoff2,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "icon",
         href: "/favicon.svg",
