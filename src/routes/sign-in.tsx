@@ -1,9 +1,10 @@
-import { FileText, GoogleLogo, SpinnerGap } from "@phosphor-icons/react"
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { SpinnerGap } from "@phosphor-icons/react"
+import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { useState } from "react"
 
-import { FileRouterBrand } from "@/components/file-router-brand"
-import { ModeToggle } from "@/components/mode-toggle"
+import { AuthLegalNotice } from "@/components/auth-legal-notice"
+import { FileRouterLogo } from "@/components/file-router-logo"
+import { GoogleIcon } from "@/components/google-icon"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
@@ -26,6 +27,16 @@ export const Route = createFileRoute("/sign-in")({
       throw redirect({ to: search.redirect })
     }
   },
+  head: () => ({
+    meta: [
+      { title: "Continue | FileRouter" },
+      {
+        name: "description",
+        content:
+          "Continue to FileRouter with Google. No account? We'll create one.",
+      },
+    ],
+  }),
   component: SignInPage,
 })
 
@@ -38,69 +49,68 @@ function SignInPage() {
     setLoading(true)
     setError(null)
 
-    const result = await authClient.signIn.social({
-      provider: "google",
-      callbackURL,
-    })
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+      })
 
-    if (result.error) {
+      if (result.error) {
+        setError(result.error.message ?? "Unable to continue with Google.")
+        setLoading(false)
+      }
+    } catch {
+      setError("Unable to continue with Google. Please try again.")
       setLoading(false)
-      setError(result.error.message ?? "Google sign in is not configured yet.")
     }
   }
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5">
-        <FileRouterBrand />
-        <ModeToggle className="size-9" />
-      </header>
+    <div className="relative min-h-svh bg-background text-foreground">
+      <main className="flex min-h-svh items-center justify-center px-6 py-12 pb-24 sm:px-10 sm:pb-28">
+        <div className="flex w-full max-w-md flex-col items-center gap-8 px-8 text-center sm:px-12">
+          <Link
+            aria-label="FileRouter home"
+            className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            to="/"
+          >
+            <FileRouterLogo className="h-9 w-auto" />
+          </Link>
 
-      <section className="mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,0.65fr)]">
-        <div className="max-w-2xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground">
-            <FileText className="size-4 text-primary" weight="bold" />
-            Developer access for FileRouter.
-          </div>
-          <h1 className="text-4xl font-medium tracking-normal text-balance md:text-6xl">
-            Compare document providers from one account.
+          <h1 className="text-2xl font-medium tracking-tight">
+            Continue to FileRouter
           </h1>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
-            Create API keys for the CLI, TypeScript SDK, and HTTP API.
-          </p>
-        </div>
 
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <div className="mb-6">
-            <h2 className="text-xl font-medium">Continue to FileRouter</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sign in with Google to manage developer access.
-            </p>
-          </div>
-
-          <div className="grid gap-3">
+          <div className="mx-auto grid w-full max-w-xs gap-3">
             <Button
-              className="h-11 w-full justify-start gap-3 px-4"
-              variant="outline"
-              onClick={continueWithGoogle}
+              className="w-full"
               disabled={loading}
+              onClick={continueWithGoogle}
             >
               {loading ? (
-                <SpinnerGap className="size-4 animate-spin" weight="bold" />
+                <SpinnerGap className="size-4 animate-spin" />
               ) : (
-                <GoogleLogo className="size-4" weight="bold" />
+                <GoogleIcon className="size-4" />
               )}
               Continue with Google
             </Button>
-          </div>
 
-          {error ? (
-            <p className="mt-4 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
+            {error ? (
+              <p className="text-center text-xs text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            <p className="text-center text-xs leading-5 text-muted-foreground">
+              No account? We&apos;ll create one.
             </p>
-          ) : null}
+          </div>
         </div>
-      </section>
-    </main>
+      </main>
+
+      <div className="absolute inset-x-6 bottom-6 mx-auto max-w-sm sm:bottom-8">
+        <AuthLegalNotice />
+      </div>
+    </div>
   )
 }

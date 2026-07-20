@@ -1,14 +1,26 @@
+@import "@fontsource-variable/geist";
 @import "tailwindcss";
-@import "@carrot-kpi/switzer-font/400.css";
-@import "@carrot-kpi/switzer-font/500.css";
-@import "@carrot-kpi/switzer-font/600.css";
-@import "@carrot-kpi/switzer-font/700.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Metric-matched fallback for Geist. Reshapes Arial to occupy the same space
+ * as Geist so the font swap causes no layout shift. Values are generated from
+ * the Geist latin woff2 with Capsize; regenerate via scripts/gen-geist-fallback.mjs
+ * whenever Geist is updated.
+ */
+@font-face {
+  font-family: "Geist Variable Fallback";
+  src: local("Arial"), local("ArialMT");
+  ascent-override: 95.9379%;
+  descent-override: 28.1609%;
+  line-gap-override: 0%;
+  size-adjust: 104.7553%;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Switzer", sans-serif;
+  --font-sans: "Geist Variable", "Geist Variable Fallback", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -57,8 +69,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.62 0.18 226);
-  --primary-foreground: oklch(0.977 0.013 236.62);
+  --primary: var(--brand);
+  --primary-foreground: oklch(0.2 0.03 226);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.97 0 0);
@@ -68,7 +80,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -77,12 +89,12 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.62 0.18 226);
-  --sidebar-primary-foreground: oklch(0.977 0.013 236.62);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: oklch(0.2 0.03 226);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: var(--brand);
 }
 
 .dark {
@@ -92,8 +104,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.74 0.16 226);
-  --primary-foreground: oklch(0.977 0.013 236.62);
+  --primary: var(--brand);
+  --primary-foreground: oklch(0.2 0.03 226);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -103,7 +115,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -111,12 +123,12 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.74 0.16 226);
-  --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: oklch(0.2 0.03 226);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: var(--brand);
 }
 
 @layer base {
@@ -125,6 +137,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

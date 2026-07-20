@@ -2,6 +2,7 @@ import type { ApiKey } from "@better-auth/api-key"
 import { Check, Copy, Key, Plus, Trash } from "@phosphor-icons/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
+import { FILEROUTER_API_KEY_PREFIX } from "@file_router/sdk/hosted"
 
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
@@ -144,8 +145,8 @@ export function ApiKeys() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{key.name}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">
-                  {key.start ?? key.prefix ?? "fr_"}... - Created{" "}
-                  {dateFormatter.format(new Date(key.createdAt))}
+                  {key.start ?? key.prefix ?? FILEROUTER_API_KEY_PREFIX}... -
+                  Created {dateFormatter.format(new Date(key.createdAt))}
                 </p>
               </div>
               <Button
