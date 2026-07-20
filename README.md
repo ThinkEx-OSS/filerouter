@@ -1,10 +1,8 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/filerouter-wordmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/filerouter-wordmark-light.svg">
-    <img alt="FileRouter" src="docs/assets/filerouter-wordmark-light.svg" width="430">
-  </picture>
+  <img alt="FileRouter" src="docs/assets/filerouter-logo.svg" width="92">
 </p>
+
+<h1 align="center">FileRouter</h1>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@file_router/sdk"><img alt="FileRouter SDK on npm" src="https://shieldcn.dev/npm/@file_router/sdk.svg?variant=secondary&size=sm"></a>

@@ -3,15 +3,14 @@ export function FileRouterLogo({ className }: { className?: string }) {
     <svg
       className={className}
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 354 460"
+      viewBox="0 0 708 920"
       role="img"
-      aria-label="FileRouter outline logo"
+      aria-label="FileRouter logo"
     >
-      <g fill="var(--brand)">
-        <rect width="157" height="460" rx="22" ry="22" />
-        <path d="M 210 0 C 204 0 199 3.5 197 9 C 197 11 197 13 197 15 V 128 C 197 140.2 206.8 150 219 150 H 342 C 347 150 351.5 147 353.2 142.3 C 353.8 137.9 353.6 132.9 350.2 129.5 L 220.5 4 C 217.7 1.4 214 0 210 0 Z" />
-        <rect x="197" y="193" width="157" height="267" rx="22" ry="22" />
-      </g>
+      <path
+        fill="var(--brand)"
+        d="M0 0H307V103H0ZM409 0H512V103H409ZM0 102H307V205H0ZM409 102H614V205H409ZM0 204H307V307H0ZM409 204H708V307H409ZM102 307H307V410H102ZM0 409H307V512H0ZM409 409H708V512H409ZM0 511H307V614H0ZM409 511H512V614H409ZM613 511H708V614H613ZM0 613H307V716H0ZM409 613H708V716H409ZM102 716H307V819H102ZM409 716H708V819H409ZM0 818H103V920H0ZM204 818H307V920H204ZM409 818H708V920H409Z"
+      />
     </svg>
   )
 }

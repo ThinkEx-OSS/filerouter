@@ -4,8 +4,8 @@
   "description": "Durable document parsing across providers.",
   "theme": "luma",
   "logo": {
-    "light": "/assets/filerouter-wordmark-light.svg",
-    "dark": "/assets/filerouter-wordmark-dark.svg",
+    "light": "/assets/filerouter-logo.svg",
+    "dark": "/assets/filerouter-logo.svg",
     "href": "https://filerouter.dev"
   },
   "favicon": "/assets/favicon.svg",
