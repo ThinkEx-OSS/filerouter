@@ -7,6 +7,7 @@
     "build": "pnpm build:packages && vp build",
     "build:app": "vp build",
     "build:packages": "pnpm --filter @file_router/sdk build && pnpm --filter @file_router/cli build",
+    "content:generate": "node scripts/generate-content-collections.mjs",
     "prepare": "vp config --no-agent",
     "preview": "vp preview",
     "deploy": "vp build && wrangler deploy",
@@ -20,7 +21,7 @@
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "lint": "vp lint",
     "format": "vp fmt",
-    "check": "pnpm build:packages && vp check",
+    "check": "pnpm build:packages && pnpm content:generate && vp check",
     "typecheck": "pnpm build:packages && tsc --noEmit && pnpm --filter @file_router/sdk typecheck && pnpm --filter @file_router/cli typecheck",
     "cli": "pnpm build:packages && node packages/cli/dist/cli.js"
   },
