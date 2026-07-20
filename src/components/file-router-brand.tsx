@@ -39,7 +39,7 @@ export function FileRouterBrand() {
   return (
     <Link
       aria-label="FileRouter home"
-      className="flex items-center gap-3 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex items-center gap-3 rounded-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={handleHomeClick}
       to="/"
     >

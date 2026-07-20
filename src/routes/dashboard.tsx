@@ -82,7 +82,7 @@ function DashboardPage() {
                 key={label}
               >
                 <span className="text-sm text-muted-foreground">{label}</span>
-                <code className="overflow-x-auto rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+                <code className="overflow-x-auto rounded-none border border-border bg-muted/50 px-3 py-2 text-sm">
                   {command}
                 </code>
               </div>

@@ -5,6 +5,19 @@ import { useState } from "react"
 import { FILEROUTER_API_KEY_PREFIX } from "@file_router/sdk/hosted"
 
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth-client"
 
 type ApiKeySummary = Omit<ApiKey, "key">
@@ -85,9 +98,9 @@ export function ApiKeys() {
         <label className="sr-only" htmlFor="api-key-name">
           API key name
         </label>
-        <input
+        <Input
           id="api-key-name"
-          className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-10 flex-1 bg-background px-3"
           placeholder="Local development"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -104,13 +117,11 @@ export function ApiKeys() {
       </form>
 
       {createdKey ? (
-        <div className="mt-4 max-w-2xl rounded-md border border-primary/30 bg-primary/5 p-4">
-          <p className="text-sm font-medium">Copy this key now</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            It will not be shown again.
-          </p>
+        <Alert className="mt-4 max-w-2xl border-primary/30 bg-primary/5">
+          <AlertTitle>Copy this key now</AlertTitle>
+          <AlertDescription>It will not be shown again.</AlertDescription>
           <div className="mt-3 flex items-center gap-2">
-            <code className="min-w-0 flex-1 overflow-x-auto rounded-md bg-background px-3 py-2 text-sm">
+            <code className="min-w-0 flex-1 overflow-x-auto rounded-none bg-background px-3 py-2 text-sm">
               {createdKey}
             </code>
             <Button
@@ -122,7 +133,7 @@ export function ApiKeys() {
               {copied ? <Check weight="bold" /> : <Copy weight="bold" />}
             </Button>
           </div>
-        </div>
+        </Alert>
       ) : null}
 
       {error ? (
@@ -149,15 +160,38 @@ export function ApiKeys() {
                   Created {dateFormatter.format(new Date(key.createdAt))}
                 </p>
               </div>
-              <Button
-                aria-label={`Revoke ${key.name ?? "API key"}`}
-                size="icon-sm"
-                variant="ghost"
-                disabled={revokeKeyMutation.isPending}
-                onClick={() => revokeKeyMutation.mutate(key.id)}
-              >
-                <Trash className="text-destructive" weight="bold" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    aria-label={`Revoke ${key.name ?? "API key"}`}
+                    size="icon-sm"
+                    variant="ghost"
+                    disabled={revokeKeyMutation.isPending}
+                  >
+                    <Trash className="text-destructive" weight="bold" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Revoke {key.name ?? "this API key"}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Applications using this key will immediately lose access.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => revokeKeyMutation.mutate(key.id)}
+                    >
+                      Revoke key
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ))
         )}

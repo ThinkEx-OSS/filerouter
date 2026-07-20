@@ -72,7 +72,7 @@ function SignInPage() {
         <div className="flex w-full max-w-md flex-col items-center gap-8 px-8 text-center sm:px-12">
           <Link
             aria-label="FileRouter home"
-            className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
             to="/"
           >
             <FileRouterLogo className="h-9 w-auto" />
