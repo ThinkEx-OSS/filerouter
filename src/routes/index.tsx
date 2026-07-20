@@ -5,6 +5,7 @@ import type { ProviderId } from "@file_router/sdk/catalog"
 
 import { AppNavbar } from "@/components/app-navbar"
 import { GitHubIcon } from "@/components/community-links"
+import { FileRouterHeroMark } from "@/components/file-router-hero-mark"
 import { ModeToggle } from "@/components/mode-toggle"
 import { SiteFooter } from "@/components/site-footer"
 import { SdkExample } from "@/components/sdk-example"
@@ -76,71 +77,69 @@ function App() {
           </a>
         </Button>
         <Button asChild>
-          {session ? (
-            <Link to="/dashboard">Dashboard</Link>
-          ) : (
-            <Link search={{ redirect: "/dashboard" }} to="/sign-in">
-              Get started
-            </Link>
-          )}
+          <Link to="/dashboard">Dashboard</Link>
         </Button>
       </AppNavbar>
 
-      <section className="mx-auto flex w-full max-w-6xl flex-col items-start px-5 pt-20 pb-16 text-left md:pt-28 md:pb-20">
-        <h1 className="max-w-5xl text-4xl font-medium tracking-normal text-balance md:text-6xl lg:text-7xl">
-          One API for document parsing.
-        </h1>
-        <p className="mt-6 max-w-4xl text-lg leading-8 text-muted-foreground md:text-xl">
-          Parse, compare, and switch providers without rebuilding uploads,
-          polling, or result handling.
-        </p>
+      <section className="mx-auto grid w-full max-w-6xl px-5 pt-20 pb-16 text-left md:pt-28 md:pb-20 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center lg:gap-12">
+        <div className="min-w-0">
+          <h1 className="max-w-5xl text-4xl font-medium tracking-normal text-balance md:text-6xl lg:text-7xl">
+            One API for document parsing.
+          </h1>
+          <p className="mt-6 max-w-4xl text-lg leading-8 text-muted-foreground md:text-xl">
+            Durable execution across providers, with one place to optimize for
+            accuracy, reliability, latency, and cost.
+          </p>
 
-        <div className="mt-9 flex w-full max-w-sm flex-col items-start gap-4">
-          <div className="grid w-full gap-3 sm:grid-cols-2">
-            {session ? (
-              <Link
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-5 text-sm font-normal text-background transition-opacity hover:opacity-80"
-                to="/dashboard"
-              >
-                Dashboard
-                <ArrowRight className="size-4" weight="bold" />
-              </Link>
-            ) : (
-              <Link
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-5 text-sm font-normal text-background transition-opacity hover:opacity-80"
-                search={{ redirect: "/dashboard" }}
-                to="/sign-in"
-              >
-                Start for free
-                <ArrowRight className="size-4" weight="bold" />
-              </Link>
-            )}
-            <TalkToTeamButton />
-          </div>
-          <code className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 font-mono text-sm text-muted-foreground">
-            npx @file_router/cli@latest login
-          </code>
-        </div>
-
-        <p className="mt-12 text-xs font-normal text-muted-foreground uppercase">
-          Adapters for
-        </p>
-        <div className="mt-4 flex flex-wrap items-center justify-start gap-x-10 gap-y-5">
-          {providerLogos.map((provider) => (
-            <div className="inline-flex items-center" key={provider.label}>
-              <img
-                alt={provider.label}
-                className="h-6 w-auto max-w-40 dark:hidden"
-                src={provider.logo}
-              />
-              <img
-                alt={provider.label}
-                className="hidden h-6 w-auto max-w-40 dark:block"
-                src={provider.darkLogo}
-              />
+          <div className="mt-9 flex w-full max-w-sm flex-col items-start gap-4">
+            <div className="grid w-full gap-3 sm:grid-cols-2">
+              {session ? (
+                <Link
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-5 text-sm font-normal text-background transition-opacity hover:opacity-80"
+                  to="/dashboard"
+                >
+                  Dashboard
+                  <ArrowRight className="size-4" weight="bold" />
+                </Link>
+              ) : (
+                <Link
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-5 text-sm font-normal text-background transition-opacity hover:opacity-80"
+                  search={{ redirect: "/dashboard" }}
+                  to="/sign-in"
+                >
+                  Start for free
+                  <ArrowRight className="size-4" weight="bold" />
+                </Link>
+              )}
+              <TalkToTeamButton />
             </div>
-          ))}
+            <code className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 font-mono text-sm text-muted-foreground">
+              npx @file_router/cli@latest login
+            </code>
+          </div>
+
+          <p className="mt-12 text-xs font-normal text-muted-foreground uppercase">
+            Adapters for
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-start gap-x-10 gap-y-5">
+            {providerLogos.map((provider) => (
+              <div className="inline-flex items-center" key={provider.label}>
+                <img
+                  alt={provider.label}
+                  className="h-6 w-auto max-w-40 dark:hidden"
+                  src={provider.logo}
+                />
+                <img
+                  alt={provider.label}
+                  className="hidden h-6 w-auto max-w-40 dark:block"
+                  src={provider.darkLogo}
+                />
+              </div>
+            ))}
+          </div>
         </div>
+
+        <FileRouterHeroMark />
       </section>
 
       <section className="border-y border-border">
