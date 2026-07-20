@@ -42,8 +42,11 @@ const MIME_TYPES_BY_EXTENSION: Readonly<Record<string, string>> = {
 }
 
 export async function resolveParseInput(
-  input: ParseInput
+  input: ParseInput,
+  signal?: AbortSignal
 ): Promise<ProviderInput> {
+  signal?.throwIfAborted()
+
   if (typeof input === "string") {
     return isHttpUrl(input)
       ? { kind: "url", url: input }
@@ -105,7 +108,10 @@ export async function resolveParseInput(
 
   if (isReadableStream(input)) {
     return {
-      data: normalizeBlob(await new Response(input).blob(), DEFAULT_FILE_NAME),
+      data: normalizeBlob(
+        await readStreamAsBlob(input, signal),
+        DEFAULT_FILE_NAME
+      ),
       kind: "bytes",
       mimeType: DEFAULT_MIME_TYPE,
       name: DEFAULT_FILE_NAME,
@@ -115,6 +121,34 @@ export async function resolveParseInput(
   throw new FileRouterError("Unsupported document input.", {
     code: "InvalidInput",
   })
+}
+
+async function readStreamAsBlob(
+  stream: ReadableStream<Uint8Array>,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const reader = stream.getReader()
+  const chunks: Array<BlobPart> = []
+  const onAbort = () => {
+    void reader.cancel(signal?.reason)
+  }
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      signal?.throwIfAborted()
+      if (done) {
+        return new Blob(chunks)
+      }
+      const chunk = new Uint8Array(value.byteLength)
+      chunk.set(value)
+      chunks.push(chunk)
+    }
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+    reader.releaseLock()
+  }
 }
 
 export function describeInput(input: ParseInput): string {

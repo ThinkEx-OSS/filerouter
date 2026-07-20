@@ -1,7 +1,9 @@
 import { FileRouterError } from "./errors"
 import { readEnv } from "./internal/env"
+import { resolveDocumentMimeType } from "./internal/input"
 import { selectOutputs } from "./internal/outputs"
 import { providerOptions } from "./internal/provider-options"
+import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type { Mistral } from "@mistralai/mistralai"
 import type { SDKOptions } from "@mistralai/mistralai/lib/config.js"
 import type { RequestOptions } from "@mistralai/mistralai/lib/sdks.js"
@@ -56,7 +58,12 @@ export function mistralOcr(
   return {
     capabilities: {
       execution: "sync",
-      features: ["blocks", "confidence", "page-selection"],
+      features: [
+        "blocks",
+        "confidence",
+        "page-selection",
+        "structured-extraction",
+      ],
       outputs: OUTPUTS,
     },
     id: PROVIDER_ID,
@@ -77,14 +84,14 @@ async function parseMistral(
     parseOptions,
     PROVIDER_ID
   )
-  const outputs = parseOptions.outputs ?? ["markdown"]
+  const outputs = parseOptions.outputs ?? [DEFAULT_PARSE_OUTPUT]
   const requestOptions = mistralRequestOptions(parseOptions)
   let uploadedFileId: string | undefined
 
   try {
     const document =
       input.kind === "url"
-        ? { documentUrl: input.url, type: "document_url" as const }
+        ? mistralUrlDocument(input.url)
         : {
             fileId: await uploadFile(client, input, requestOptions),
             type: "file" as const,
@@ -121,6 +128,13 @@ async function parseMistral(
       await deleteFile(client, uploadedFileId, requestOptions)
     }
   }
+}
+
+function mistralUrlDocument(url: string): OCRRequest["document"] {
+  const mimeType = resolveDocumentMimeType(new URL(url).pathname)
+  return mimeType.startsWith("image/")
+    ? { imageUrl: url, type: "image_url" }
+    : { documentUrl: url, type: "document_url" }
 }
 
 async function resolveClient(

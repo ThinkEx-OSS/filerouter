@@ -6,6 +6,7 @@ export default defineConfig({
   entry: {
     catalog: "src/catalog.ts",
     datalab: "src/datalab.ts",
+    hosted: "src/hosted.ts",
     index: "src/index.ts",
     inspect: "src/inspect.ts",
     llamaparse: "src/llamaparse.ts",

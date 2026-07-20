@@ -4,6 +4,7 @@ import type {
   ParseResult,
   ProviderInput,
 } from "./types"
+import { DEFAULT_PARSE_OUTPUT } from "./types"
 
 export interface FakeProviderOptions {
   id?: string
@@ -39,7 +40,7 @@ export const fakeProvider = (
     ): Promise<ParseResult> => {
       const startedAt = new Date()
       const completedAt = new Date()
-      const outputs = options.outputs ?? ["markdown"]
+      const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
       const values: ParseResult["outputs"] = {
         markdown: "# Fake document",
         pages: [

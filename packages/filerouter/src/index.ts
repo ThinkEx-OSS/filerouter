@@ -11,7 +11,24 @@ export {
   type HostedCompareOptions,
   type HostedParseOptions,
 } from "./client"
-export { FileRouterError, type FileRouterErrorCode } from "./errors"
+export {
+  FileRouterError,
+  type FileRouterErrorCode,
+  type FileRouterErrorOptions,
+} from "./errors"
+export {
+  FILEROUTER_API_KEY_PREFIX,
+  FILEROUTER_CLI_CLIENT_ID,
+  FILEROUTER_CLI_SCOPE,
+  FILEROUTER_DEFAULT_API_URL,
+  HOSTED_JOB_HEADERS,
+  HOSTED_JOBS_PATH,
+  MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES,
+  hostedJobStatuses,
+  type HostedJobAccepted,
+  type HostedJobResponse,
+  type HostedJobStatus,
+} from "./hosted"
 export {
   normalizeDocumentFileName,
   resolveDocumentMimeType,
@@ -39,4 +56,4 @@ export type {
   ProviderMap,
   ProviderParseOptions,
 } from "./types"
-export { parseOutputIds } from "./types"
+export { DEFAULT_PARSE_OUTPUT, parseOutputIds } from "./types"

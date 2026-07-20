@@ -36,6 +36,10 @@
       "types": "./dist/inspect.d.ts",
       "import": "./dist/inspect.js"
     },
+    "./hosted": {
+      "types": "./dist/hosted.d.ts",
+      "import": "./dist/hosted.js"
+    },
     "./llamaparse": {
       "types": "./dist/llamaparse.d.ts",
       "import": "./dist/llamaparse.js"

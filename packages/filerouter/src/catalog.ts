@@ -7,6 +7,8 @@ export const providerIds = ["llamaparse", "mistral-ocr", "datalab"] as const
 
 export type ProviderId = (typeof providerIds)[number]
 
+export const DEFAULT_PROVIDER_ID = "llamaparse" satisfies ProviderId
+
 export interface BuiltInProviderOptions {
   datalabApiKey?: string
   llamaCloudApiKey?: string
@@ -17,14 +19,14 @@ export function builtInProviders(
   options: BuiltInProviderOptions = {}
 ): Record<ProviderId, ProviderMap[string]> {
   return {
-    datalab: datalab({
-      ...(options.datalabApiKey && { apiKey: options.datalabApiKey }),
-    }),
     llamaparse: llamaparse({
       ...(options.llamaCloudApiKey && { apiKey: options.llamaCloudApiKey }),
     }),
     "mistral-ocr": mistralOcr({
       ...(options.mistralApiKey && { apiKey: options.mistralApiKey }),
+    }),
+    datalab: datalab({
+      ...(options.datalabApiKey && { apiKey: options.datalabApiKey }),
     }),
   }
 }

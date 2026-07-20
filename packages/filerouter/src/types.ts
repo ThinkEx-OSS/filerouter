@@ -16,6 +16,8 @@ export const parseOutputIds = [
 
 export type ParseOutput = (typeof parseOutputIds)[number]
 
+export const DEFAULT_PARSE_OUTPUT = "markdown" satisfies ParseOutput
+
 export type ParseInput =
   | string
   | URL

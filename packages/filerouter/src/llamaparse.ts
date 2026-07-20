@@ -3,9 +3,11 @@ import { readEnv } from "./internal/env"
 import { selectOutputs } from "./internal/outputs"
 import { waitForProviderJob } from "./internal/polling"
 import { providerOptions } from "./internal/provider-options"
-import type { LlamaCloud } from "@llamaindex/llama-cloud"
+import { DEFAULT_PARSE_OUTPUT } from "./types"
+import type { ClientOptions, LlamaCloud } from "@llamaindex/llama-cloud"
 import type {
   ParsingCreateParams,
+  ParsingGetParams,
   ParsingGetResponse,
 } from "@llamaindex/llama-cloud/resources/parsing"
 import type {
@@ -31,7 +33,7 @@ type LlamaParseClient = {
 export interface LlamaParseProviderOptions {
   apiKey?: string
   client?: LlamaParseClient
-  clientOptions?: Record<string, unknown>
+  clientOptions?: Omit<ClientOptions, "apiKey">
   organizationId?: string
   pollingIntervalMs?: number
   projectId?: string
@@ -39,15 +41,12 @@ export interface LlamaParseProviderOptions {
   version?: string
 }
 
-type ProtectedLlamaParseFields =
-  | "file_id"
-  | "organization_id"
-  | "project_id"
-  | "source_url"
+type ProtectedLlamaParseFields = "file_id" | "source_url"
 
 export type LlamaParseParseOptions = Partial<
   Omit<ParsingCreateParams, ProtectedLlamaParseFields>
->
+> &
+  Pick<ParsingGetParams, "expand" | "image_filenames">
 
 type LlamaParseRequestSource =
   | { source_url: string; upload_file?: never }
@@ -115,12 +114,24 @@ const submitLlamaParse = async (
     options,
     "llamaparse"
   )
+  const request = llamaParseRequest(source, options, nativeOptions, opts)
   const job = await client.parsing.create(
-    llamaParseRequest(source, options, nativeOptions, opts),
+    request,
     options.signal ? { signal: options.signal } : undefined
   )
 
-  return { id: job.id, submittedAt: new Date().toISOString() }
+  return {
+    id: job.id,
+    state: {
+      ...(request.organization_id !== undefined && {
+        organization_id: request.organization_id,
+      }),
+      ...(request.project_id !== undefined && {
+        project_id: request.project_id,
+      }),
+    },
+    submittedAt: new Date().toISOString(),
+  }
 }
 
 const getLlamaParseJob = async (
@@ -129,13 +140,25 @@ const getLlamaParseJob = async (
   opts: LlamaParseProviderOptions
 ): Promise<ProviderJobStatus> => {
   const client = await resolveClient(opts)
-  const outputs = options.outputs ?? ["markdown"]
+  const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
+  const nativeOptions = providerOptions<LlamaParseParseOptions>(
+    options,
+    "llamaparse"
+  )
+  const organizationId = jobScope(
+    job.state?.organization_id,
+    opts.organizationId
+  )
+  const projectId = jobScope(job.state?.project_id, opts.projectId)
   const response = await client.parsing.get(
     job.id,
     {
-      expand: outputsToExpand(outputs),
-      ...(opts.organizationId && { organization_id: opts.organizationId }),
-      ...(opts.projectId && { project_id: opts.projectId }),
+      expand: mergeExpansions(outputsToExpand(outputs), nativeOptions.expand),
+      ...(nativeOptions.image_filenames && {
+        image_filenames: nativeOptions.image_filenames,
+      }),
+      ...(organizationId !== undefined && { organization_id: organizationId }),
+      ...(projectId !== undefined && { project_id: projectId }),
     },
     options.signal ? { signal: options.signal } : undefined
   )
@@ -224,6 +247,17 @@ const outputsToExpand = (outputs: Array<ParseOutput>): Array<string> => {
   return Array.from(expand)
 }
 
+const mergeExpansions = (
+  required: Array<string>,
+  requested?: Array<string>
+): Array<string> => [...new Set([...required, ...(requested ?? [])])]
+
+const jobScope = (
+  value: boolean | null | number | string | undefined,
+  fallback?: string
+): string | null | undefined =>
+  typeof value === "string" || value === null ? value : fallback
+
 const llamaParseRequest = (
   source: LlamaParseRequestSource,
   options: ParseOptions,
@@ -234,15 +268,21 @@ const llamaParseRequest = (
   const safeNativeOptions = omitKeys(nativeOptions, [
     "expand",
     "file_id",
-    "organization_id",
-    "project_id",
+    "image_filenames",
     "source_url",
     "upload_file",
   ])
+  const configured = typeof nativeOptions.configuration_id === "string"
   return {
     ...safeNativeOptions,
-    tier: nativeOptions.tier ?? provider.tier ?? "cost_effective",
-    version: nativeOptions.version ?? provider.version ?? "latest",
+    tier:
+      nativeOptions.tier ??
+      provider.tier ??
+      (configured ? "configured" : "cost_effective"),
+    version:
+      nativeOptions.version ??
+      provider.version ??
+      (configured ? "configured" : "latest"),
     ...(options.pages && {
       page_ranges: {
         target_pages: options.pages.join(","),
@@ -250,10 +290,13 @@ const llamaParseRequest = (
     }),
     ...additional,
     ...source,
-    ...(provider.organizationId && {
-      organization_id: provider.organizationId,
+    ...((provider.organizationId ?? nativeOptions.organization_id) !==
+      undefined && {
+      organization_id: provider.organizationId ?? nativeOptions.organization_id,
     }),
-    ...(provider.projectId && { project_id: provider.projectId }),
+    ...((provider.projectId ?? nativeOptions.project_id) !== undefined && {
+      project_id: provider.projectId ?? nativeOptions.project_id,
+    }),
   }
 }
 
@@ -389,6 +432,9 @@ const normalizeLlamaParseResponse = (
   const metadata = {
     ...raw.job_metadata,
     ...(raw.metadata && { llamaparseMetadata: raw.metadata }),
+    ...(raw.result_content_metadata && {
+      resultContentMetadata: raw.result_content_metadata,
+    }),
   }
   const credits = numberField(raw.job_metadata?.credits)
   const usage: NonNullable<ParseResult["usage"]> = {

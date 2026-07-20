@@ -127,4 +127,33 @@ describe("Mistral OCR provider", () => {
     ])
     expect(result.raw).toBeDefined()
   })
+
+  test("uses Mistral's image URL transport for image inputs", async () => {
+    const process = vi.fn().mockResolvedValue({
+      model: "mistral-ocr-latest",
+      pages: [],
+      usageInfo: { docSizeBytes: 0, pagesProcessed: 0 },
+    })
+    const provider = mistralOcr({
+      client: {
+        files: { delete: vi.fn(), upload: vi.fn() },
+        ocr: { process },
+      },
+    })
+
+    await provider.parse(
+      { kind: "url", url: "https://example.com/scan.png" },
+      { outputs: ["markdown"] }
+    )
+
+    expect(process).toHaveBeenCalledWith(
+      expect.objectContaining({
+        document: {
+          imageUrl: "https://example.com/scan.png",
+          type: "image_url",
+        },
+      }),
+      expect.any(Object)
+    )
+  })
 })
