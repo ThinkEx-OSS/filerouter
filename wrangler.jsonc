@@ -4,6 +4,12 @@
   "compatibility_date": "2026-07-19",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  "routes": [
+    {
+      "pattern": "filerouter.dev",
+      "custom_domain": true,
+    },
+  ],
   "observability": {
     "enabled": true,
   },
@@ -11,6 +17,7 @@
     {
       "binding": "DB",
       "database_name": "filerouter",
+      "database_id": "98a02e23-1c7f-4663-993f-ff4d8de54662",
       "migrations_dir": "drizzle",
     },
   ],

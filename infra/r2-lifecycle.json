@@ -1,20 +1,27 @@
 {
-  "Rules": [
+  "rules": [
     {
-      "ID": "expire-job-objects",
-      "Status": "Enabled",
-      "Filter": {
-        "Prefix": "jobs/"
+      "id": "expire-job-objects",
+      "enabled": true,
+      "conditions": {
+        "prefix": "jobs/"
       },
-      "Expiration": {
-        "Days": 8
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 691200
+        }
       }
     },
     {
-      "ID": "abort-incomplete-multipart-uploads",
-      "Status": "Enabled",
-      "AbortIncompleteMultipartUpload": {
-        "DaysAfterInitiation": 7
+      "id": "abort-incomplete-multipart-uploads",
+      "enabled": true,
+      "conditions": {},
+      "abortMultipartUploadsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 604800
+        }
       }
     }
   ]
