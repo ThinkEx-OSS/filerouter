@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vp dev --port 3000",
     "build": "pnpm build:packages && vp build",
+    "build:app": "vp build",
     "build:packages": "pnpm --filter @file_router/sdk build && pnpm --filter @file_router/cli build",
     "prepare": "vp config --no-agent",
     "preview": "vp preview",
@@ -70,13 +71,5 @@
   "engines": {
     "node": ">=22.14.0"
   },
-  "packageManager": "pnpm@11.9.0",
-  "knip": {
-    "ignore": [
-      "test/worker/entry.ts"
-    ],
-    "ignoreDependencies": [
-      "cloudflare"
-    ]
-  }
+  "packageManager": "pnpm@11.9.0"
 }
