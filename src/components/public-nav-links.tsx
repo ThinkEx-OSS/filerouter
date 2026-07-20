@@ -6,6 +6,9 @@ const placeholderLinks = ["Benchmarks", "Pricing", "Blog"] as const
 export function PublicNavLinks() {
   return (
     <div className="flex items-center gap-6">
+      <a className={linkClassName} href="/#why-filerouter">
+        Why FileRouter
+      </a>
       <a className={linkClassName} href="https://docs.filerouter.dev">
         Docs
       </a>

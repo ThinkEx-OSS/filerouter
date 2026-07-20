@@ -1,0 +1,106 @@
+# FileRouter
+
+> FileRouter is the durable control plane for document parsing: one TypeScript SDK, CLI, and hosted API for running documents across providers without coupling an application to each provider's upload rules, async jobs, options, and response shapes.
+
+## What FileRouter is today
+
+FileRouter is provider-neutral infrastructure for document parsing. An application chooses a provider, submits a file or URL, and receives a normalized result. The built-in providers are LlamaParse, Mistral OCR, and Datalab.
+
+The two core operations are:
+
+- `parse`: process one document with one explicit provider.
+- `compare`: process the same document with several providers concurrently and keep every parsed, failed, or unsupported outcome in one result.
+
+FileRouter is available through the `@file_router/sdk` TypeScript package, the `@file_router/cli` command-line interface, and a hosted REST API.
+
+## Why it exists
+
+Document providers differ in authentication, accepted inputs, page selection, output formats, provider-specific options, asynchronous job APIs, polling, error shapes, and result structures. Integrating several providers directly forces an application team to rebuild the same operational pipeline for each provider.
+
+FileRouter puts those differences behind one input contract and one result contract. Switching a parse call from one configured provider to another is a provider selection change rather than a new document integration.
+
+## Durability and reliability
+
+Hosted parse and comparison requests create durable background jobs instead of holding one HTTP connection open for the full provider run. FileRouter persists job state, submits work to providers, polls asynchronous provider jobs, enforces timeouts, stores normalized results temporarily, and cleans up uploaded sources.
+
+Every hosted job creation request is idempotent. Reusing the same idempotency key with the same request returns the existing job instead of submitting and potentially billing the same document twice.
+
+Comparison results isolate provider outcomes. A provider that fails or does not support a requested output is represented as failed or unsupported without erasing successful results from other providers.
+
+FileRouter does not currently provide automatic provider failover for a single parse call. Automatic routing and fallback policies are part of the near-term direction described below.
+
+## Cost, latency, and quality
+
+FileRouter makes provider decisions measurable through a shared result shape:
+
+- `timing.durationMs` records total parse duration, and comparison entries record per-provider duration.
+- `usage.costUsd`, `usage.credits`, and `usage.pages` expose provider-reported usage when the selected provider supplies it.
+- `compare` runs identical input across providers so teams can inspect output quality on their own document types.
+- Unsupported outputs are rejected before provider I/O for standalone parsing, preventing a request that cannot produce the requested result.
+
+Provider-native quality scores are not automatically comparable because providers may use different scales. FileRouter preserves those values but does not pretend they are universal scores.
+
+## Hosted and direct processing
+
+Hosted mode follows this route:
+
+`document -> FileRouter -> selected provider`
+
+FileRouter receives the document, manages the durable job, and uses hosted provider credentials. Uploaded source documents are scheduled for deletion when processing finishes or fails. Completed results expire after seven days, and hosted job records are scheduled for deletion after 30 days.
+
+Direct or BYOK mode follows this route:
+
+`document -> selected provider`
+
+The SDK or CLI calls the provider from the user's environment with the user's provider credentials. FileRouter does not receive the document, provider key, or result, but the selected provider still receives and processes the document.
+
+A comparison sends the document to every selected provider, in either processing mode.
+
+## Near-term direction
+
+FileRouter is moving from a common adapter and durable execution layer toward a routing and optimization layer for document processing. This is product direction, not a claim about the current automatic behavior.
+
+The near-term priorities are:
+
+1. Measure real provider performance by document type using normalized latency, failures, usage, and output comparisons.
+2. Add explicit routing policies that can prioritize accuracy, reliability, latency, or cost.
+3. Add controlled retries and provider fallback without changing the application's input or result contract.
+4. Expand the provider catalog while keeping provider-native settings namespaced and portable application code stable.
+
+The goal is for an application to integrate FileRouter once, start with the best provider for its current needs, and change routing decisions later without rebuilding its document pipeline.
+
+## Frequently asked questions
+
+### Is FileRouter a document parser?
+
+FileRouter is a routing and execution layer over document parsers. LlamaParse, Mistral OCR, Datalab, and future providers perform the provider-specific parsing. FileRouter standardizes how an application submits work, waits for completion, compares providers, and consumes results.
+
+### Does FileRouter automatically choose the cheapest or fastest provider?
+
+Not today. The current API uses explicit provider selection and provides comparison, timing, and provider-reported usage data. Policy-based automatic routing is near-term direction.
+
+### Can an application switch providers without a rewrite?
+
+Yes. Supported providers share the same FileRouter input and result contracts. Provider-native settings remain available under namespaced `providerOptions`, so switching the selected provider does not require replacing the surrounding document pipeline.
+
+### What makes hosted jobs durable?
+
+Hosted work is persisted as a job with queued, running, complete, or failed state. Background workflow steps handle provider submission and polling independently of the original HTTP request, and idempotency keys make job creation safely retryable.
+
+### How can FileRouter reduce cost?
+
+Today it prevents duplicate hosted submissions through idempotency, rejects unsupported output requests before provider I/O, lets callers request only the outputs and pages they need, and makes provider comparison possible. The near-term routing layer is intended to use those signals for policy-based cost optimization.
+
+### Does FileRouter receive documents in BYOK mode?
+
+No. Direct or BYOK requests go from the user's environment to the selected provider. FileRouter does not receive that request, although the provider still receives the document.
+
+## Canonical resources
+
+- Website: https://filerouter.dev/
+- Documentation index: https://docs.filerouter.dev/llms.txt
+- Complete documentation: https://docs.filerouter.dev/llms-full.txt
+- Source code: https://github.com/ThinkEx-OSS/filerouter
+- SDK registry metadata: https://registry.npmjs.org/@file_router%2Fsdk
+- Privacy policy: https://filerouter.dev/privacy
+- Terms of service: https://filerouter.dev/terms

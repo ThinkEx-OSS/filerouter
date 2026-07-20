@@ -6,6 +6,7 @@ FileRouter supports two explicit processing modes. Hosted mode sends documents t
 
 ## Documentation
 
+- [Full product context](https://filerouter.dev/llms-full.txt): What FileRouter is today, how it creates leverage, and its near-term direction.
 - [Complete documentation index](https://docs.filerouter.dev/llms.txt): Machine-readable links to every FileRouter documentation page.
 - [Full documentation](https://docs.filerouter.dev/llms-full.txt): The complete FileRouter documentation in one text file.
 - [Quickstart](https://docs.filerouter.dev/quickstart.md): Install the SDK and parse a first document.
