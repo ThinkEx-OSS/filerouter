@@ -1,4 +1,5 @@
 import { cloudflare } from "@cloudflare/vite-plugin"
+import contentCollections from "@content-collections/vite"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import tailwindcss from "@tailwindcss/vite"
@@ -49,6 +50,7 @@ export default defineConfig(({ mode }) => ({
   resolve: { tsconfigPaths: true },
   plugins: lazyPlugins(() => [
     devtools(),
+    contentCollections(),
     tailwindcss(),
     ...(mode === "test"
       ? []
