@@ -130,7 +130,7 @@ async function readStreamAsBlob(
   const reader = stream.getReader()
   const chunks: Array<BlobPart> = []
   const onAbort = () => {
-    void reader.cancel(signal?.reason)
+    void reader.cancel(signal?.reason).catch(() => undefined)
   }
   signal?.addEventListener("abort", onAbort, { once: true })
 

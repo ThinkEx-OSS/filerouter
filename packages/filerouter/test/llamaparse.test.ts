@@ -85,7 +85,11 @@ describe("llamaparse", () => {
     })
     const router = new FileRouter({
       providers: {
-        llamaparse: llamaparse({ client: { parsing: { create, get } } }),
+        llamaparse: llamaparse({
+          client: { parsing: { create, get } },
+          organizationId: "default-org",
+          projectId: "default-project",
+        }),
       },
     })
 

@@ -1,4 +1,4 @@
-import { FileRouterError } from "../errors"
+import { FileRouterError, toFileRouterError } from "../errors"
 import type { FileRouterErrorCode } from "../errors"
 
 export interface JsonRequestOptions extends RequestInit {
@@ -15,7 +15,18 @@ export async function requestJson<T>(
     providerId,
     ...init
   } = options
-  const response = await fetchImplementation(url, init)
+  let response: Response
+  try {
+    response = await fetchImplementation(url, init)
+  } catch (error) {
+    if (init.signal?.aborted) {
+      throw error
+    }
+    throw toFileRouterError(error, {
+      code: "ProviderUnavailable",
+      providerId,
+    })
+  }
   const payload = await readJson(response)
 
   if (!response.ok) {

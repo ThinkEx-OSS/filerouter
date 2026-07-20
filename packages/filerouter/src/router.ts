@@ -1,6 +1,6 @@
 import { FileRouterError, toFileRouterError } from "./errors"
 import { describeInput, resolveParseInput } from "./internal/input"
-import { assertPages } from "./internal/provider-options"
+import { assertPages, assertTimeoutMs } from "./internal/provider-options"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   CompareOptions,
@@ -39,6 +39,7 @@ export class FileRouter<Providers extends ProviderMap = ProviderMap> {
     options: ParseOptions = {}
   ): Promise<ParseResult> {
     assertPages(options.pages)
+    assertTimeoutMs(options.timeoutMs)
     const provider = this.#selectProvider(options.provider)
     const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
 
@@ -60,6 +61,7 @@ export class FileRouter<Providers extends ProviderMap = ProviderMap> {
     options: CompareOptions = {}
   ): Promise<CompareResult> {
     assertPages(options.pages)
+    assertTimeoutMs(options.timeoutMs)
     const startedAt = new Date()
     const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
     const providerIds = options.providers ?? Object.keys(this.#providers)
@@ -194,7 +196,7 @@ export const assertProviderOutputs = (
 export const serializeProviderError = (
   error: unknown
 ): { code?: string; message: string } => {
-  if (error instanceof FileRouterError) {
+  if (FileRouterError.isInstance(error)) {
     return {
       code: error.code,
       message: error.message,

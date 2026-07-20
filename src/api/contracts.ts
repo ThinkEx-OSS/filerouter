@@ -53,6 +53,7 @@ const IdempotencyKeySchema = z.string().trim().min(8).max(255).openapi({
 
 const CreateJobHeadersSchema = z.object({
   "idempotency-key": IdempotencyKeySchema,
+  [HOSTED_JOB_HEADERS.contentType]: z.string().optional(),
   [HOSTED_JOB_HEADERS.fileName]: z.string().optional(),
   [HOSTED_JOB_HEADERS.includeRaw]: z.enum(["true", "false"]).optional(),
   [HOSTED_JOB_HEADERS.operation]: z.enum(["parse", "compare"]).optional(),
@@ -119,7 +120,7 @@ export const createJobRoute = createRoute({
           schema: z.string().openapi({ format: "binary" }),
         },
       },
-      required: true,
+      required: false,
     },
     headers: CreateJobHeadersSchema,
   },

@@ -1,6 +1,8 @@
 import { FileRouterError } from "../errors"
 import type { ParseOptions } from "../types"
 
+const MAX_TIMER_DELAY_MS = 2_147_483_647
+
 export function providerOptions<T>(
   options: ParseOptions,
   providerId: string
@@ -23,5 +25,19 @@ export function assertPages(pages: Array<number> | undefined): void {
     throw new FileRouterError("Pages must be positive, one-based integers.", {
       code: "ParseFailed",
     })
+  }
+}
+
+export function assertTimeoutMs(timeoutMs: number | undefined): void {
+  if (
+    timeoutMs !== undefined &&
+    (!Number.isSafeInteger(timeoutMs) ||
+      timeoutMs < 0 ||
+      timeoutMs > MAX_TIMER_DELAY_MS)
+  ) {
+    throw new FileRouterError(
+      `timeoutMs must be an integer between 0 and ${MAX_TIMER_DELAY_MS}.`,
+      { code: "InvalidInput" }
+    )
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vite-plus/test"
 import { SELF } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 
+import { api } from "@/api/app"
 import {
   createDocumentJob,
   getDocumentJobResponse,
@@ -61,6 +62,45 @@ describe("FileRouter Worker", () => {
     await expect(createJob.json<{ detail: string }>()).resolves.toMatchObject({
       detail: "Missing FileRouter API key.",
     })
+  })
+
+  test("accepts binary uploads through the OpenAPI route", async () => {
+    await insertUser("user-binary-upload")
+    const apiKey = await withAuth((auth) =>
+      auth.api.createApiKey({
+        body: { name: "Binary upload test", userId: "user-binary-upload" },
+      })
+    )
+    const createWorkflow = vi.fn().mockResolvedValue({ id: "workflow-upload" })
+    const testEnv = envWithWorkflow(createWorkflow)
+    const response = await api.fetch(
+      new Request("https://filerouter.test/api/v1/jobs", {
+        body: '{"document":true}',
+        headers: {
+          Authorization: `Bearer ${apiKey.key}`,
+          "Content-Type": "application/octet-stream",
+          "Idempotency-Key": "binary-upload-1",
+          "X-FileRouter-Content-Type": "application/json",
+          "X-FileRouter-Filename": "document.json",
+        },
+        method: "POST",
+      }),
+      testEnv
+    )
+    expect(response.status).toBe(202)
+    const job = await response.json<{ id: string }>()
+    const sourceKey = `jobs/${job.id}/source`
+
+    try {
+      expect(createWorkflow).toHaveBeenCalledOnce()
+      const source = await env.FILEROUTER_FILES.head(sourceKey)
+      expect(source?.httpMetadata?.contentType).toBe("application/json")
+    } finally {
+      await env.FILEROUTER_FILES.delete(sourceKey)
+      await env.DB.prepare("DELETE FROM document_job WHERE id = ?")
+        .bind(job.id)
+        .run()
+    }
   })
 
   test("streams scoped provider source URLs without an API key", async () => {

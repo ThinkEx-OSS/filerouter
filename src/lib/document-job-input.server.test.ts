@@ -111,6 +111,26 @@ describe("document job input", () => {
     })
   })
 
+  test("keeps JSON documents distinct from JSON job envelopes", async () => {
+    const input = await readDocumentJobInput(
+      new Request("https://filerouter.test/api/v1/jobs", {
+        body: '{"document":true}',
+        headers: {
+          "Content-Type": "application/octet-stream",
+          [HOSTED_JOB_HEADERS.contentType]: "application/json",
+          [HOSTED_JOB_HEADERS.fileName]: "document.json",
+        },
+        method: "POST",
+      })
+    )
+
+    expect(input.source).toMatchObject({
+      contentType: "application/json",
+      fileName: "document.json",
+      kind: "upload",
+    })
+  })
+
   test("rejects uploads above the hosted byte limit before storage", async () => {
     await expect(
       readDocumentJobInput(
