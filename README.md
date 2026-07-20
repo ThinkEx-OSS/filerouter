@@ -16,11 +16,8 @@ CLI share its contract.
 - `src/api`: Hono API and its OpenAPI contract.
 - `src/workflows`: durable Cloudflare document processing.
 - `src/routes`: thin TanStack Start cloud surface.
-- `docs/product-shape.md`: product structure notes and provider model.
-- `docs/document-inputs.md`: input, MIME, inspection, and conversion boundaries.
-- `docs/r2-architecture.md`: streaming, multipart, retention, and large-upload
-  boundaries.
-- `docs/releasing.md`: CI, Cloudflare deployment, and npm publishing.
+- `.github/workflows`: CI, Cloudflare deployment, and npm publishing.
+- `infra`: deployed storage lifecycle configuration.
 
 ## Development
 
@@ -38,7 +35,7 @@ pnpm dev
 
 `pnpm dev` starts the TanStack Start development server and loads local Worker
 secrets from `.dev.vars`. Copy `.dev.vars.example` to `.dev.vars` before first
-run. See `docs/ENVIRONMENT.md`.
+run.
 
 Validate:
 
