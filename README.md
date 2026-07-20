@@ -1,5 +1,7 @@
 <p align="center">
-  <img alt="FileRouter" src="docs/assets/filerouter-logo.svg" width="92">
+  <a href="https://filerouter.dev">
+    <img alt="FileRouter" src="docs/assets/filerouter-logo.svg" width="92">
+  </a>
 </p>
 
 <h1 align="center">FileRouter</h1>
