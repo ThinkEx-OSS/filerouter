@@ -8,18 +8,18 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@file_router/sdk"><img alt="FileRouter SDK on npm" src="https://shieldcn.dev/npm/@file_router/sdk.svg?variant=secondary&size=sm"></a>
+  <a href="https://docs.filerouter.dev"><img alt="FileRouter documentation" src="https://shieldcn.dev/badge/Docs-read-00bdf7.svg?variant=secondary&size=sm"></a>
   <a href="https://github.com/ThinkEx-OSS/filerouter/stargazers"><img alt="GitHub stars" src="https://shieldcn.dev/github/stars/ThinkEx-OSS/filerouter.svg?variant=secondary&size=sm&theme=amber"></a>
   <a href="https://discord.gg/dtPnzkqCcG"><img alt="Join Discord" src="https://shieldcn.dev/badge/Discord-join-5865f2.svg?variant=secondary&size=sm&logo=discord"></a>
-  <a href="https://x.com/trythinkex"><img alt="Follow ThinkEx on X" src="https://shieldcn.dev/badge/X-follow-000000.svg?variant=secondary&size=sm&logo=x"></a>
 </p>
 
 <p align="center">
-  <strong>Document parsing without locking your app to one provider.</strong>
+  <strong>Durable document parsing across providers.</strong>
 </p>
 
-FileRouter gives you one TypeScript SDK and CLI for document parsing. Choose a
-parser, compare the same document across parsers, or call providers directly
-with your own keys.
+FileRouter gives you one TypeScript SDK and CLI for durable document parsing
+across providers. Choose a parser, compare the same document across parsers, or
+call providers directly with your own keys.
 
 ## What FileRouter handles
 
@@ -68,8 +68,8 @@ console.log(result.outputs.markdown)
 Or use the CLI:
 
 ```bash
-npx @file_router/cli login
-npx @file_router/cli parse report.pdf
+npx @file_router/cli@latest login
+npx @file_router/cli@latest parse report.pdf
 ```
 
 ## Hosted or direct
@@ -115,7 +115,7 @@ vp install
 pnpm dev
 ```
 
-Run the checks before opening a pull request:
+Run the checks before pushing changes:
 
 ```bash
 pnpm check
@@ -125,6 +125,7 @@ pnpm test
 ## Community
 
 - [Website](https://filerouter.dev)
+- [Documentation](https://docs.filerouter.dev)
 - [Discord](https://discord.gg/dtPnzkqCcG)
 - [GitHub](https://github.com/ThinkEx-OSS/filerouter)
 - [X](https://x.com/trythinkex)
