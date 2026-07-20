@@ -7,18 +7,19 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: npm-publish
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish npm packages
+  build:
+    name: Build release packages
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: npm
+    outputs:
+      cli_exists: ${{ steps.versions.outputs.cli_exists }}
+      sdk_exists: ${{ steps.versions.outputs.sdk_exists }}
     env:
       VITE_GIT_HOOKS: "0"
     steps:
@@ -51,27 +52,56 @@ jobs:
           fi
       - run: pnpm check
       - run: pnpm test
-      - run: pnpm build:packages
       - name: Pack packages
         shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/packages"
-          pnpm --filter @file_router/sdk pack --pack-destination "$RUNNER_TEMP/packages"
-          pnpm --filter @file_router/cli pack --pack-destination "$RUNNER_TEMP/packages"
+          mkdir -p artifacts
+          pnpm --filter @file_router/sdk pack --pack-destination artifacts
+          pnpm --filter @file_router/cli pack --pack-destination artifacts
       - name: Verify packed packages
         shell: bash
         run: |
           test_dir=$(mktemp -d)
           cd "$test_dir"
           npm init --yes > /dev/null
-          npm install "$RUNNER_TEMP"/packages/file_router-sdk-*.tgz "$RUNNER_TEMP"/packages/file_router-cli-*.tgz
+          npm install "$GITHUB_WORKSPACE"/artifacts/file_router-sdk-*.tgz "$GITHUB_WORKSPACE"/artifacts/file_router-cli-*.tgz
           node --input-type=module --eval 'import { FileRouterClient } from "@file_router/sdk"; if (typeof FileRouterClient !== "function") process.exit(1)'
           npx --no-install filerouter --help > /dev/null
+      - name: Upload release packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-packages
+          path: artifacts/*.tgz
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish npm packages
+    if: needs.build.outputs.sdk_exists != 'true' || needs.build.outputs.cli_exists != 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install --global npm@11
+      - name: Download release packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-packages
+          path: artifacts
       - name: Publish SDK
-        if: steps.versions.outputs.sdk_exists != 'true'
+        if: needs.build.outputs.sdk_exists != 'true'
         shell: bash
-        run: npm publish "$(find "$RUNNER_TEMP/packages" -name 'file_router-sdk-*.tgz' -print -quit)" --access public
+        run: npm publish artifacts/file_router-sdk-*.tgz --access public
       - name: Publish CLI
-        if: steps.versions.outputs.cli_exists != 'true'
+        if: needs.build.outputs.cli_exists != 'true'
         shell: bash
-        run: npm publish "$(find "$RUNNER_TEMP/packages" -name 'file_router-cli-*.tgz' -print -quit)" --access public
+        run: npm publish artifacts/file_router-cli-*.tgz --access public
