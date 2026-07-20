@@ -7,6 +7,7 @@ export const HOSTED_JOBS_PATH = "/api/v1/jobs"
 export const MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES = 64 * 1024
 
 export const HOSTED_JOB_HEADERS = {
+  contentType: "x-filerouter-content-type",
   fileName: "x-filerouter-filename",
   includeRaw: "x-filerouter-include-raw",
   operation: "x-filerouter-operation",

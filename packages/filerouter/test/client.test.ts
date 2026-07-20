@@ -95,7 +95,8 @@ describe("FileRouterClient", () => {
     )
 
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
-    expect(headers.get("content-type")).toBe("application/pdf")
+    expect(headers.get("content-type")).toBe("application/octet-stream")
+    expect(headers.get("x-filerouter-content-type")).toBe("application/pdf")
     expect(headers.get("idempotency-key")).toMatch(
       /^[0-9a-f]{8}-[0-9a-f-]{27}$/
     )
@@ -165,6 +166,22 @@ describe("FileRouterClient", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  test("rejects timeouts beyond the platform timer limit", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: fetchMock,
+    })
+
+    await expect(
+      client.parse("https://example.com/report.pdf", {
+        timeoutMs: 2_147_483_648,
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   test("exposes retry details from hosted API errors", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -191,6 +208,24 @@ describe("FileRouterClient", () => {
     })
     await request.catch((error: unknown) => {
       expect(FileRouterError.isInstance(error)).toBe(true)
+    })
+  })
+
+  test("normalizes hosted network failures", async () => {
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: vi
+        .fn<typeof fetch>()
+        .mockRejectedValue(new TypeError("fetch failed")),
+    })
+
+    await expect(
+      client.parse("https://example.com/report.pdf")
+    ).rejects.toMatchObject({
+      code: "ProviderUnavailable",
+      providerId: "filerouter",
+      retryable: true,
     })
   })
 

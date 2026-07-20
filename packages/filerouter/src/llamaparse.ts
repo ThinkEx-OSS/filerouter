@@ -290,12 +290,12 @@ const llamaParseRequest = (
     }),
     ...additional,
     ...source,
-    ...((provider.organizationId ?? nativeOptions.organization_id) !==
+    ...((nativeOptions.organization_id ?? provider.organizationId) !==
       undefined && {
-      organization_id: provider.organizationId ?? nativeOptions.organization_id,
+      organization_id: nativeOptions.organization_id ?? provider.organizationId,
     }),
-    ...((provider.projectId ?? nativeOptions.project_id) !== undefined && {
-      project_id: provider.projectId ?? nativeOptions.project_id,
+    ...((nativeOptions.project_id ?? provider.projectId) !== undefined && {
+      project_id: nativeOptions.project_id ?? provider.projectId,
     }),
   }
 }

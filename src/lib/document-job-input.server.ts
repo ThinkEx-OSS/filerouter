@@ -109,7 +109,9 @@ export async function readDocumentJobInput(
       body: request.body,
       contentType: resolveDocumentMimeType(
         fileName,
-        request.headers.get("content-type") ?? undefined
+        request.headers.get(HOSTED_JOB_HEADERS.contentType) ??
+          request.headers.get("content-type") ??
+          undefined
       ),
       fileName,
       kind: "upload",

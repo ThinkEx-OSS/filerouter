@@ -9,6 +9,7 @@ import type { HostedJobAccepted, HostedJobResponse } from "./hosted"
 import { readEnv, trimTrailingSlash } from "./internal/env"
 import { requestJson } from "./internal/http"
 import { resolveParseInput } from "./internal/input"
+import { assertTimeoutMs } from "./internal/provider-options"
 import { abortableSleep } from "./internal/sleep"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
@@ -123,6 +124,7 @@ export class FileRouterClient {
   ): Promise<Result> {
     const timeoutController = new AbortController()
     const timeoutMs = options.timeoutMs ?? 10 * 60 * 1000
+    assertTimeoutMs(timeoutMs)
     const timeout = setTimeout(() => timeoutController.abort(), timeoutMs)
     if (timeoutMs <= 0) {
       timeoutController.abort()
@@ -172,7 +174,8 @@ export class FileRouterClient {
         "Hosted job request"
       )
     } else {
-      headers.set("Content-Type", resolved.mimeType)
+      headers.set("Content-Type", "application/octet-stream")
+      headers.set(HOSTED_JOB_HEADERS.contentType, resolved.mimeType)
       headers.set(
         HOSTED_JOB_HEADERS.fileName,
         encodeURIComponent(resolved.name)

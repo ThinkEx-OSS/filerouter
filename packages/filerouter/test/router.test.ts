@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vite-plus/test"
 
-import { FileRouter, FileRouterError } from "../src/index"
+import {
+  FileRouter,
+  FileRouterError,
+  serializeProviderError,
+} from "../src/index"
 import { fakeProvider } from "../src/testing"
 
 describe("FileRouter", () => {
@@ -78,5 +82,17 @@ describe("FileRouter", () => {
     await expect(router.parse("sample.pdf", { pages: [0] })).rejects.toThrow(
       "Pages must be positive, one-based integers."
     )
+  })
+
+  test("serializes FileRouter errors from another package copy", () => {
+    const error = Object.assign(new Error("rate limited"), {
+      code: "RateLimit",
+      [Symbol.for("file_router.error.FileRouterError")]: true,
+    })
+
+    expect(serializeProviderError(error)).toEqual({
+      code: "RateLimit",
+      message: "rate limited",
+    })
   })
 })
