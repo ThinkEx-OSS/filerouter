@@ -9,13 +9,24 @@ export type HttpErrorStatus =
   | 429
   | 500
 
+interface HttpErrorOptions {
+  code?: string
+  headers?: HeadersInit
+}
+
 export class HttpError extends Error {
   readonly code?: string
+  readonly headers?: HeadersInit
   readonly status: HttpErrorStatus
 
-  constructor(status: HttpErrorStatus, message: string, code?: string) {
+  constructor(
+    status: HttpErrorStatus,
+    message: string,
+    options: HttpErrorOptions = {}
+  ) {
     super(message)
-    this.code = code
+    this.code = options.code
+    this.headers = options.headers
     this.name = "HttpError"
     this.status = status
   }

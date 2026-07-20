@@ -4,6 +4,10 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth/minimal"
 import { bearer, deviceAuthorization } from "better-auth/plugins"
 import { tanstackStartCookies } from "better-auth/tanstack-start"
+import {
+  FILEROUTER_API_KEY_PREFIX,
+  FILEROUTER_CLI_CLIENT_ID,
+} from "@file_router/sdk/hosted"
 
 import type { Db } from "@/db/server"
 import { createDb } from "@/db/server"
@@ -16,6 +20,17 @@ interface AuthRuntimeEnv {
   GOOGLE_CLIENT_SECRET?: string
 }
 
+const DEVELOPMENT_AUTH_ORIGINS = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://localhost:3002",
+  "http://127.0.0.1:3002",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]
+
 function getAuthSecret(env: AuthRuntimeEnv) {
   if (env.BETTER_AUTH_SECRET) {
     return env.BETTER_AUTH_SECRET
@@ -25,23 +40,13 @@ function getAuthSecret(env: AuthRuntimeEnv) {
 }
 
 function getAuthBaseURL(env: AuthRuntimeEnv) {
-  return env.BETTER_AUTH_URL ?? "http://localhost:3000"
-}
-
-function getTrustedOrigins(baseURL: string) {
-  return Array.from(
-    new Set([
-      baseURL,
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://localhost:3001",
-      "http://127.0.0.1:3001",
-      "http://localhost:3002",
-      "http://127.0.0.1:3002",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ])
-  )
+  if (env.BETTER_AUTH_URL) {
+    return env.BETTER_AUTH_URL
+  }
+  if (import.meta.env.DEV) {
+    return "http://localhost:3000"
+  }
+  throw new Error("BETTER_AUTH_URL is not configured")
 }
 
 function createAuth(database: Db, env: AuthRuntimeEnv) {
@@ -56,7 +61,7 @@ function createAuth(database: Db, env: AuthRuntimeEnv) {
     }),
     secret: getAuthSecret(env),
     baseURL,
-    trustedOrigins: getTrustedOrigins(baseURL),
+    trustedOrigins: import.meta.env.DEV ? DEVELOPMENT_AUTH_ORIGINS : undefined,
     session: {
       expiresIn: 60 * 60 * 24 * 90,
       updateAge: 60 * 60 * 24,
@@ -85,7 +90,7 @@ function createAuth(database: Db, env: AuthRuntimeEnv) {
         : undefined,
     plugins: [
       apiKey({
-        defaultPrefix: "fr_",
+        defaultPrefix: FILEROUTER_API_KEY_PREFIX,
         enableMetadata: true,
         keyExpiration: {
           defaultExpiresIn: 60 * 60 * 24 * 365,
@@ -105,7 +110,7 @@ function createAuth(database: Db, env: AuthRuntimeEnv) {
       deviceAuthorization({
         expiresIn: "10m",
         interval: "5s",
-        validateClient: (clientId) => clientId === "filerouter-cli",
+        validateClient: (clientId) => clientId === FILEROUTER_CLI_CLIENT_ID,
         verificationUri: "/device",
       }),
       tanstackStartCookies(),

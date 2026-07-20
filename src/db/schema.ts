@@ -6,6 +6,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core"
 import type { ParseOutput } from "@file_router/sdk"
+import { hostedJobStatuses } from "@file_router/sdk/hosted"
 import type { ProviderId } from "@file_router/sdk/catalog"
 
 export const user = sqliteTable("user", {
@@ -166,7 +167,7 @@ export const documentJob = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     operation: text("operation", { enum: ["parse", "compare"] }).notNull(),
     status: text("status", {
-      enum: ["queued", "running", "complete", "failed"],
+      enum: hostedJobStatuses,
     })
       .default("queued")
       .notNull(),

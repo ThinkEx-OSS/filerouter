@@ -55,6 +55,9 @@ describe("FileRouter Worker", () => {
     })
 
     expect(createJob.status).toBe(401)
+    expect(createJob.headers.get("www-authenticate")).toBe(
+      'Bearer realm="FileRouter"'
+    )
     await expect(createJob.json<{ detail: string }>()).resolves.toMatchObject({
       detail: "Missing FileRouter API key.",
     })
@@ -135,6 +138,31 @@ describe("FileRouter Worker", () => {
       .run()
     await expect(requireApiPrincipal(request, "read")).rejects.toMatchObject({
       status: 401,
+    })
+  })
+
+  test("returns API-key rate limits as retryable responses", async () => {
+    await insertUser("user-rate-limit")
+    const created = await withAuth((auth) =>
+      auth.api.createApiKey({
+        body: { name: "Rate limit test", userId: "user-rate-limit" },
+      })
+    )
+    await env.DB.prepare(
+      "UPDATE apikey SET request_count = 300, last_request = ? WHERE id = ?"
+    )
+      .bind(Math.floor(Date.now() / 1_000), created.id)
+      .run()
+
+    const response = await SELF.fetch(
+      "https://filerouter.test/api/v1/jobs/550e8400-e29b-41d4-a716-446655440000",
+      { headers: { Authorization: `Bearer ${created.key}` } }
+    )
+
+    expect(response.status).toBe(429)
+    expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0)
+    await expect(response.json<{ code: string }>()).resolves.toMatchObject({
+      code: "api_key_rate_limited",
     })
   })
 

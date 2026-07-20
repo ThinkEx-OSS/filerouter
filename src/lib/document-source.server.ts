@@ -64,7 +64,9 @@ export async function getProviderSourceResponse(
       token
     ))
   ) {
-    throw new HttpError(404, "Document source not found.", "source_not_found")
+    throw new HttpError(404, "Document source not found.", {
+      code: "source_not_found",
+    })
   }
 
   const key = `jobs/${jobId}/source`
@@ -77,7 +79,9 @@ export async function getProviderSourceResponse(
   } else if (request.headers.has("range")) {
     const metadata = await env.FILEROUTER_FILES.head(key)
     if (!metadata || metadata.customMetadata?.fileName !== normalizedName) {
-      throw new HttpError(404, "Document source not found.", "source_not_found")
+      throw new HttpError(404, "Document source not found.", {
+        code: "source_not_found",
+      })
     }
     const range = parseRange(request.headers.get("range"), metadata.size)
     if (!range) {
@@ -94,7 +98,9 @@ export async function getProviderSourceResponse(
     body = result?.body ?? null
   }
   if (!object || object.customMetadata?.fileName !== normalizedName) {
-    throw new HttpError(404, "Document source not found.", "source_not_found")
+    throw new HttpError(404, "Document source not found.", {
+      code: "source_not_found",
+    })
   }
 
   const headers = new Headers()

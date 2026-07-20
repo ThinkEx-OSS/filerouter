@@ -1,4 +1,5 @@
 import type { Context, Env } from "hono"
+import { FILEROUTER_DEFAULT_API_URL } from "@file_router/sdk/hosted"
 
 import type { HttpError } from "@/lib/http.server"
 
@@ -20,6 +21,9 @@ export function problemResponse<E extends Env>(
 ): Response {
   const metadata = statusMetadata[error.status]
   const requestId = context.get("requestId")
+  const headers = new Headers(error.headers)
+  headers.set("Content-Type", "application/problem+json")
+  headers.set("X-Request-Id", requestId)
 
   return Response.json(
     {
@@ -29,13 +33,10 @@ export function problemResponse<E extends Env>(
       request_id: requestId,
       status: error.status,
       title: metadata.title,
-      type: `https://filerouter.dev/problems/${error.code ?? metadata.code}`,
+      type: `${FILEROUTER_DEFAULT_API_URL}/problems/${error.code ?? metadata.code}`,
     },
     {
-      headers: {
-        "Content-Type": "application/problem+json",
-        "X-Request-Id": requestId,
-      },
+      headers,
       status: error.status,
     }
   )

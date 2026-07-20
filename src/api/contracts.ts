@@ -1,5 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi"
 import { parseOutputIds } from "@file_router/sdk"
+import {
+  HOSTED_JOB_HEADERS,
+  HOSTED_JOBS_PATH,
+  hostedJobStatuses,
+} from "@file_router/sdk/hosted"
 import { providerIds } from "@file_router/sdk/catalog"
 
 export const ProviderIdSchema = z.enum(providerIds)
@@ -48,21 +53,21 @@ const IdempotencyKeySchema = z.string().trim().min(8).max(255).openapi({
 
 const CreateJobHeadersSchema = z.object({
   "idempotency-key": IdempotencyKeySchema,
-  "x-filerouter-filename": z.string().optional(),
-  "x-filerouter-include-raw": z.enum(["true", "false"]).optional(),
-  "x-filerouter-operation": z.enum(["parse", "compare"]).optional(),
-  "x-filerouter-outputs": z.string().optional(),
-  "x-filerouter-pages": z.string().optional(),
-  "x-filerouter-provider": ProviderIdSchema.optional(),
-  "x-filerouter-provider-options": z.string().optional(),
-  "x-filerouter-providers": z.string().optional(),
+  [HOSTED_JOB_HEADERS.fileName]: z.string().optional(),
+  [HOSTED_JOB_HEADERS.includeRaw]: z.enum(["true", "false"]).optional(),
+  [HOSTED_JOB_HEADERS.operation]: z.enum(["parse", "compare"]).optional(),
+  [HOSTED_JOB_HEADERS.outputs]: z.string().optional(),
+  [HOSTED_JOB_HEADERS.pages]: z.string().optional(),
+  [HOSTED_JOB_HEADERS.provider]: ProviderIdSchema.optional(),
+  [HOSTED_JOB_HEADERS.providerOptions]: z.string().optional(),
+  [HOSTED_JOB_HEADERS.providers]: z.string().optional(),
 })
 
 export const JobIdSchema = z.string().uuid().openapi({
   example: "550e8400-e29b-41d4-a716-446655440000",
 })
 
-const JobStatusSchema = z.enum(["queued", "running", "complete", "failed"])
+const JobStatusSchema = z.enum(hostedJobStatuses)
 
 const JobAcceptedSchema = z
   .object({ id: JobIdSchema, status: JobStatusSchema })
@@ -72,7 +77,7 @@ const JobResponseSchema = z
   .union([
     z.object({ id: JobIdSchema, status: z.enum(["queued", "running"]) }),
     z.object({
-      error: z.string().nullable(),
+      error: z.string(),
       id: JobIdSchema,
       status: z.literal("failed"),
     }),
@@ -105,7 +110,7 @@ export const createJobRoute = createRoute({
   description:
     "Creates a hosted parse or comparison job. Send JSON for public URLs or a binary body with X-FileRouter-* headers for uploads.",
   method: "post",
-  path: "/api/v1/jobs",
+  path: HOSTED_JOBS_PATH,
   request: {
     body: {
       content: {
@@ -114,7 +119,7 @@ export const createJobRoute = createRoute({
           schema: z.string().openapi({ format: "binary" }),
         },
       },
-      required: false,
+      required: true,
     },
     headers: CreateJobHeadersSchema,
   },
@@ -131,6 +136,7 @@ export const createJobRoute = createRoute({
     401: problem,
     409: problem,
     413: problem,
+    429: problem,
     500: problem,
   },
   security: [{ BearerAuth: [] }],
@@ -140,16 +146,18 @@ export const createJobRoute = createRoute({
 
 export const getJobRoute = createRoute({
   method: "get",
-  path: "/api/v1/jobs/{jobId}",
+  path: `${HOSTED_JOBS_PATH}/{jobId}`,
   request: { params: z.object({ jobId: JobIdSchema }) },
   responses: {
     200: {
       content: { "application/json": { schema: JobResponseSchema } },
       description: "Current job state or completed result",
     },
+    400: problem,
     401: problem,
     404: problem,
     410: problem,
+    429: problem,
     500: problem,
   },
   security: [{ BearerAuth: [] }],

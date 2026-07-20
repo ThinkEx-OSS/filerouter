@@ -1,6 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi"
 import { createMiddleware } from "hono/factory"
 import { requestId } from "hono/request-id"
+import {
+  FILEROUTER_DEFAULT_API_URL,
+  HOSTED_JOBS_PATH,
+} from "@file_router/sdk/hosted"
 
 import { createJobRoute, getJobRoute, JobIdSchema } from "@/api/contracts"
 import { problemResponse } from "@/api/problem"
@@ -32,7 +36,7 @@ export const api = new OpenAPIHono<ApiBindings>({
       throw new HttpError(
         400,
         result.error.issues[0]?.message ?? "Invalid request.",
-        "invalid_request"
+        { code: "invalid_request" }
       )
     }
   },
@@ -55,19 +59,19 @@ api.onError((error, context) => {
   )
   return problemResponse(
     context,
-    new HttpError(500, "Internal server error", "internal_error")
+    new HttpError(500, "Internal server error", { code: "internal_error" })
   )
 })
 
 api.notFound((context) =>
   problemResponse(
     context,
-    new HttpError(404, "API route not found.", "route_not_found")
+    new HttpError(404, "API route not found.", { code: "route_not_found" })
   )
 )
 
-api.use("/api/v1/jobs", requireApiKey("create"))
-api.use("/api/v1/jobs/:jobId", requireApiKey("read"))
+api.use(HOSTED_JOBS_PATH, requireApiKey("create"))
+api.use(`${HOSTED_JOBS_PATH}/:jobId`, requireApiKey("read"))
 
 api.get("/api/v1/health", async (context) => {
   await context.env.DB.prepare("SELECT 1").first()
@@ -93,10 +97,10 @@ api.openapi(createJobRoute, async (context) => {
   return context.json(result.job, 202)
 })
 
-api.get("/api/v1/jobs/:jobId", async (context) => {
+api.get(`${HOSTED_JOBS_PATH}/:jobId`, async (context) => {
   const jobId = JobIdSchema.safeParse(context.req.param("jobId"))
   if (!jobId.success) {
-    throw new HttpError(400, "Invalid job id.", "invalid_job_id")
+    throw new HttpError(400, "Invalid job id.", { code: "invalid_job_id" })
   }
   const response = await getDocumentJobResponse(
     jobId.data,
@@ -110,7 +114,9 @@ api.openAPIRegistry.registerPath(getJobRoute)
 api.on(["GET", "HEAD"], "/api/v1/sources/:jobId/:fileName", async (context) => {
   const jobId = JobIdSchema.safeParse(context.req.param("jobId"))
   if (!jobId.success) {
-    throw new HttpError(404, "Document source not found.", "source_not_found")
+    throw new HttpError(404, "Document source not found.", {
+      code: "source_not_found",
+    })
   }
   return getProviderSourceResponse(
     context.req.raw,
@@ -135,5 +141,5 @@ api.doc31("/api/openapi.json", {
     version: "0.1.0",
   },
   openapi: "3.1.0",
-  servers: [{ url: "https://filerouter.dev" }],
+  servers: [{ url: FILEROUTER_DEFAULT_API_URL }],
 })

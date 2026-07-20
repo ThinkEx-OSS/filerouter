@@ -1,8 +1,14 @@
 import {
+  DEFAULT_PARSE_OUTPUT,
   normalizeDocumentFileName,
   resolveDocumentMimeType,
 } from "@file_router/sdk"
 import type { ParseOutput, ProviderParseOptions } from "@file_router/sdk"
+import { DEFAULT_PROVIDER_ID } from "@file_router/sdk/catalog"
+import {
+  HOSTED_JOB_HEADERS,
+  MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES,
+} from "@file_router/sdk/hosted"
 
 import {
   DocumentJobRequestSchema,
@@ -18,8 +24,16 @@ import { HttpError } from "@/lib/http.server"
 
 const providerIds = ProviderIdSchema.options
 const blockedHostedOptions: Record<ProviderId, ReadonlySet<string>> = {
-  datalab: new Set(["file", "file_url", "webhook_url"]),
+  datalab: new Set([
+    "checkpoint_id",
+    "eval_rubric_id",
+    "file",
+    "file_url",
+    "webhook_url",
+    "workflowstepdata_id",
+  ]),
   llamaparse: new Set([
+    "configuration_id",
     "file_id",
     "http_proxy",
     "organization_id",
@@ -68,26 +82,28 @@ export async function readDocumentJobInput(
     throw new HttpError(
       413,
       `Hosted uploads are limited to ${MAX_HOSTED_UPLOAD_LABEL}.`,
-      "upload_too_large"
+      { code: "upload_too_large" }
     )
   }
   const operation = parseOperation(
-    request.headers.get("x-filerouter-operation") ?? "parse"
+    request.headers.get(HOSTED_JOB_HEADERS.operation) ?? "parse"
   )
   const fileName = decodeFileName(
-    request.headers.get("x-filerouter-filename") ?? "document"
+    request.headers.get(HOSTED_JOB_HEADERS.fileName) ?? "document"
   )
   return {
-    includeRaw: request.headers.get("x-filerouter-include-raw") === "true",
+    includeRaw: request.headers.get(HOSTED_JOB_HEADERS.includeRaw) === "true",
     operation,
     outputs: parseOutputArray(
-      request.headers.get("x-filerouter-outputs")?.split(",") ?? ["markdown"]
+      request.headers.get(HOSTED_JOB_HEADERS.outputs)?.split(",") ?? [
+        DEFAULT_PARSE_OUTPUT,
+      ]
     ),
     ...parseHeaderOptions(request),
     providers: parseProviders(
       operation,
-      request.headers.get("x-filerouter-provider"),
-      request.headers.get("x-filerouter-providers")
+      request.headers.get(HOSTED_JOB_HEADERS.provider),
+      request.headers.get(HOSTED_JOB_HEADERS.providers)
     ),
     source: {
       body: request.body,
@@ -107,7 +123,7 @@ function readJsonJobInput(value: unknown): DocumentJobInput {
     throw new HttpError(
       400,
       result.error.issues[0]?.message ?? "Invalid document job request.",
-      "invalid_job_request"
+      { code: "invalid_job_request" }
     )
   }
   const { includeRaw, operation, outputs, pages, providerOptions, source } =
@@ -123,7 +139,7 @@ function readJsonJobInput(value: unknown): DocumentJobInput {
     }),
     providers:
       operation === "parse"
-        ? [result.data.provider ?? "llamaparse"]
+        ? [result.data.provider ?? DEFAULT_PROVIDER_ID]
         : [...new Set(result.data.providers ?? providerIds)],
     source: { fileName: fileNameFromUrl(url), kind: "url", url },
   }
@@ -132,8 +148,8 @@ function readJsonJobInput(value: unknown): DocumentJobInput {
 function parseHeaderOptions(
   request: Request
 ): Pick<DocumentJobInput, "pages" | "providerOptions"> {
-  const pagesHeader = request.headers.get("x-filerouter-pages")
-  const optionsHeader = request.headers.get("x-filerouter-provider-options")
+  const pagesHeader = request.headers.get(HOSTED_JOB_HEADERS.pages)
+  const optionsHeader = request.headers.get(HOSTED_JOB_HEADERS.providerOptions)
   const pages = pagesHeader
     ? pagesHeader.split(",").map((page) => Number(page.trim()))
     : undefined
@@ -144,6 +160,15 @@ function parseHeaderOptions(
 
   if (!optionsHeader) {
     return pages ? { pages: [...new Set(pages)] } : {}
+  }
+  if (
+    new TextEncoder().encode(optionsHeader).byteLength >
+    MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES
+  ) {
+    throw new HttpError(
+      400,
+      `Provider options exceed the ${MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES / 1024} KiB header limit.`
+    )
   }
 
   let value: unknown
@@ -173,7 +198,7 @@ function parseProviders(
 ): Array<ProviderId> {
   const values =
     operation === "parse"
-      ? [typeof provider === "string" ? provider : "llamaparse"]
+      ? [typeof provider === "string" ? provider : DEFAULT_PROVIDER_ID]
       : Array.isArray(providers)
         ? providers
         : typeof providers === "string"
@@ -235,15 +260,15 @@ function validateHostedProviderOptions(value: unknown): ProviderParseOptions {
         `Provider options for ${providerId} must be an object.`
       )
     }
-    assertAllowedOptionKeys(providerId, options)
+    assertHostedOptionsAreSafe(providerId, options)
     if (providerId === "datalab" && isRecord(options.raw)) {
-      assertAllowedOptionKeys(providerId, options.raw)
+      assertHostedOptionsAreSafe(providerId, options.raw)
     }
   }
   return value as ProviderParseOptions
 }
 
-function assertAllowedOptionKeys(
+function assertHostedOptionsAreSafe(
   providerId: ProviderId,
   options: Record<string, unknown>
 ): void {
