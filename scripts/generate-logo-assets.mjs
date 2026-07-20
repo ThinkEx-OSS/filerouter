@@ -23,7 +23,7 @@ const CELL_MAP = [
 ]
 
 const cells = CELL_MAP.flatMap((row, y) =>
-  [...row].flatMap((value, x) => (value === "#" ? [{ x, y }] : []))
+  Array.from(row).flatMap((value, x) => (value === "#" ? [{ x, y }] : []))
 )
 
 function cellRect({ x, y }) {
