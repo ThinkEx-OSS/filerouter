@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm"
+import type { HostedJobStatus } from "@file_router/sdk/hosted"
 
 import { documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
@@ -14,7 +15,7 @@ import type { DocumentWorkflowParams } from "@/workflows/document-workflow"
 type CreateDocumentJobResult = {
   job: {
     id: string
-    status: "complete" | "failed" | "queued" | "running"
+    status: HostedJobStatus
   }
   replayed: boolean
 }
@@ -41,13 +42,15 @@ export async function createDocumentJob(
       storeUploadedSource(input, sourceKey, env.FILEROUTER_FILES),
     ])
     if (storedSource?.size === 0) {
-      throw new HttpError(400, "Document is empty.", "empty_document")
+      throw new HttpError(400, "Document is empty.", {
+        code: "empty_document",
+      })
     }
     if (storedSource && storedSource.size > MAX_HOSTED_UPLOAD_BYTES) {
       throw new HttpError(
         413,
         `Hosted uploads are limited to ${MAX_HOSTED_UPLOAD_LABEL}.`,
-        "upload_too_large"
+        { code: "upload_too_large" }
       )
     }
     const requestHash = await hashToken(
@@ -186,7 +189,11 @@ export async function getDocumentJobResponse(
     throw new HttpError(404, "Document job not found.")
   }
   if (job.status === "failed") {
-    return { id, status: "failed" as const, error: job.error }
+    return {
+      id,
+      status: "failed" as const,
+      error: job.error ?? "Document job failed.",
+    }
   }
   if (job.status !== "complete") {
     return { id, status: job.status }
@@ -207,11 +214,9 @@ export async function getDocumentJobResponse(
         })
       }
     }
-    throw new HttpError(
-      410,
-      "Document job result has expired.",
-      "result_expired"
-    )
+    throw new HttpError(410, "Document job result has expired.", {
+      code: "result_expired",
+    })
   }
   if (!job.resultKey) {
     throw new HttpError(500, "Document job result is unavailable.")
@@ -315,7 +320,7 @@ async function replayDocumentJob(
     throw new HttpError(
       409,
       "Idempotency key was already used for a different request.",
-      "idempotency_conflict"
+      { code: "idempotency_conflict" }
     )
   }
   return {
