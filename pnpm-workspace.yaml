@@ -1,0 +1,32 @@
+packages:
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  lightningcss: true
+  msw: false
+  sharp: true
+  unrs-resolver: true
+  workerd: true
+
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.5
+  vite-plus: 0.2.5
+  vitest: 4.1.10
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd
+
+overrides:
+  vite: "catalog:"
+  vitest: "catalog:"
+
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: "*"
+    vitest: "*"

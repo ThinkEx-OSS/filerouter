@@ -1,0 +1,17 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.env*
+.dev.vars*
+!.dev.vars.example
+.tanstack
+.wrangler
+.firecrawl/
+.output
+.vinxi
+__unconfig*
+todos.json
+# typescript
+*.tsbuildinfo

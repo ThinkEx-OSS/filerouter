@@ -1,0 +1,82 @@
+{
+  "name": "filerouter-root",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev --port 3000",
+    "build": "pnpm build:packages && vp build",
+    "build:packages": "pnpm --filter @file_router/sdk build && pnpm --filter @file_router/cli build",
+    "prepare": "vp config --no-agent",
+    "preview": "vp preview",
+    "deploy": "vp build && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply filerouter --local",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "db:check": "drizzle-kit check",
+    "r2:lifecycle": "wrangler r2 bucket lifecycle set filerouter-files --file infra/r2-lifecycle.json --force",
+    "test": "vp test run --passWithNoTests && pnpm test:worker && pnpm --filter @file_router/sdk test && pnpm --filter @file_router/cli test",
+    "test:worker": "vitest run --config vitest.worker.config.ts",
+    "lint": "vp lint",
+    "format": "vp fmt",
+    "check": "vp check",
+    "typecheck": "pnpm build:packages && tsc --noEmit && pnpm --filter @file_router/sdk typecheck && pnpm --filter @file_router/cli typecheck",
+    "cli": "pnpm build:packages && node packages/cli/dist/cli.js"
+  },
+  "dependencies": {
+    "@better-auth/api-key": "^1.6.23",
+    "@carrot-kpi/switzer-font": "^0.1.0",
+    "@file_router/sdk": "workspace:*",
+    "@hono/zod-openapi": "^1.5.1",
+    "@llamaindex/llama-cloud": "^2.10.0",
+    "@mistralai/mistralai": "^2.5.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tailwindcss/vite": "^4",
+    "@tanstack/react-devtools": "0.10.8",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "1.170.18",
+    "@tanstack/react-router-devtools": "1.167.0",
+    "@tanstack/react-router-ssr-query": "1.167.1",
+    "@tanstack/react-start": "1.168.30",
+    "better-auth": "^1.6.23",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.31",
+    "radix-ui": "^1.6.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.43.0",
+    "@cloudflare/vitest-pool-workers": "0.18.6",
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
+    "@tanstack/devtools-vite": "0.8.1",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^6",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "^4.107.0"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "knip": {
+    "ignore": [
+      "test/worker/entry.ts"
+    ],
+    "ignoreDependencies": [
+      "cloudflare"
+    ]
+  }
+}
