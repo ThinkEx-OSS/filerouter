@@ -1,0 +1,53 @@
+{
+  "name": "@file_router/cli",
+  "version": "0.1.0",
+  "description": "Parse and compare documents across providers from the command line.",
+  "keywords": [
+    "documents",
+    "filerouter",
+    "ocr",
+    "parsing",
+    "pdf"
+  ],
+  "homepage": "https://filerouter.dev",
+  "bugs": {
+    "url": "https://github.com/ThinkEx-OSS/filerouter/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ThinkEx-OSS/filerouter.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "filerouter": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@file_router/sdk": "workspace:*",
+    "@llamaindex/llama-cloud": "^2.10.0",
+    "@mistralai/mistralai": "^2.5.0",
+    "citty": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsup": "^8.5.1",
+    "typescript": "^6",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}
