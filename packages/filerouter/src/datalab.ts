@@ -4,6 +4,7 @@ import { isRecord, requestJson } from "./internal/http"
 import { selectOutputs } from "./internal/outputs"
 import { providerOptions } from "./internal/provider-options"
 import { waitForProviderJob } from "./internal/polling"
+import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   FileRouterProvider,
   ParsedImage,
@@ -47,6 +48,7 @@ export interface DatalabParseOptions {
   checkpoint_id?: string
   disable_image_captions?: boolean
   disable_image_extraction?: boolean
+  eval_rubric_id?: number
   extras?: string
   fence_synthetic_captions?: boolean
   format_lines?: boolean
@@ -54,6 +56,7 @@ export interface DatalabParseOptions {
   include_markdown_in_chunks?: boolean
   max_pages?: number
   mode?: DatalabMode
+  model_override_settings?: string
   output_format?: Array<DatalabOutputFormat> | string
   page_range?: string
   paginate?: boolean
@@ -65,6 +68,7 @@ export interface DatalabParseOptions {
   use_llm?: boolean
   webhook_url?: string
   word_bboxes?: boolean
+  workflowstepdata_id?: number
 }
 
 interface DatalabSubmitResponse {
@@ -132,7 +136,7 @@ async function submitDatalab(
   }
 
   const baseURL = trimTrailingSlash(options.baseURL ?? DEFAULT_BASE_URL)
-  const outputs = parseOptions.outputs ?? ["markdown"]
+  const outputs = parseOptions.outputs ?? [DEFAULT_PARSE_OUTPUT]
   const body = await createFormData(input, outputs, parseOptions, options)
   const submitted = await requestJson<DatalabSubmitResponse>(
     `${baseURL}/convert`,
@@ -196,7 +200,7 @@ async function getDatalabJob(
       result: normalizeDatalab(
         raw,
         job.id,
-        parseOptions.outputs ?? ["markdown"],
+        parseOptions.outputs ?? [DEFAULT_PARSE_OUTPUT],
         parseOptions.includeRaw === true,
         new Date(job.submittedAt)
       ),
@@ -272,6 +276,19 @@ function normalizeDatalab(
   const pageCount = readNumber(raw.page_count) ?? pages.length
   const qualityScore = readNumber(raw.parse_quality_score)
   const totalCost = readNumber(raw.total_cost)
+  const metadata = {
+    ...(isRecord(raw.metadata) ? raw.metadata : {}),
+    ...(typeof raw.checkpoint_id === "string" && {
+      checkpointId: raw.checkpoint_id,
+    }),
+    ...(isRecord(raw.cost_breakdown) && {
+      costBreakdown: raw.cost_breakdown,
+    }),
+    ...(typeof raw.output_format === "string" && {
+      outputFormat: raw.output_format,
+    }),
+    ...(isRecord(raw.versions) && { versions: raw.versions }),
+  }
   const completedAt = new Date()
   return {
     id,
@@ -281,7 +298,7 @@ function normalizeDatalab(
       images,
       json,
       markdown,
-      ...(isRecord(raw.metadata) && { metadata: raw.metadata }),
+      metadata,
     }),
     pageCount,
     provider: PROVIDER_ID,
@@ -338,7 +355,7 @@ function datalabOutputs(
     }
   }
   if (supported.size === 0) {
-    supported.add("markdown")
+    supported.add(DEFAULT_PARSE_OUTPUT)
   }
   return [...supported] as Array<DatalabOutputFormat>
 }

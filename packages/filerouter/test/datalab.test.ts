@@ -17,7 +17,10 @@ describe("Datalab provider", () => {
       .mockResolvedValueOnce(
         Response.json({
           images: { "figure.png": "base64-image" },
+          checkpoint_id: "checkpoint-1",
+          cost_breakdown: { conversion: 7 },
           markdown: "# Done",
+          output_format: "markdown,json",
           page_count: 2,
           parse_quality_score: 4.5,
           status: "complete",
@@ -36,7 +39,7 @@ describe("Datalab provider", () => {
         url: "https://example.com/report.pdf",
       },
       {
-        outputs: ["markdown", "images"],
+        outputs: ["markdown", "images", "metadata"],
         pages: [1, 3],
         providerOptions: {
           datalab: {
@@ -55,7 +58,7 @@ describe("Datalab provider", () => {
       throw new Error("Expected a Datalab job reference.")
     }
     const status = await provider.jobs?.get(job, {
-      outputs: ["markdown", "images"],
+      outputs: ["markdown", "images", "metadata"],
     })
     if (status?.status !== "complete") {
       throw new Error("Expected a completed Datalab job.")
@@ -70,6 +73,11 @@ describe("Datalab provider", () => {
         name: "figure.png",
       }),
     ])
+    expect(result.outputs.metadata).toMatchObject({
+      checkpointId: "checkpoint-1",
+      costBreakdown: { conversion: 7 },
+      outputFormat: "markdown,json",
+    })
     expect(result.quality).toEqual({ score: 4.5, scale: 5 })
     expect(result.usage).toMatchObject({ costUsd: 0.07, pages: 2 })
     expect(fetchMock).toHaveBeenCalledTimes(2)

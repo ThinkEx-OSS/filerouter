@@ -1,6 +1,7 @@
 import { FileRouterError, toFileRouterError } from "./errors"
 import { describeInput, resolveParseInput } from "./internal/input"
 import { assertPages } from "./internal/provider-options"
+import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   CompareOptions,
   CompareProviderResult,
@@ -39,7 +40,7 @@ export class FileRouter<Providers extends ProviderMap = ProviderMap> {
   ): Promise<ParseResult> {
     assertPages(options.pages)
     const provider = this.#selectProvider(options.provider)
-    const outputs = options.outputs ?? ["markdown"]
+    const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
 
     assertProviderOutputs(provider, outputs)
     const normalizedInput = await resolveParseInput(input)
@@ -60,7 +61,7 @@ export class FileRouter<Providers extends ProviderMap = ProviderMap> {
   ): Promise<CompareResult> {
     assertPages(options.pages)
     const startedAt = new Date()
-    const outputs = options.outputs ?? ["markdown"]
+    const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
     const providerIds = options.providers ?? Object.keys(this.#providers)
     const normalizedInput = await resolveParseInput(input)
     const providers = await Promise.all(
@@ -106,7 +107,7 @@ export class FileRouter<Providers extends ProviderMap = ProviderMap> {
     }
 
     try {
-      assertProviderOutputs(provider, options.outputs ?? ["markdown"])
+      assertProviderOutputs(provider, options.outputs ?? [DEFAULT_PARSE_OUTPUT])
     } catch (error) {
       return {
         durationMs: Date.now() - startedAt,

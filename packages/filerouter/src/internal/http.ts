@@ -1,4 +1,5 @@
 import { FileRouterError } from "../errors"
+import type { FileRouterErrorCode } from "../errors"
 
 export interface JsonRequestOptions extends RequestInit {
   fetch?: typeof globalThis.fetch | undefined
@@ -18,25 +19,46 @@ export async function requestJson<T>(
   const payload = await readJson(response)
 
   if (!response.ok) {
+    const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"))
     throw new FileRouterError(readErrorMessage(payload, response.statusText), {
       code: errorCodeForStatus(response.status),
       providerId,
+      ...(retryAfterMs !== undefined && { retryAfterMs }),
+      statusCode: response.status,
     })
   }
 
   return payload as T
 }
 
-function errorCodeForStatus(
-  status: number
-): "Auth" | "ParseFailed" | "RateLimit" {
+function errorCodeForStatus(status: number): FileRouterErrorCode {
   if (status === 401 || status === 403) {
     return "Auth"
+  }
+  if (status === 408 || status === 504) {
+    return "Timeout"
   }
   if (status === 429) {
     return "RateLimit"
   }
+  if (status >= 500) {
+    return "ProviderUnavailable"
+  }
   return "ParseFailed"
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  const normalized = value?.trim()
+  if (!normalized) {
+    return undefined
+  }
+  if (/^\d+$/.test(normalized)) {
+    const milliseconds = Number(normalized) * 1000
+    return Number.isSafeInteger(milliseconds) ? milliseconds : undefined
+  }
+
+  const retryAt = Date.parse(normalized)
+  return Number.isNaN(retryAt) ? undefined : Math.max(0, retryAt - Date.now())
 }
 
 function readErrorMessage(payload: unknown, fallback: string): string {

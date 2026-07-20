@@ -1,6 +1,8 @@
 import { describe, expect, test, vi } from "vite-plus/test"
 
 import { FileRouterClient } from "../src/client"
+import { FileRouterError } from "../src/errors"
+import { MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES } from "../src/hosted"
 
 describe("FileRouterClient", () => {
   test("creates and waits for hosted parse jobs", async () => {
@@ -147,6 +149,87 @@ describe("FileRouterClient", () => {
 
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
     expect(headers.get("idempotency-key")).toBe("retry-job-3")
+  })
+
+  test("applies the timeout before creating a hosted job", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: fetchMock,
+    })
+
+    await expect(
+      client.parse("https://example.com/report.pdf", { timeoutMs: 0 })
+    ).rejects.toMatchObject({ code: "Timeout" })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test("exposes retry details from hosted API errors", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        Response.json(
+          { detail: "Try again later." },
+          { headers: { "Retry-After": "3" }, status: 429 }
+        )
+      )
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: fetchMock,
+    })
+
+    const request = client.parse("https://example.com/report.pdf")
+
+    await expect(request).rejects.toMatchObject({
+      code: "RateLimit",
+      providerId: "filerouter",
+      retryable: true,
+      retryAfterMs: 3000,
+      statusCode: 429,
+    })
+    await request.catch((error: unknown) => {
+      expect(FileRouterError.isInstance(error)).toBe(true)
+    })
+  })
+
+  test("rejects provider options that cannot be sent as JSON", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: fetchMock,
+    })
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+
+    await expect(
+      client.parse("https://example.com/report.pdf", {
+        providerOptions: { custom: circular },
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test("bounds provider options carried in upload headers", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: fetchMock,
+    })
+
+    await expect(
+      client.parse(new Blob(["document"], { type: "application/pdf" }), {
+        providerOptions: {
+          custom: {
+            value: "x".repeat(MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES),
+          },
+        },
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 
