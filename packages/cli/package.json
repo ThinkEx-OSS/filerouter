@@ -42,9 +42,9 @@
     "citty": "^0.2.2"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "@types/node": "^26",
     "tsup": "^8.5.1",
-    "typescript": "^6",
+    "typescript": "^7",
     "vitest": "catalog:"
   },
   "engines": {
