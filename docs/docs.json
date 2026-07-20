@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "name": "FileRouter",
-  "description": "One API for document parsing across providers.",
+  "description": "Durable document parsing across providers.",
   "theme": "luma",
   "logo": {
     "light": "/assets/filerouter-wordmark-light.svg",
@@ -33,7 +33,6 @@
   "footer": {
     "socials": {
       "github": "https://github.com/ThinkEx-OSS/filerouter",
-      "x": "https://x.com/trythinkex",
       "discord": "https://discord.gg/dtPnzkqCcG"
     }
   },
