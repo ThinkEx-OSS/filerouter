@@ -49,6 +49,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         name: "theme-color",
         content: "#00bdf7",
       },
+      {
+        name: "robots",
+        content: "index, follow, max-image-preview:large, max-snippet:-1",
+      },
     ],
     links: [
       {
@@ -76,6 +80,17 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       {
         rel: "manifest",
         href: "/manifest.json",
+      },
+      {
+        rel: "sitemap",
+        href: "/sitemap.xml",
+        type: "application/xml",
+      },
+      {
+        rel: "alternate",
+        href: "/llms.txt",
+        type: "text/plain",
+        title: "FileRouter for AI agents",
       },
       {
         rel: "stylesheet",

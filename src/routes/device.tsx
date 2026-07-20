@@ -34,6 +34,12 @@ export const Route = createFileRoute("/device")({
       })
     }
   },
+  head: () => ({
+    meta: [
+      { title: "Connect FileRouter CLI" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: DeviceAuthorizationPage,
 })
 

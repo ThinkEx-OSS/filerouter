@@ -1,3 +1,8 @@
-# https://www.robotstxt.org/robotstxt.html
+# Public product and legal pages are available to search and AI crawlers.
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /device
+
+Sitemap: https://filerouter.dev/sitemap.xml

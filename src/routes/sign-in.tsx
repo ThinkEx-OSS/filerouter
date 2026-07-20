@@ -35,6 +35,7 @@ export const Route = createFileRoute("/sign-in")({
         content:
           "Continue to FileRouter with Google. No account? We'll create one.",
       },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: SignInPage,

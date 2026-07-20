@@ -52,7 +52,14 @@ export const Route = createFileRoute("/cookies")({
     meta: [
       { title: "Cookie Policy — FileRouter" },
       { name: "description", content: cookieDocument.description },
+      { property: "og:title", content: "Cookie Policy — FileRouter" },
+      {
+        property: "og:description",
+        content: cookieDocument.description,
+      },
+      { property: "og:url", content: "https://filerouter.dev/cookies" },
     ],
+    links: [{ rel: "canonical", href: "https://filerouter.dev/cookies" }],
   }),
   component: CookiesPage,
 })

@@ -94,7 +94,14 @@ export const Route = createFileRoute("/privacy")({
     meta: [
       { title: "Privacy Policy — FileRouter" },
       { name: "description", content: privacyDocument.description },
+      { property: "og:title", content: "Privacy Policy — FileRouter" },
+      {
+        property: "og:description",
+        content: privacyDocument.description,
+      },
+      { property: "og:url", content: "https://filerouter.dev/privacy" },
     ],
+    links: [{ rel: "canonical", href: "https://filerouter.dev/privacy" }],
   }),
   component: PrivacyPage,
 })

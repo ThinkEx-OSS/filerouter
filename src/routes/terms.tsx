@@ -89,7 +89,14 @@ export const Route = createFileRoute("/terms")({
     meta: [
       { title: "Terms of Service — FileRouter" },
       { name: "description", content: termsDocument.description },
+      { property: "og:title", content: "Terms of Service — FileRouter" },
+      {
+        property: "og:description",
+        content: termsDocument.description,
+      },
+      { property: "og:url", content: "https://filerouter.dev/terms" },
     ],
+    links: [{ rel: "canonical", href: "https://filerouter.dev/terms" }],
   }),
   component: TermsPage,
 })

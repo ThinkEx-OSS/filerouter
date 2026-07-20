@@ -25,6 +25,12 @@ export const Route = createFileRoute("/dashboard")({
 
     return { session }
   },
+  head: () => ({
+    meta: [
+      { title: "Developer access — FileRouter" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: DashboardPage,
 })
 

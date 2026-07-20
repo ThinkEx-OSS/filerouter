@@ -16,6 +16,62 @@ export const Route = createFileRoute("/")({
 
     return { session }
   },
+  head: () => ({
+    meta: [
+      { title: "FileRouter — One API for document parsing" },
+      {
+        name: "description",
+        content:
+          "Parse and compare documents across providers with one TypeScript SDK, CLI, and hosted API.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "FileRouter" },
+      {
+        property: "og:title",
+        content: "FileRouter — One API for document parsing",
+      },
+      {
+        property: "og:description",
+        content:
+          "Parse and compare documents across providers with one TypeScript SDK, CLI, and hosted API.",
+      },
+      { property: "og:url", content: "https://filerouter.dev/" },
+      { name: "twitter:card", content: "summary" },
+      {
+        name: "twitter:title",
+        content: "FileRouter — One API for document parsing",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Parse and compare documents across providers with one TypeScript SDK, CLI, and hosted API.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://filerouter.dev/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "FileRouter",
+          applicationCategory: "DeveloperApplication",
+          description:
+            "A TypeScript SDK, CLI, and hosted API for parsing and comparing documents across providers.",
+          isAccessibleForFree: true,
+          operatingSystem: "Cross-platform",
+          url: "https://filerouter.dev/",
+          codeRepository: "https://github.com/ThinkEx-OSS/filerouter",
+          softwareHelp: "https://docs.filerouter.dev/",
+          author: {
+            "@type": "Organization",
+            name: "ThinkEx Inc.",
+            url: "https://thinkex.app/",
+          },
+        }),
+      },
+    ],
+  }),
   component: App,
 })
 
@@ -67,8 +123,8 @@ function App() {
 
   return (
     <PublicPageShell>
-      <section className="mx-auto flex w-full max-w-6xl flex-col items-start px-5 pt-20 pb-16 text-left md:pt-28 md:pb-20">
-        <div className="w-full min-w-0">
+      <section className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 pb-16 text-center md:pt-28 md:pb-20">
+        <div className="flex w-full min-w-0 flex-col items-center">
           <h1 className="max-w-5xl text-4xl font-medium tracking-normal text-balance md:text-6xl lg:text-7xl">
             One API for document parsing.
           </h1>
@@ -77,7 +133,7 @@ function App() {
             accuracy, reliability, latency, and cost.
           </p>
 
-          <div className="mt-9 flex w-full max-w-[21rem] flex-col items-start gap-4">
+          <div className="mt-9 flex w-full max-w-[21rem] flex-col items-center gap-4">
             <div className="grid w-full gap-3 sm:grid-cols-2">
               {session ? (
                 <Link
@@ -107,7 +163,7 @@ function App() {
           <p className="mt-12 text-xs font-normal text-muted-foreground uppercase">
             Adapters for
           </p>
-          <div className="mt-4 flex flex-wrap items-center justify-start gap-x-10 gap-y-5">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-5">
             {providerLogos.map((provider) => (
               <div className="inline-flex items-center" key={provider.label}>
                 <img
@@ -145,7 +201,7 @@ function App() {
         </div>
       </section>
 
-      <section className="border-y border-border bg-muted/25" id="sdk">
+      <section className="border-b border-border bg-muted/25" id="sdk">
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
             <p className="text-sm font-normal text-muted-foreground">

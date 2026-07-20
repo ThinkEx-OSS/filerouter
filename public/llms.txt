@@ -1,0 +1,25 @@
+# FileRouter
+
+> FileRouter is a TypeScript SDK, CLI, and hosted API for parsing and comparing documents across providers through one normalized contract.
+
+FileRouter supports two explicit processing modes. Hosted mode sends documents through FileRouter infrastructure to the selected provider. Direct or BYOK mode calls the selected provider from the user's environment, so FileRouter does not receive the document, key, or result. A comparison sends the document to every selected provider.
+
+## Documentation
+
+- [Complete documentation index](https://docs.filerouter.dev/llms.txt): Machine-readable links to every FileRouter documentation page.
+- [Full documentation](https://docs.filerouter.dev/llms-full.txt): The complete FileRouter documentation in one text file.
+- [Quickstart](https://docs.filerouter.dev/quickstart.md): Install the SDK and parse a first document.
+- [Direct or BYOK mode](https://docs.filerouter.dev/sdk/direct-byok.md): Call providers directly with your own credentials instead of routing through FileRouter infrastructure.
+- [API reference](https://docs.filerouter.dev/api/overview.md): Use the hosted HTTP API.
+
+## Product and source
+
+- [FileRouter website](https://filerouter.dev/): Product overview, processing modes, and supported integrations.
+- [GitHub repository](https://github.com/ThinkEx-OSS/filerouter): SDK, CLI, hosted service, and documentation source.
+- [Published SDK metadata](https://registry.npmjs.org/@file_router%2Fsdk): Package versions, metadata, and README from the npm registry.
+
+## Policies
+
+- [Privacy policy](https://filerouter.dev/privacy): Data collection, document processing, providers, retention, and user rights.
+- [Terms of service](https://filerouter.dev/terms): Terms for the website, API, SDK, CLI, and hosted processing.
+- [Cookie policy](https://filerouter.dev/cookies): Authentication, preferences, and scheduling technologies.
