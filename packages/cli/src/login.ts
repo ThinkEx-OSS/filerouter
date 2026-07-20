@@ -1,4 +1,8 @@
 import type { CliRuntime } from "./runtime"
+import {
+  FILEROUTER_CLI_CLIENT_ID,
+  FILEROUTER_CLI_SCOPE,
+} from "@file_router/sdk"
 
 interface DeviceAuthorization {
   device_code: string
@@ -30,14 +34,13 @@ interface CreatedApiKey {
   key: string
 }
 
-const CLIENT_ID = "filerouter-cli"
 const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
 export async function login(runtime: CliRuntime): Promise<void> {
   const authorization = await postJson<DeviceAuthorization>(
     runtime,
     "/api/auth/device/code",
-    { client_id: CLIENT_ID, scope: "jobs:create jobs:read" }
+    { client_id: FILEROUTER_CLI_CLIENT_ID, scope: FILEROUTER_CLI_SCOPE }
   )
 
   runtime.writeStdout(
@@ -55,7 +58,7 @@ export async function login(runtime: CliRuntime): Promise<void> {
       runtime,
       "/api/auth/device/token",
       {
-        client_id: CLIENT_ID,
+        client_id: FILEROUTER_CLI_CLIENT_ID,
         device_code: authorization.device_code,
         grant_type: DEVICE_GRANT,
       }

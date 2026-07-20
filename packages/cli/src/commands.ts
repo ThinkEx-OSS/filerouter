@@ -1,4 +1,6 @@
 import { defineCommand } from "citty"
+import { DEFAULT_PARSE_OUTPUT } from "@file_router/sdk"
+import { DEFAULT_PROVIDER_ID, providerIds } from "@file_router/sdk/catalog"
 
 import { login } from "./login"
 import {
@@ -8,7 +10,6 @@ import {
   parseProviders,
 } from "./output"
 import type { CliRuntime } from "./runtime"
-import { providerIds } from "./runtime"
 
 export function createParseCommand(runtime: CliRuntime) {
   return defineCommand({
@@ -27,13 +28,13 @@ export function createParseCommand(runtime: CliRuntime) {
         alias: ["p"],
         description: "Document provider.",
         options: [...providerIds],
-        default: "llamaparse",
+        default: DEFAULT_PROVIDER_ID,
       },
       outputs: {
         type: "string",
         alias: ["o"],
         description: "Comma-separated outputs.",
-        default: "markdown",
+        default: DEFAULT_PARSE_OUTPUT,
       },
       json: {
         type: "boolean",
@@ -89,7 +90,7 @@ export function createCompareCommand(runtime: CliRuntime) {
         type: "string",
         alias: ["o"],
         description: "Comma-separated outputs.",
-        default: "markdown",
+        default: DEFAULT_PARSE_OUTPUT,
       },
       json: {
         type: "boolean",

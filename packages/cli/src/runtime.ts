@@ -1,5 +1,9 @@
-import { FileRouter, FileRouterClient } from "@file_router/sdk"
-import { builtInProviders, providerIds } from "@file_router/sdk/catalog"
+import {
+  FILEROUTER_DEFAULT_API_URL,
+  FileRouter,
+  FileRouterClient,
+} from "@file_router/sdk"
+import { builtInProviders, DEFAULT_PROVIDER_ID } from "@file_router/sdk/catalog"
 import type {
   CompareOptions,
   CompareResult,
@@ -8,8 +12,6 @@ import type {
   ParseResult,
   ProviderMap,
 } from "@file_router/sdk"
-
-export { providerIds }
 
 interface DocumentRouter {
   compare: (
@@ -33,7 +35,7 @@ export interface CliRuntime {
 
 export function createDefaultRuntime(): CliRuntime {
   const apiURL = trimSlash(
-    process.env.FILEROUTER_API_URL ?? "https://filerouter.dev"
+    process.env.FILEROUTER_API_URL ?? FILEROUTER_DEFAULT_API_URL
   )
   return {
     apiURL,
@@ -91,6 +93,7 @@ function trimSlash(value: string): string {
 function createLocalRouter() {
   const providers: ProviderMap = builtInProviders()
   return new FileRouter({
+    defaultProvider: DEFAULT_PROVIDER_ID,
     providers,
   })
 }
