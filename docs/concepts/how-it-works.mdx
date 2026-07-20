@@ -1,0 +1,39 @@
+---
+title: "How FileRouter works"
+description: "The stable contract between your application and document parsing providers."
+---
+
+FileRouter separates your document pipeline from provider-specific behavior.
+
+<Steps>
+  <Step title="Resolve the input">
+    Pass a file path, public URL, `File`, `Blob`, buffer, typed array, or web
+    stream. FileRouter resolves it into a replayable provider input.
+  </Step>
+  <Step title="Select providers and outputs">
+    Choose one provider with `parse`, or several with `compare`. FileRouter
+    validates requested outputs before starting provider work.
+  </Step>
+  <Step title="Run the provider workflow">
+    Each adapter owns provider authentication, request translation, uploads,
+    polling, and cleanup.
+  </Step>
+  <Step title="Normalize the result">
+    Read the same result envelope regardless of the provider: outputs, page
+    count, timing, usage, and warnings.
+  </Step>
+</Steps>
+
+## Two operations
+
+### `parse`
+
+Processes a document with one provider and returns a `ParseResult`.
+
+### `compare`
+
+Processes the same resolved document across several providers concurrently. The returned `CompareResult` retains a status and duration for every provider, including failures and unsupported output combinations.
+
+## Built-in adapters
+
+The SDK currently includes adapters for `llamaparse`, `mistral-ocr`, and `datalab`. Each adapter advertises its supported outputs and execution model through the provider catalog.

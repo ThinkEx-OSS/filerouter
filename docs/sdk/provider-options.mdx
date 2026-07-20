@@ -1,0 +1,34 @@
+---
+title: "Provider options"
+description: "Pass provider-native settings without leaking them across adapters."
+---
+
+Use `providerOptions` when FileRouter's common options do not expose a provider-specific feature.
+
+```ts
+const result = await client.parse("./report.pdf", {
+  provider: "llamaparse",
+  outputs: ["markdown"],
+  providerOptions: {
+    llamaparse: {
+      tier: "agentic",
+    },
+  },
+})
+```
+
+Each provider reads only its own namespace:
+
+- `providerOptions.llamaparse`
+- `providerOptions["mistral-ocr"]`
+- `providerOptions.datalab`
+
+This keeps native settings available without flattening incompatible provider APIs into one shared object.
+
+<Note>
+  Provider-native fields can change upstream. FileRouter protects
+  transport-owned fields, but you should confirm option names against the
+  provider's documentation and your installed SDK version.
+</Note>
+
+Hosted requests encode provider options as JSON. The encoded options are limited to **64 KiB**.

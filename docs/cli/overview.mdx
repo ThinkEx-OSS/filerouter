@@ -1,0 +1,52 @@
+---
+title: "CLI"
+description: "Parse and compare documents from the terminal."
+---
+
+The CLI requires Node.js 22.14 or newer. Run it without a permanent installation:
+
+```bash
+npx @file_router/cli@latest login
+```
+
+The login command opens FileRouter in your browser, asks you to approve a device code, creates a FileRouter API key, and stores it in your user configuration directory.
+
+## Parse
+
+```bash
+npx @file_router/cli@latest parse report.pdf
+```
+
+```bash
+npx @file_router/cli@latest parse report.pdf \
+  --provider mistral-ocr \
+  --outputs markdown,pages \
+  --json \
+  --out result.json
+```
+
+## Compare
+
+```bash
+npx @file_router/cli@latest compare report.pdf \
+  --providers llamaparse,mistral-ocr,datalab \
+  --outputs markdown
+```
+
+## Direct processing
+
+Add `--local` to use provider API keys from your environment and bypass FileRouter infrastructure:
+
+```bash
+LLAMA_CLOUD_API_KEY="..." \
+  npx @file_router/cli@latest parse report.pdf --local
+```
+
+The built-in adapters read `LLAMA_CLOUD_API_KEY`, `MISTRAL_API_KEY`, and `DATALAB_API_KEY`.
+
+## List adapters
+
+```bash
+npx @file_router/cli@latest providers
+npx @file_router/cli@latest providers --json
+```

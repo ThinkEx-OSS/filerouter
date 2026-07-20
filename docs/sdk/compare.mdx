@@ -1,0 +1,37 @@
+---
+title: "Compare"
+description: "Run one document across providers and retain every outcome."
+---
+
+`compare` resolves the input once and processes it across the requested providers concurrently.
+
+```ts
+const comparison = await client.compare("./contract.pdf", {
+  providers: ["llamaparse", "mistral-ocr", "datalab"],
+  outputs: ["markdown"],
+})
+
+for (const attempt of comparison.providers) {
+  if (attempt.status === "parsed") {
+    console.log(attempt.provider, attempt.durationMs)
+    console.log(attempt.result?.outputs.markdown)
+  } else {
+    console.error(attempt.provider, attempt.error?.message)
+  }
+}
+```
+
+## Provider statuses
+
+| Status        | Meaning                                                         |
+| ------------- | --------------------------------------------------------------- |
+| `parsed`      | The provider returned a normalized result                       |
+| `unsupported` | The provider does not support one or more requested outputs     |
+| `failed`      | The provider is unavailable, unconfigured, or returned an error |
+
+A failed provider does not discard successful results from the others.
+
+<Warning>
+  A comparison sends the document to every selected provider. Consider the data
+  policy and cost of each provider before running it.
+</Warning>

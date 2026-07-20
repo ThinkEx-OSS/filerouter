@@ -1,0 +1,78 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "FileRouter",
+  "description": "One API for document parsing across providers.",
+  "theme": "luma",
+  "logo": {
+    "light": "/assets/filerouter-wordmark-light.svg",
+    "dark": "/assets/filerouter-wordmark-dark.svg",
+    "href": "https://filerouter.dev"
+  },
+  "favicon": "/assets/favicon.svg",
+  "colors": {
+    "primary": "#00bdf7",
+    "light": "#00bdf7",
+    "dark": "#00bdf7"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/ThinkEx-OSS/filerouter"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Dashboard",
+      "href": "https://filerouter.dev/dashboard"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/ThinkEx-OSS/filerouter",
+      "x": "https://x.com/trythinkex",
+      "discord": "https://discord.gg/dtPnzkqCcG"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Start",
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/how-it-works",
+              "concepts/processing-modes",
+              "concepts/results"
+            ]
+          },
+          {
+            "group": "TypeScript SDK",
+            "pages": ["sdk/parse", "sdk/compare", "sdk/provider-options"]
+          },
+          {
+            "group": "CLI",
+            "pages": ["cli/overview"]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Hosted API",
+            "pages": ["api/overview", "api/jobs"]
+          }
+        ]
+      }
+    ]
+  }
+}
