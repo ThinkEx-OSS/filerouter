@@ -27,7 +27,20 @@ export const hostedJobStatuses = [
 
 export type HostedJobStatus = (typeof hostedJobStatuses)[number]
 
+export type HostedJobOperation = "compare" | "parse"
+
 export type HostedJobAccepted = { id: string; status: HostedJobStatus }
+
+export interface HostedJobHandle<
+  Operation extends HostedJobOperation = HostedJobOperation,
+> extends HostedJobAccepted {
+  idempotencyKey: string
+  operation: Operation
+}
+
+export type HostedParseJob = HostedJobHandle<"parse">
+export type HostedCompareJob = HostedJobHandle<"compare">
+export type HostedJob = HostedCompareJob | HostedParseJob
 
 export type HostedJobResponse<Result> =
   | { error: string; id: string; status: "failed" }
