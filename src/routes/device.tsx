@@ -6,11 +6,16 @@ import {
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { createFileRoute, redirect } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { FileRouterBrand } from "@/components/file-router-brand"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
+import {
+  captureBrowserEvent,
+  captureBrowserException,
+  identifyBrowserUser,
+} from "@/integrations/posthog/browser"
 import { authClient } from "@/lib/auth-client"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
 
@@ -33,6 +38,8 @@ export const Route = createFileRoute("/device")({
         search: { redirect: location.href },
       })
     }
+
+    return { session }
   },
   head: () => ({
     meta: [
@@ -44,8 +51,13 @@ export const Route = createFileRoute("/device")({
 })
 
 function DeviceAuthorizationPage() {
+  const { session } = Route.useRouteContext()
   const { code } = Route.useSearch()
   const [outcome, setOutcome] = useState<"approved" | "denied" | null>(null)
+
+  useEffect(() => {
+    identifyBrowserUser(session.user.id)
+  }, [session.user.id])
 
   const verification = useQuery({
     enabled: Boolean(code),
@@ -70,7 +82,12 @@ function DeviceAuthorizationPage() {
       }
       return action === "approve" ? "approved" : "denied"
     },
-    onSuccess: setOutcome,
+    onSuccess: (result) => {
+      captureBrowserEvent("cli_authorization_completed", { outcome: result })
+      setOutcome(result)
+    },
+    onError: (error) =>
+      captureBrowserException(error, { operation: "cli_authorization" }),
   })
 
   const error = code
@@ -118,7 +135,7 @@ function DeviceAuthorizationPage() {
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Approve the terminal displaying this code:
               </p>
-              <div className="my-6 border border-border bg-muted/50 px-4 py-3 text-center font-mono text-xl tracking-widest">
+              <div className="ph-no-capture my-6 border border-border bg-muted/50 px-4 py-3 text-center font-mono text-xl tracking-widest">
                 {code || "Missing code"}
               </div>
               <div className="grid grid-cols-2 gap-3">

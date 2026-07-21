@@ -4,6 +4,7 @@ packages:
   - services/*/engines/*
 
 allowBuilds:
+  core-js: false
   esbuild: true
   lightningcss: true
   msw: false

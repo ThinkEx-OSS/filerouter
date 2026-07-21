@@ -6,6 +6,7 @@ import { AuthLegalNotice } from "@/components/auth-legal-notice"
 import { FileRouterLogo } from "@/components/file-router-logo"
 import { GoogleIcon } from "@/components/google-icon"
 import { Button } from "@/components/ui/button"
+import { captureBrowserException } from "@/integrations/posthog/browser"
 import { authClient } from "@/lib/auth-client"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
 
@@ -49,7 +50,6 @@ function SignInPage() {
   async function continueWithGoogle() {
     setLoading(true)
     setError(null)
-
     try {
       const result = await authClient.signIn.social({
         provider: "google",
@@ -57,11 +57,22 @@ function SignInPage() {
       })
 
       if (result.error) {
-        setError(result.error.message ?? "Unable to continue with Google.")
-        setLoading(false)
+        const message =
+          result.error.message ?? "Unable to continue with Google."
+        const authError = new Error(message)
+        captureBrowserException(authError, {
+          operation: "sign_in",
+          provider: "google",
+        })
+        setError(message)
       }
-    } catch {
+    } catch (error) {
+      captureBrowserException(error, {
+        operation: "sign_in",
+        provider: "google",
+      })
       setError("Unable to continue with Google. Please try again.")
+    } finally {
       setLoading(false)
     }
   }

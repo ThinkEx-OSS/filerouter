@@ -10,6 +10,10 @@ import type { QueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { NotFoundPage } from "@/components/not-found-page"
+import { PostHogBootstrap } from "@/components/posthog-bootstrap"
+import { RootError } from "@/components/root-error"
+import { getPublicPostHogConfig } from "@/integrations/posthog/config.functions"
 import type { AuthSession } from "@/lib/session-query"
 
 import appCss from "../styles.css?url"
@@ -20,6 +24,7 @@ interface RouterContext {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
+  loader: () => getPublicPostHogConfig(),
   head: () => ({
     meta: [
       {
@@ -98,16 +103,14 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
     ],
   }),
-  notFoundComponent: () => (
-    <main className="container mx-auto p-4 pt-16">
-      <h1>404</h1>
-      <p>The requested page could not be found.</p>
-    </main>
-  ),
+  errorComponent: RootError,
+  notFoundComponent: NotFoundPage,
   shellComponent: RootDocument,
 })
 
 function RootDocument({ children }: { children: ReactNode }) {
+  const postHogConfig = Route.useLoaderData()
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -115,6 +118,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         <ThemeProvider defaultTheme="system" storageKey="theme">
+          <PostHogBootstrap config={postHogConfig} />
           {children}
           {import.meta.env.DEV ? (
             <TanStackDevtools

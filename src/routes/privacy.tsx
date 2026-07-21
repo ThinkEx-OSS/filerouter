@@ -19,7 +19,7 @@ const privacyDocument = {
         "API-key information, such as key name, prefix, permissions, creation and expiration dates, request counts, rate-limit state, and last-use time.",
         "Document-job information, such as filenames, source URLs, selected providers, requested outputs, page selections, provider options, job status, errors, page count, timestamps, and request or idempotency hashes.",
         "Document contents and results when you use FileRouter-hosted processing, including uploaded source files and provider responses you ask FileRouter to return or retain.",
-        "Operational information, such as request identifiers, service errors, infrastructure logs, and diagnostic data needed to secure and operate the service.",
+        "Operational and product information, such as request identifiers, page visits, clicks and product actions, session replays, service errors, infrastructure logs, and diagnostic data needed to secure, operate, and improve the service.",
         "Communications and scheduling information you provide when you contact us, join the community, request support, or book a meeting through Cal.com.",
       ],
     },
@@ -40,7 +40,7 @@ const privacyDocument = {
     },
     {
       title: "Service providers and recipients",
-      body: "We use Cloudflare for application hosting, networking, logs, databases, durable workflows, and object storage; Google for optional sign-in; Cal.com for meeting scheduling; and supported document-processing services such as LlamaParse, Mistral AI, and Datalab when selected for a hosted job. We may add or replace providers as FileRouter evolves. Providers process information under their own terms and privacy notices, and their retention may differ from FileRouter's.",
+      body: "We use Cloudflare for application hosting, networking, logs, databases, durable workflows, and object storage; PostHog for product analytics, error tracking, and session replay; Autumn for usage metering and billing records; Google for optional sign-in; Cal.com for meeting scheduling; and supported document-processing services such as LlamaParse, Mistral AI, and Datalab when selected for a hosted job. We may add or replace providers as FileRouter evolves. Providers process information under their own terms and privacy notices, and their retention may differ from FileRouter's.",
     },
     {
       title: "Retention",
@@ -58,7 +58,7 @@ const privacyDocument = {
     },
     {
       title: "Cookies and browser storage",
-      body: "FileRouter uses cookies and browser storage for authentication, session security, and preferences such as theme. The Cal.com scheduling experience may use its own cookies or similar technology. See the FileRouter Cookie Policy for more information.",
+      body: "FileRouter uses cookies and browser storage for authentication, session security, preferences such as theme, and PostHog analytics. PostHog session replay masks form inputs, excludes generated API keys and CLI device codes, and removes query strings from captured URLs. The Cal.com scheduling experience may use its own cookies or similar technology. See the FileRouter Cookie Policy for more information.",
     },
     {
       title: "Your choices and rights",

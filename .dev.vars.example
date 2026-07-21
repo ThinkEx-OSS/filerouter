@@ -13,3 +13,11 @@ BETTER_AUTH_URL="http://localhost:3000"
 # LLAMA_CLOUD_API_KEY=""
 # MISTRAL_API_KEY=""
 # DATALAB_API_KEY=""
+
+# Autumn usage metering. Use a sandbox key for local development.
+# AUTUMN_SECRET_KEY=""
+
+# Optional product analytics and error tracking. The project token is public;
+# leave it unset to disable PostHog without changing application behavior.
+# POSTHOG_PROJECT_TOKEN=""
+# POSTHOG_HOST="https://us.i.posthog.com"

@@ -25,14 +25,14 @@ const cookieDocument = {
     },
     {
       title: "Analytics and advertising",
-      body: "FileRouter does not currently use advertising cookies. If we introduce nonessential analytics, advertising, or additional cookie-based services, we will update this policy and provide consent controls where required.",
+      body: "FileRouter uses PostHog for page, product-usage, error, and session-replay analytics. PostHog may use cookies and browser storage to connect activity across pages and visits. FileRouter masks form inputs, excludes credential surfaces such as generated API keys and CLI device codes from recordings, and removes query strings from captured URLs. FileRouter does not use advertising cookies.",
     },
     {
       title: "Managing cookies",
       items: [
         "You can delete or block cookies and browser storage through your browser settings.",
         "Blocking required cookies can break authentication, account security, and dashboard access.",
-        "Clearing browser storage may reset your theme and other local preferences.",
+        "Clearing browser storage may reset your theme, analytics identifiers, and other local preferences.",
       ],
     },
     {

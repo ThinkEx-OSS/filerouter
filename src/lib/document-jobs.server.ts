@@ -10,6 +10,7 @@ import {
 } from "@/lib/document-limits"
 import { HttpError } from "@/lib/http.server"
 import { hashToken } from "@/lib/tokens.server"
+import { emitWideEvent, serializeError } from "@/observability/log"
 import type { DocumentWorkflowParams } from "@/workflows/document-workflow"
 
 type CreateDocumentJobResult = {
@@ -25,6 +26,7 @@ export async function createDocumentJob(
   userId: string,
   env: Cloudflare.Env,
   idempotencyKey: string,
+  requestId: string,
   validatedJson?: unknown
 ): Promise<CreateDocumentJobResult> {
   const input = await readDocumentJobInput(request, validatedJson)
@@ -116,7 +118,9 @@ export async function createDocumentJob(
       outputs: input.outputs,
       ...(input.pages && { pages: input.pages }),
       providers: input.providers,
+      requestId,
       source: workflowSource,
+      userId,
       ...(input.providerOptions && { providerOptions: input.providerOptions }),
     }
     try {
@@ -138,9 +142,12 @@ export async function createDocumentJob(
   } finally {
     if (!sourceOwnedByJob) {
       await env.FILEROUTER_FILES.delete(sourceKey).catch((error: unknown) => {
-        console.error("Failed to remove unowned document source", {
-          error,
-          sourceKey,
+        emitWideEvent(env, "error", {
+          event: "document_source_cleanup_failed",
+          job_id: id,
+          request_id: requestId,
+          service: "filerouter-api",
+          ...serializeError(error),
         })
       })
     }
@@ -177,7 +184,8 @@ function bytesToHex(value: ArrayBuffer): string {
 export async function getDocumentJobResponse(
   id: string,
   userId: string,
-  env: Cloudflare.Env
+  env: Cloudflare.Env,
+  requestId: string
 ) {
   const job = await createDb(env.DB)
     .select()
@@ -207,10 +215,12 @@ export async function getDocumentJobResponse(
           .set({ resultKey: null })
           .where(eq(documentJob.id, job.id))
       } catch (error) {
-        console.error("Failed to remove expired document result", {
-          error,
-          jobId: job.id,
-          resultKey: job.resultKey,
+        emitWideEvent(env, "error", {
+          event: "document_result_cleanup_failed",
+          job_id: job.id,
+          request_id: requestId,
+          service: "filerouter-api",
+          ...serializeError(error),
         })
       }
     }

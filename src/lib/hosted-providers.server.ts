@@ -4,6 +4,7 @@ import type { FileRouterProvider, ProviderParseOptions } from "@file_router/sdk"
 
 import { HttpError } from "@/lib/http.server"
 import { createNativeParserProvider } from "@/lib/native-parser.server"
+import { JOB_ID_HEADER, REQUEST_ID_HEADER } from "@/observability/log"
 
 const blockedTransportOptions: Record<ProviderId, ReadonlySet<string>> = {
   datalab: new Set([
@@ -77,14 +78,20 @@ const validateProviderOptions: Record<
 }
 
 export function createHostedProviders(
-  env: Cloudflare.Env
+  env: Cloudflare.Env,
+  context: { jobId: string; requestId: string }
 ): Record<ProviderId, FileRouterProvider> {
   const managed = builtInProviders({
     datalabApiKey: env.DATALAB_API_KEY,
     llamaCloudApiKey: env.LLAMA_CLOUD_API_KEY,
     mistralApiKey: env.MISTRAL_API_KEY,
   })
-  const nativeFetch = (request: Request) => env.NATIVE_PARSERS.fetch(request)
+  const nativeFetch = (request: Request) => {
+    const headers = new Headers(request.headers)
+    headers.set(JOB_ID_HEADER, context.jobId)
+    headers.set(REQUEST_ID_HEADER, context.requestId)
+    return env.NATIVE_PARSERS.fetch(new Request(request, { headers }))
+  }
   return {
     ...managed,
     liteparse: createNativeParserProvider({

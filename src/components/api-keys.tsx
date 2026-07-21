@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
+import {
+  captureBrowserEvent,
+  captureBrowserException,
+} from "@/integrations/posthog/browser"
 import { authClient } from "@/lib/auth-client"
 
 type ApiKeySummary = Omit<ApiKey, "key">
@@ -55,11 +59,14 @@ export function ApiKeys() {
       return result.data.key
     },
     onSuccess: async (key) => {
+      captureBrowserEvent("api_key_created", { named: Boolean(name.trim()) })
       setName("")
       setCopied(false)
       setCreatedKey(key)
       await queryClient.invalidateQueries({ queryKey: apiKeysQueryKey })
     },
+    onError: (error) =>
+      captureBrowserException(error, { operation: "api_key_create" }),
   })
 
   const revokeKeyMutation = useMutation({
@@ -72,6 +79,8 @@ export function ApiKeys() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: apiKeysQueryKey })
     },
+    onError: (error) =>
+      captureBrowserException(error, { operation: "api_key_revoke" }),
   })
 
   function createKey(event: React.FormEvent<HTMLFormElement>) {
@@ -128,7 +137,7 @@ export function ApiKeys() {
       </form>
 
       {createdKey ? (
-        <Alert className="mb-5 max-w-full min-w-0 overflow-hidden border-primary/30 bg-primary/5">
+        <Alert className="ph-no-capture mb-5 max-w-full min-w-0 overflow-hidden border-primary/30 bg-primary/5">
           <AlertTitle>Copy this key now</AlertTitle>
           <AlertDescription>It will not be shown again.</AlertDescription>
           <div className="mt-3 flex min-w-0 items-center gap-2">
