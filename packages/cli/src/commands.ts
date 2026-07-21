@@ -1,6 +1,10 @@
 import { defineCommand } from "citty"
 import { DEFAULT_PARSE_OUTPUT } from "@file_router/sdk"
-import { DEFAULT_PROVIDER_ID, providerIds } from "@file_router/sdk/catalog"
+import {
+  DEFAULT_PROVIDER_ID,
+  localProviderIds,
+  providerIds,
+} from "@file_router/sdk/catalog"
 
 import { login } from "./login"
 import {
@@ -52,6 +56,7 @@ export function createParseCommand(runtime: CliRuntime) {
       },
     },
     async run({ args }) {
+      assertProviderAvailable(args.provider, args.local)
       const outputs = parseOutputs(args.outputs)
       const result = await (
         await runtime.createRouter(args.local)
@@ -84,7 +89,6 @@ export function createCompareCommand(runtime: CliRuntime) {
         type: "string",
         alias: ["p"],
         description: "Comma-separated provider IDs.",
-        default: providerIds.join(","),
       },
       outputs: {
         type: "string",
@@ -108,11 +112,19 @@ export function createCompareCommand(runtime: CliRuntime) {
       },
     },
     async run({ args }) {
+      const providers = args.providers
+        ? parseProviders(args.providers)
+        : args.local
+          ? [...localProviderIds]
+          : [...providerIds]
+      providers.forEach((provider) =>
+        assertProviderAvailable(provider, args.local)
+      )
       const result = await (
         await runtime.createRouter(args.local)
       ).compare(args.input, {
         outputs: parseOutputs(args.outputs),
-        providers: parseProviders(args.providers),
+        providers,
       })
       await writeOutput(
         runtime,
@@ -121,6 +133,16 @@ export function createCompareCommand(runtime: CliRuntime) {
       )
     },
   })
+}
+
+const localProviderIdSet = new Set<string>(localProviderIds)
+
+function assertProviderAvailable(provider: string, local: boolean): void {
+  if (local && !localProviderIdSet.has(provider)) {
+    throw new Error(
+      `${provider} is hosted-only in this CLI build. Remove --local or choose ${localProviderIds.join(", ")}.`
+    )
+  }
 }
 
 export function createProvidersCommand(runtime: CliRuntime) {

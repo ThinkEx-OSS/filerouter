@@ -3,11 +3,25 @@ import { llamaparse } from "./llamaparse"
 import { mistralOcr } from "./mistral"
 import type { ProviderMap } from "./types"
 
-export const providerIds = ["llamaparse", "mistral-ocr", "datalab"] as const
+export const providerIds = [
+  "llamaparse",
+  "mistral-ocr",
+  "datalab",
+  "liteparse",
+  "pdf-inspector",
+] as const
 
 export type ProviderId = (typeof providerIds)[number]
 
 export const DEFAULT_PROVIDER_ID = "llamaparse" satisfies ProviderId
+
+export const localProviderIds = [
+  "llamaparse",
+  "mistral-ocr",
+  "datalab",
+] as const satisfies ReadonlyArray<ProviderId>
+
+export type LocalProviderId = (typeof localProviderIds)[number]
 
 export interface BuiltInProviderOptions {
   datalabApiKey?: string
@@ -17,7 +31,7 @@ export interface BuiltInProviderOptions {
 
 export function builtInProviders(
   options: BuiltInProviderOptions = {}
-): Record<ProviderId, ProviderMap[string]> {
+): Pick<ProviderMap, LocalProviderId> {
   return {
     llamaparse: llamaparse({
       ...(options.llamaCloudApiKey && { apiKey: options.llamaCloudApiKey }),

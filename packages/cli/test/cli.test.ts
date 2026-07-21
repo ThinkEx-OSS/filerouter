@@ -18,7 +18,9 @@ function createRuntime() {
     providers: {
       datalab: fakeProvider({ id: "datalab" }),
       llamaparse: fakeProvider({ id: "llamaparse" }),
+      liteparse: fakeProvider({ id: "liteparse" }),
       "mistral-ocr": fakeProvider({ id: "mistral-ocr" }),
+      "pdf-inspector": fakeProvider({ id: "pdf-inspector" }),
     },
   })
   const runtime: CliRuntime = {
@@ -99,12 +101,25 @@ describe("FileRouter CLI", () => {
     })
 
     const result = JSON.parse(stdout.join(""))
-    expect(result.providers).toHaveLength(3)
+    expect(result.providers).toHaveLength(5)
     expect(
       result.providers.every(
         ({ status }: { status: string }) => status === "parsed"
       )
     ).toBe(true)
+  })
+
+  test("uses only directly configured providers for local comparisons", async () => {
+    const { runtime, stdout } = createRuntime()
+
+    await runCommand(createMainCommand(runtime), {
+      rawArgs: ["compare", reportPath, "--local", "--json"],
+    })
+
+    const result = JSON.parse(stdout.join(""))
+    expect(
+      result.providers.map(({ provider }: { provider: string }) => provider)
+    ).toEqual(["llamaparse", "mistral-ocr", "datalab"])
   })
 
   test("writes output files without also writing to stdout", async () => {

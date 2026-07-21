@@ -2,6 +2,30 @@ import type { DatalabParseOptions } from "./datalab"
 import type { LlamaParseParseOptions } from "./llamaparse"
 import type { MistralOcrParseOptions } from "./mistral"
 
+export type LiteParseImageMode = "embed" | "off" | "placeholder"
+
+export interface LiteParseParseOptions {
+  convertOffice?: boolean
+  imageMode?: LiteParseImageMode
+  includeComplexity?: boolean
+  ocr?: "auto" | "off"
+  /** The hosted image currently includes English OCR data. */
+  ocrLanguage?: "eng"
+  raw?: {
+    cropBox?: { bottom: number; left: number; right: number; top: number }
+    dpi?: number
+    emitWordBoxes?: boolean
+    extractLinks?: boolean
+    ocrFailureFatal?: boolean
+    preserveVerySmallText?: boolean
+    quiet?: boolean
+    skipDiagonalText?: boolean
+  }
+  screenshots?: boolean
+}
+
+export type PdfInspectorParseOptions = Record<string, never>
+
 export const parseOutputIds = [
   "chunks",
   "html",
@@ -43,7 +67,9 @@ export type ProviderInput =
 export interface ProviderParseOptions {
   datalab?: DatalabParseOptions
   llamaparse?: LlamaParseParseOptions
+  liteparse?: LiteParseParseOptions
   "mistral-ocr"?: MistralOcrParseOptions
+  "pdf-inspector"?: PdfInspectorParseOptions
   [providerId: string]: unknown
 }
 
@@ -172,7 +198,11 @@ export interface ProviderCapabilities {
     | "blocks"
     | "cancel"
     | "confidence"
+    | "classification"
+    | "ocr"
+    | "office-conversion"
     | "page-selection"
+    | "screenshots"
     | "structured-extraction"
   >
   outputs: Array<ParseOutput>
