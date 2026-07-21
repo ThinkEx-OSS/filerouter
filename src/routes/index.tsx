@@ -1,9 +1,9 @@
 import { ArrowRight } from "@phosphor-icons/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useEffect } from "react"
 
 import { BenchmarkSection } from "@/components/benchmark-section"
 import { LatestBlogSection } from "@/components/blog/latest-blog-section"
+import { CalBookingButton } from "@/components/cal-booking-button"
 import { DitherButton } from "@/components/dither-kit/button"
 import { PricingSection } from "@/components/pricing-section"
 import { PublicPageShell } from "@/components/public-page-shell"
@@ -96,8 +96,8 @@ function App() {
             One API for document parsing.
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
-            Durable document parsing across providers: optimized for accuracy,
-            reliability, latency, and cost.
+            Optimize for accuracy, reliability, latency, and cost with durable
+            execution across providers.
           </p>
 
           <div className="mt-9 flex w-full max-w-[21rem] flex-col items-center gap-4">
@@ -123,7 +123,9 @@ function App() {
                   </Link>
                 </DitherButton>
               )}
-              <TalkToTeamButton />
+              <CalBookingButton className="h-11 w-full px-5 text-base">
+                Talk to the team
+              </CalBookingButton>
             </div>
             <code className="inline-flex min-h-10 w-full items-center justify-center rounded-none border border-border bg-card px-4 py-2 font-mono text-sm text-muted-foreground">
               npx @file_router/cli@latest login
@@ -195,10 +197,11 @@ function App() {
       <section className="py-16 text-center sm:py-24">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-6">
           <h2 className="mx-auto max-w-3xl text-4xl font-medium tracking-tight text-balance sm:text-6xl">
-            Your pipeline should outlast any provider.
+            Better results for every document.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Start with one route. Change it without rebuilding.
+            Optimize for accuracy, reliability, speed, and cost across
+            providers.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             {session ? (
@@ -228,38 +231,6 @@ function App() {
         </div>
       </section>
     </PublicPageShell>
-  )
-}
-
-function TalkToTeamButton() {
-  useEffect(() => {
-    async function initializeCalendar() {
-      const { getCalApi } = await import("@calcom/embed-react")
-      const cal = await getCalApi({ namespace: "15min" })
-      cal("ui", {
-        cssVarsPerTheme: {
-          light: { "cal-brand": "#00BDF7" },
-          dark: { "cal-brand": "#00BDF7" },
-        },
-        hideEventTypeDetails: false,
-        layout: "month_view",
-      })
-    }
-
-    void initializeCalendar()
-  }, [])
-
-  return (
-    <Button
-      className="h-11 w-full px-5 text-base font-normal"
-      data-cal-config='{"layout":"month_view","useSlotsViewOnSmallScreen":"true"}'
-      data-cal-link="thinkex-team-vuzyak/15min"
-      data-cal-namespace="15min"
-      type="button"
-      variant="outline"
-    >
-      Talk to the team
-    </Button>
   )
 }
 

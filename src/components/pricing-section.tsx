@@ -1,6 +1,7 @@
 import { Check } from "@phosphor-icons/react"
 import { Link } from "@tanstack/react-router"
 
+import { CalBookingButton } from "@/components/cal-booking-button"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -33,6 +34,20 @@ const pricingPlans = [
     name: "Hosted",
     price: "Coming soon",
   },
+  {
+    cta: "Talk to us",
+    description: "Custom deployment, support, and controls for your team.",
+    emphasized: false,
+    features: [
+      "Custom usage and volume",
+      "Priority implementation support",
+      "Security and compliance review",
+      "Custom deployment options",
+    ],
+    id: "enterprise",
+    name: "Enterprise",
+    price: "Custom",
+  },
 ] as const
 
 export function PricingSection() {
@@ -44,14 +59,14 @@ export function PricingSection() {
           className="mt-3 max-w-3xl text-3xl font-medium md:text-4xl"
           id="pricing-heading"
         >
-          Your keys or managed execution.
+          Simple, flexible pricing
         </h2>
         <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
           Call providers directly with your own keys, or let FileRouter handle
           uploads, polling, retries, and cleanup.
         </p>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
           {pricingPlans.map((plan) => (
             <article
               className={cn(
@@ -85,19 +100,25 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              <Button
-                asChild
-                className="mt-8 h-10 w-full text-sm font-normal"
-                variant={plan.emphasized ? "default" : "outline"}
-              >
-                {plan.id === "hosted" ? (
-                  <Link search={{ redirect: "/dashboard" }} to="/sign-in">
-                    {plan.cta}
-                  </Link>
-                ) : (
-                  <a href="https://docs.filerouter.dev">{plan.cta}</a>
-                )}
-              </Button>
+              {plan.id === "enterprise" ? (
+                <CalBookingButton className="mt-8 h-10 w-full text-sm">
+                  {plan.cta}
+                </CalBookingButton>
+              ) : (
+                <Button
+                  asChild
+                  className="mt-8 h-10 w-full text-sm font-normal"
+                  variant={plan.emphasized ? "default" : "outline"}
+                >
+                  {plan.id === "hosted" ? (
+                    <Link search={{ redirect: "/dashboard" }} to="/sign-in">
+                      {plan.cta}
+                    </Link>
+                  ) : (
+                    <a href="https://docs.filerouter.dev">{plan.cta}</a>
+                  )}
+                </Button>
+              )}
             </article>
           ))}
         </div>
