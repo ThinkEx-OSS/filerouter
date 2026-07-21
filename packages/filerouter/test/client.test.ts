@@ -197,7 +197,7 @@ describe("FileRouterClient", () => {
       fetch: fetchMock,
     })
 
-    const request = client.parse("https://example.com/report.pdf")
+    const request = client.jobs.get("job-rate-limited")
 
     await expect(request).rejects.toMatchObject({
       code: "RateLimit",

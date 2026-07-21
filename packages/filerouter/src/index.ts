@@ -8,7 +8,12 @@ export {
 export {
   FileRouterClient,
   type FileRouterClientOptions,
+  type FileRouterJobs,
+  type HostedCompareJobOptions,
   type HostedCompareOptions,
+  type HostedJobGetOptions,
+  type HostedJobWaitOptions,
+  type HostedParseJobOptions,
   type HostedParseOptions,
 } from "./client"
 export {
@@ -25,9 +30,14 @@ export {
   HOSTED_JOBS_PATH,
   MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES,
   hostedJobStatuses,
+  type HostedCompareJob,
+  type HostedJob,
   type HostedJobAccepted,
+  type HostedJobHandle,
+  type HostedJobOperation,
   type HostedJobResponse,
   type HostedJobStatus,
+  type HostedParseJob,
 } from "./hosted"
 export {
   normalizeDocumentFileName,
