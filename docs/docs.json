@@ -2,13 +2,19 @@
   "$schema": "https://mintlify.com/docs.json",
   "name": "FileRouter",
   "description": "Durable document parsing across providers.",
-  "theme": "luma",
+  "theme": "mint",
   "logo": {
-    "light": "/assets/filerouter-logo.svg",
-    "dark": "/assets/filerouter-logo.svg",
+    "light": "/assets/filerouter-wordmark-light.svg",
+    "dark": "/assets/filerouter-wordmark-dark.svg",
     "href": "https://filerouter.dev"
   },
   "favicon": "/assets/favicon.svg",
+  "appearance": {
+    "default": "system"
+  },
+  "fonts": {
+    "family": "Geist"
+  },
   "colors": {
     "primary": "#00bdf7",
     "light": "#00bdf7",
@@ -22,13 +28,12 @@
       {
         "label": "GitHub",
         "href": "https://github.com/ThinkEx-OSS/filerouter"
+      },
+      {
+        "label": "Dashboard",
+        "href": "https://filerouter.dev/dashboard"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://filerouter.dev/dashboard"
-    }
+    ]
   },
   "footer": {
     "socials": {
@@ -37,40 +42,30 @@
     }
   },
   "navigation": {
-    "tabs": [
+    "groups": [
       {
-        "tab": "Documentation",
-        "groups": [
-          {
-            "group": "Start",
-            "pages": ["index", "quickstart"]
-          },
-          {
-            "group": "Concepts",
-            "pages": [
-              "concepts/how-it-works",
-              "concepts/processing-modes",
-              "concepts/results"
-            ]
-          },
-          {
-            "group": "TypeScript SDK",
-            "pages": ["sdk/parse", "sdk/compare", "sdk/provider-options"]
-          },
-          {
-            "group": "CLI",
-            "pages": ["cli/overview"]
-          }
+        "group": "Get started",
+        "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "Concepts",
+        "pages": [
+          "concepts/how-it-works",
+          "concepts/processing-modes",
+          "concepts/results"
         ]
       },
       {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "Hosted API",
-            "pages": ["api/overview", "api/jobs"]
-          }
-        ]
+        "group": "TypeScript SDK",
+        "pages": ["sdk/parse", "sdk/compare", "sdk/provider-options"]
+      },
+      {
+        "group": "Command line",
+        "pages": ["cli/overview"]
+      },
+      {
+        "group": "API reference",
+        "pages": ["api/overview", "api/jobs"]
       }
     ]
   }
