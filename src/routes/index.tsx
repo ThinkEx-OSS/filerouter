@@ -96,7 +96,7 @@ function App() {
             One API for document parsing.
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
-            Optimize for accuracy, reliability, latency, and cost with durable
+            Optimize accuracy, reliability, latency, and cost with durable
             execution across providers.
           </p>
 
