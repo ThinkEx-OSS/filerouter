@@ -38,7 +38,8 @@
     },
     "./hosted": {
       "types": "./dist/hosted.d.ts",
-      "import": "./dist/hosted.js"
+      "import": "./dist/hosted.js",
+      "default": "./dist/hosted.js"
     },
     "./llamaparse": {
       "types": "./dist/llamaparse.d.ts",

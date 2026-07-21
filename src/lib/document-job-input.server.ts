@@ -20,31 +20,11 @@ import {
   MAX_HOSTED_UPLOAD_BYTES,
   MAX_HOSTED_UPLOAD_LABEL,
 } from "@/lib/document-limits"
+import { validateHostedProviderOptions } from "@/lib/hosted-providers.server"
 import { HttpError } from "@/lib/http.server"
+import { readPublicHttpUrl } from "@/lib/public-url"
 
 const providerIds = ProviderIdSchema.options
-const blockedHostedOptions: Record<ProviderId, ReadonlySet<string>> = {
-  datalab: new Set([
-    "checkpoint_id",
-    "eval_rubric_id",
-    "file",
-    "file_url",
-    "webhook_url",
-    "workflowstepdata_id",
-  ]),
-  llamaparse: new Set([
-    "configuration_id",
-    "file_id",
-    "http_proxy",
-    "organization_id",
-    "project_id",
-    "source_url",
-    "upload_file",
-    "webhook_configuration_ids",
-    "webhook_configurations",
-  ]),
-  "mistral-ocr": new Set(["document"]),
-}
 
 export type DocumentJobInput = {
   includeRaw: boolean
@@ -130,20 +110,30 @@ function readJsonJobInput(value: unknown): DocumentJobInput {
   }
   const { includeRaw, operation, outputs, pages, providerOptions, source } =
     result.data
-  const url = new URL(source.url).toString()
+  const url = readHostedSourceUrl(source.url)
   return {
     includeRaw: includeRaw ?? false,
     operation,
     outputs: [...new Set(outputs)],
     ...(pages && { pages: [...new Set(pages)] }),
     ...(providerOptions && {
-      providerOptions: validateHostedProviderOptions(providerOptions),
+      providerOptions: validateProviderOptions(providerOptions),
     }),
     providers:
       operation === "parse"
         ? [result.data.provider ?? DEFAULT_PROVIDER_ID]
         : [...new Set(result.data.providers ?? providerIds)],
     source: { fileName: fileNameFromUrl(url), kind: "url", url },
+  }
+}
+
+function readHostedSourceUrl(value: string): string {
+  try {
+    return readPublicHttpUrl(value).toString()
+  } catch {
+    throw new HttpError(400, "Document URL must be publicly reachable.", {
+      code: "invalid_source_url",
+    })
   }
 }
 
@@ -182,7 +172,7 @@ function parseHeaderOptions(
 
   return {
     ...(pages && { pages: [...new Set(pages)] }),
-    providerOptions: validateHostedProviderOptions(value),
+    providerOptions: validateProviderOptions(value),
   }
 }
 
@@ -247,46 +237,8 @@ function isProviderId(value: string): value is ProviderId {
   return ProviderIdSchema.safeParse(value).success
 }
 
-function validateHostedProviderOptions(value: unknown): ProviderParseOptions {
-  if (!isRecord(value)) {
-    throw new HttpError(400, "Provider options must be an object.")
-  }
-
-  for (const [providerId, options] of Object.entries(value)) {
-    if (!isProviderId(providerId)) {
-      throw new HttpError(400, `Unsupported provider options: ${providerId}`)
-    }
-    if (!isRecord(options)) {
-      throw new HttpError(
-        400,
-        `Provider options for ${providerId} must be an object.`
-      )
-    }
-    assertHostedOptionsAreSafe(providerId, options)
-    if (providerId === "datalab" && isRecord(options.raw)) {
-      assertHostedOptionsAreSafe(providerId, options.raw)
-    }
-  }
-  return value as ProviderParseOptions
-}
-
-function assertHostedOptionsAreSafe(
-  providerId: ProviderId,
-  options: Record<string, unknown>
-): void {
-  const blocked = Object.keys(options).filter((key) =>
-    blockedHostedOptions[providerId].has(key)
-  )
-  if (blocked.length > 0) {
-    throw new HttpError(
-      400,
-      `Hosted ${providerId} options cannot set: ${blocked.join(", ")}.`
-    )
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+function validateProviderOptions(value: unknown): ProviderParseOptions {
+  return validateHostedProviderOptions(value, isProviderId)
 }
 
 async function readJson(request: Request): Promise<unknown> {

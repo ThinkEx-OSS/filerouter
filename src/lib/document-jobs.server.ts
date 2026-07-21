@@ -30,11 +30,11 @@ export async function createDocumentJob(
   const input = await readDocumentJobInput(request, validatedJson)
   const db = createDb(env.DB)
   const id = crypto.randomUUID()
-  const workflowSource: DocumentWorkflowParams["source"] =
-    input.source.kind === "url"
-      ? { kind: "url", url: input.source.url }
-      : { key: `jobs/${id}/source`, kind: "upload" }
-  const sourceKey = workflowSource.kind === "upload" ? workflowSource.key : null
+  const sourceKey = `jobs/${id}/source`
+  const workflowSource: DocumentWorkflowParams["source"] = {
+    key: sourceKey,
+    ...(input.source.kind === "url" && { url: input.source.url }),
+  }
   let sourceOwnedByJob = false
   try {
     const [idempotencyKeyHash, storedSource] = await Promise.all([
@@ -136,7 +136,7 @@ export async function createDocumentJob(
     sourceOwnedByJob = true
     return { job: { id, status: "queued" }, replayed: false }
   } finally {
-    if (sourceKey && !sourceOwnedByJob) {
+    if (!sourceOwnedByJob) {
       await env.FILEROUTER_FILES.delete(sourceKey).catch((error: unknown) => {
         console.error("Failed to remove unowned document source", {
           error,
@@ -149,10 +149,10 @@ export async function createDocumentJob(
 
 async function storeUploadedSource(
   input: Awaited<ReturnType<typeof readDocumentJobInput>>,
-  sourceKey: string | null,
+  sourceKey: string,
   bucket: R2Bucket
 ): Promise<{ checksum: string; size: number } | undefined> {
-  if (input.source.kind !== "upload" || !sourceKey) {
+  if (input.source.kind !== "upload") {
     return undefined
   }
 

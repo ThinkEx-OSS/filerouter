@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "filerouter",
   "compatibility_date": "2026-07-19",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "main": "src/server.ts",
   "routes": [
     {
@@ -25,6 +25,12 @@
     {
       "binding": "FILEROUTER_FILES",
       "bucket_name": "filerouter-files",
+    },
+  ],
+  "services": [
+    {
+      "binding": "NATIVE_PARSERS",
+      "service": "filerouter-native-parsers",
     },
   ],
   "triggers": {

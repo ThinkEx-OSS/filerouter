@@ -6,7 +6,6 @@ import {
   assertProviderOutputs,
   serializeProviderError,
 } from "@file_router/sdk"
-import { builtInProviders } from "@file_router/sdk/catalog"
 import type { ProviderId } from "@file_router/sdk/catalog"
 import type {
   FileRouterProvider,
@@ -17,20 +16,16 @@ import type {
 
 import { documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
-import {
-  MAX_BUFFERED_PROVIDER_BYTES,
-  MAX_HOSTED_UPLOAD_BYTES,
-} from "@/lib/document-limits"
-import {
-  canProvidersReachSourceUrl,
-  createProviderSourceUrl,
-} from "@/lib/document-source.server"
+import { MAX_HOSTED_UPLOAD_BYTES } from "@/lib/document-limits"
+import { createProviderSourceUrl } from "@/lib/document-source.server"
 import { resultExpiresAt } from "@/lib/document-retention"
+import { createHostedProviders } from "@/lib/hosted-providers.server"
 import {
   storeComparisonResult,
   storeProviderResult,
 } from "@/workflows/document-results"
 import type { ProviderOutcome } from "@/workflows/document-results"
+import { materializeDocumentSource } from "@/workflows/document-source"
 
 export interface DocumentWorkflowParams {
   fileName: string
@@ -41,7 +36,7 @@ export interface DocumentWorkflowParams {
   pages?: Array<number>
   providers: Array<ProviderId>
   providerOptions?: ProviderParseOptions
-  source: { kind: "upload"; key: string } | { kind: "url"; url: string }
+  source: { key: string; url?: string }
 }
 
 const SINGLE_ATTEMPT = {
@@ -83,13 +78,20 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
     })
 
     try {
-      const configured = providers(this.env)
-      providerResults = await Promise.all(
-        params.providers.map((providerId) =>
-          processProvider(step, configured[providerId], params, this.env)
+      await step.do("materialize document source", SINGLE_ATTEMPT, () =>
+        materializeDocumentSource(
+          this.env.FILEROUTER_FILES,
+          params.source,
+          params.fileName
         )
       )
-
+      const configured = createHostedProviders(this.env)
+      const input = await sourceInput(this.env, params)
+      providerResults = await Promise.all(
+        params.providers.map((providerId) =>
+          processProvider(step, configured[providerId], input, params, this.env)
+        )
+      )
       const stored = await persistResult(
         step,
         this.env.FILEROUTER_FILES,
@@ -106,11 +108,11 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
           params.jobId
         )
       }
-      const sourceDeleted = await deleteUploadedSource(
+      const sourceDeleted = await deleteDocumentSource(
         step,
         this.env,
         params,
-        "delete uploaded source"
+        "delete document source"
       )
 
       await step.do("mark job complete", async () => {
@@ -142,11 +144,11 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
         "delete failed results",
         params.jobId
       )
-      const sourceDeleted = await deleteUploadedSource(
+      const sourceDeleted = await deleteDocumentSource(
         step,
         this.env,
         params,
-        "delete failed uploaded source"
+        "delete failed document source"
       )
       await step.do("mark job failed", async () => {
         await createDb(this.env.DB)
@@ -203,6 +205,7 @@ async function deleteResultObjects(
 async function processProvider(
   step: WorkflowStep,
   provider: FileRouterProvider,
+  input: ProviderInput,
   params: DocumentWorkflowParams,
   env: Cloudflare.Env
 ): Promise<ProviderOutcome> {
@@ -221,15 +224,12 @@ async function processProvider(
 
   try {
     return provider.jobs
-      ? await processAsyncProvider(step, provider, params, env)
+      ? await processAsyncProvider(step, provider, input, params, env)
       : await step.do(`process ${provider.id}`, SINGLE_ATTEMPT, async () =>
           storeProviderResult(
             env.FILEROUTER_FILES,
             params.jobId,
-            await provider.parse(
-              await sourceInput(env, params),
-              parseOptions(params, provider.id)
-            )
+            await provider.parse(input, parseOptions(params, provider.id))
           )
         )
   } catch (error) {
@@ -245,6 +245,7 @@ async function processProvider(
 async function processAsyncProvider(
   step: WorkflowStep,
   provider: FileRouterProvider,
+  input: ProviderInput,
   params: DocumentWorkflowParams,
   env: Cloudflare.Env
 ): Promise<Extract<ProviderOutcome, { status: "parsed" }>> {
@@ -254,10 +255,7 @@ async function processAsyncProvider(
   }
 
   const job = await step.do(`submit ${provider.id}`, SINGLE_ATTEMPT, async () =>
-    jobs.submit(
-      await sourceInput(env, params),
-      parseOptions(params, provider.id)
-    )
+    jobs.submit(input, parseOptions(params, provider.id))
   )
 
   const deadline = new Date(job.submittedAt).getTime() + 14 * 60 * 1000
@@ -321,15 +319,12 @@ async function persistResult(
   )
 }
 
-async function deleteUploadedSource(
+async function deleteDocumentSource(
   step: WorkflowStep,
   env: Cloudflare.Env,
   params: DocumentWorkflowParams,
   stepName: string
 ): Promise<boolean> {
-  if (params.source.kind !== "upload") {
-    return false
-  }
   const sourceKey = params.source.key
   try {
     return await step.do(stepName, SINGLE_ATTEMPT, async () => {
@@ -337,7 +332,7 @@ async function deleteUploadedSource(
       return true
     })
   } catch (error) {
-    console.error("Failed to delete uploaded document source", {
+    console.error("Failed to delete document source", {
       error: errorMessage(error),
       jobId: params.jobId,
       sourceKey,
@@ -358,23 +353,10 @@ function parseOptions(params: DocumentWorkflowParams, provider: string) {
   }
 }
 
-function providers(
-  env: Cloudflare.Env
-): Record<ProviderId, FileRouterProvider> {
-  return builtInProviders({
-    datalabApiKey: env.DATALAB_API_KEY,
-    llamaCloudApiKey: env.LLAMA_CLOUD_API_KEY,
-    mistralApiKey: env.MISTRAL_API_KEY,
-  })
-}
-
 async function sourceInput(
   env: Cloudflare.Env,
   params: DocumentWorkflowParams
 ): Promise<ProviderInput> {
-  if (params.source.kind === "url") {
-    return { kind: "url", url: params.source.url }
-  }
   const object = await env.FILEROUTER_FILES.head(params.source.key)
   if (!object) {
     throw new Error("Uploaded document is unavailable.")
@@ -382,29 +364,9 @@ async function sourceInput(
   if (object.size > MAX_HOSTED_UPLOAD_BYTES) {
     throw new Error("Uploaded document exceeds the hosted size limit.")
   }
-  if (canProvidersReachSourceUrl(env.BETTER_AUTH_URL)) {
-    return {
-      kind: "url",
-      url: await createProviderSourceUrl(env, params.jobId, params.fileName),
-    }
-  }
-  if (object.size > MAX_BUFFERED_PROVIDER_BYTES) {
-    throw new Error(
-      "Large local hosted uploads require a publicly reachable BETTER_AUTH_URL."
-    )
-  }
-  const body = await env.FILEROUTER_FILES.get(params.source.key)
-  if (!body) {
-    throw new Error("Uploaded document is unavailable.")
-  }
-  const mimeType =
-    object.httpMetadata?.contentType ?? "application/octet-stream"
-  const data = await body.blob()
   return {
-    data: data.type === mimeType ? data : data.slice(0, data.size, mimeType),
-    kind: "bytes",
-    mimeType,
-    name: params.fileName,
+    kind: "url",
+    url: await createProviderSourceUrl(env, params.jobId, params.fileName),
   }
 }
 
@@ -415,15 +377,11 @@ function errorMessage(error: unknown): string {
 function assertParams(
   params: Readonly<DocumentWorkflowParams>
 ): DocumentWorkflowParams {
-  const validSource =
-    params.source.kind === "url"
-      ? Boolean(params.source.url)
-      : Boolean(params.source.key)
   if (
     !params.jobId ||
     params.providers.length === 0 ||
     params.outputs.length === 0 ||
-    !validSource
+    !params.source.key
   ) {
     throw new Error("Invalid document workflow payload.")
   }

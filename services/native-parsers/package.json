@@ -1,0 +1,20 @@
+{
+  "name": "@file_router/native-parsers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cf-typegen": "wrangler types worker-configuration.d.ts --include-runtime false",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "deploy:dry-run": "wrangler deploy --config wrangler.jsonc --dry-run",
+    "typecheck": "tsc --noEmit && tsc -p engines/liteparse && tsc -p engines/pdf-inspector && tsc -p engines/shared"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260721.1",
+    "@types/node": "^22",
+    "typescript": "^6",
+    "wrangler": "^4.112.0"
+  }
+}

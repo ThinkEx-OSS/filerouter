@@ -1,0 +1,16 @@
+{
+  "name": "@file_router/pdf-inspector-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@firecrawl/pdf-inspector": "1.11.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^6"
+  }
+}

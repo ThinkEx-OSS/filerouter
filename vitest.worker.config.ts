@@ -18,6 +18,11 @@ export default defineConfig({
             fileURLToPath(new URL("./drizzle", import.meta.url))
           ),
         },
+        serviceBindings: {
+          NATIVE_PARSERS: {
+            network: { deny: ["0.0.0.0/0", "::/0"] },
+          },
+        },
       },
       wrangler: { configPath: "./wrangler.jsonc" },
     })),
