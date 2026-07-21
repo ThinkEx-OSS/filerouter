@@ -106,6 +106,18 @@ const result = await router.parse("./report.pdf", {
 
 More adapters are coming.
 
+<details>
+<summary><strong>Tech stack</strong></summary>
+
+- **App:** TypeScript, React 19, TanStack Start, Router, and Query.
+- **API and auth:** Hono with OpenAPI and Zod, plus Better Auth.
+- **Durable backend:** Cloudflare Workers and Workflows, with D1 through
+  Drizzle ORM and R2 for documents and results.
+- **SDK and CLI:** A pnpm workspace with provider-neutral TypeScript packages.
+- **UI and tooling:** Tailwind CSS 4, Radix UI, Vite+, and Vitest.
+
+</details>
+
 ## Development
 
 FileRouter requires Node.js 22.14 or newer.
