@@ -104,7 +104,7 @@ function createAuth(database: Db, env: AuthRuntimeEnv) {
           maxRequests: 300,
           timeWindow: 60 * 1000,
         },
-        requireName: true,
+        requireName: false,
       }),
       bearer(),
       deviceAuthorization({
