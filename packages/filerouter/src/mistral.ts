@@ -26,6 +26,11 @@ import type {
 } from "./types"
 
 const PROVIDER_ID = "mistral-ocr"
+const OCR_MODEL_RATES = {
+  "mistral-ocr-2512": { annotated: 0.003, standard: 0.002 },
+  "mistral-ocr-4-0": { annotated: 0.005, standard: 0.004 },
+  "mistral-ocr-latest": { annotated: 0.005, standard: 0.004 },
+} as const
 const OUTPUTS = [
   "images",
   "json",
@@ -100,28 +105,28 @@ async function parseMistral(
       uploadedFileId = document.fileId
     }
 
-    const response = await client.ocr.process(
-      {
-        ...native,
-        document,
-        includeImageBase64:
-          outputs.includes("images") || native.includeImageBase64 === true,
-        model: native.model ?? options.model ?? "mistral-ocr-latest",
-        ...(parseOptions.pages && {
-          pages: parseOptions.pages.map((page) => page - 1),
-        }),
-        ...(outputs.includes("tables") && {
-          tableFormat: native.tableFormat ?? "markdown",
-        }),
-      },
-      requestOptions
-    )
+    const request: OCRRequest = {
+      ...native,
+      document,
+      includeImageBase64:
+        outputs.includes("images") || native.includeImageBase64 === true,
+      model: native.model ?? options.model ?? "mistral-ocr-4-0",
+      ...(parseOptions.pages && {
+        pages: parseOptions.pages.map((page) => page - 1),
+      }),
+      ...(outputs.includes("tables") && {
+        tableFormat: native.tableFormat ?? "markdown",
+      }),
+    }
+    const response = await client.ocr.process(request, requestOptions)
 
     return normalizeMistral(
       response,
       outputs,
       parseOptions.includeRaw === true,
-      startedAt
+      startedAt,
+      request.bboxAnnotationFormat != null ||
+        request.documentAnnotationFormat != null
     )
   } finally {
     if (uploadedFileId) {
@@ -216,7 +221,8 @@ function normalizeMistral(
   raw: OCRResponse,
   requestedOutputs: Array<ParseOutput>,
   includeRaw: boolean,
-  startedAt: Date
+  startedAt: Date,
+  annotated: boolean
 ): ParseResult {
   const pages = raw.pages.map(normalizePage)
   const markdown = pages.map((page) => page.markdown ?? "").join("\n\n---\n\n")
@@ -228,6 +234,11 @@ function normalizeMistral(
     usage: raw.usageInfo,
   }
   const completedAt = new Date()
+  const costUsd = mistralOcrCostUsd(
+    raw.model,
+    raw.usageInfo.pagesProcessed,
+    annotated
+  )
   return {
     id: crypto.randomUUID(),
     outputs: selectOutputs(requestedOutputs, {
@@ -246,9 +257,23 @@ function normalizeMistral(
       durationMs: completedAt.getTime() - startedAt.getTime(),
       startedAt: startedAt.toISOString(),
     },
-    usage: { pages: raw.usageInfo.pagesProcessed },
+    usage: {
+      ...(costUsd !== undefined && { costUsd }),
+      pages: raw.usageInfo.pagesProcessed,
+    },
     warnings: [],
   }
+}
+
+function mistralOcrCostUsd(
+  model: string,
+  pages: number,
+  annotated: boolean
+): number | undefined {
+  const rates = OCR_MODEL_RATES[model as keyof typeof OCR_MODEL_RATES]
+  return rates
+    ? pages * (annotated ? rates.annotated : rates.standard)
+    : undefined
 }
 
 function normalizePage(raw: OCRPageObject): ParsePage {

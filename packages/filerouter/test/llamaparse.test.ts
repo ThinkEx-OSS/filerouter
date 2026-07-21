@@ -40,7 +40,7 @@ describe("llamaparse", () => {
     expect(status.result.raw).toBeUndefined()
     expect(get).toHaveBeenCalledWith(
       "parse-job",
-      expect.objectContaining({ expand: ["markdown"] }),
+      expect.objectContaining({ expand: ["job_metadata", "markdown"] }),
       undefined
     )
   })

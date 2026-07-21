@@ -32,13 +32,14 @@ describe("Mistral OCR provider", () => {
     expect(result.outputs.pages?.map((page) => page.pageNumber)).toEqual([1, 2])
     expect(result.outputs.markdown).toContain("# Page one")
     expect(result.raw).toBeUndefined()
-    expect(result.usage?.pages).toBe(2)
+    expect(result.usage).toEqual({ costUsd: 0.008, pages: 2 })
     expect(process).toHaveBeenCalledWith(
       expect.objectContaining({
         document: {
           documentUrl: "https://example.com/report.pdf",
           type: "document_url",
         },
+        model: "mistral-ocr-4-0",
       }),
       expect.any(Object)
     )
@@ -48,6 +49,7 @@ describe("Mistral OCR provider", () => {
     const upload = vi.fn().mockResolvedValue({ id: "file-1" })
     const deleteFile = vi.fn().mockResolvedValue({ deleted: true })
     const process = vi.fn().mockResolvedValue({
+      model: "mistral-ocr-2512",
       pages: [
         {
           blocks: [{ type: "text" }],
@@ -92,6 +94,7 @@ describe("Mistral OCR provider", () => {
         pages: [1],
         providerOptions: {
           "mistral-ocr": {
+            bboxAnnotationFormat: { type: "json_schema" },
             confidenceScoresGranularity: "page",
             includeImageBase64: true,
             tableFormat: "html",
@@ -102,6 +105,7 @@ describe("Mistral OCR provider", () => {
 
     expect(process).toHaveBeenCalledWith(
       expect.objectContaining({
+        bboxAnnotationFormat: { type: "json_schema" },
         confidenceScoresGranularity: "page",
         document: { fileId: "file-1", type: "file" },
         includeImageBase64: true,
@@ -125,6 +129,7 @@ describe("Mistral OCR provider", () => {
         html: "<table></table>",
       }),
     ])
+    expect(result.usage).toEqual({ costUsd: 0.003, pages: 1 })
     expect(result.raw).toBeDefined()
   })
 
