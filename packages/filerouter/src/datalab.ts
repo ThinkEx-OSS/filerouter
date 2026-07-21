@@ -1,9 +1,10 @@
 import { FileRouterError } from "./errors"
 import { readEnv, trimTrailingSlash } from "./internal/env"
-import { isRecord, requestJson } from "./internal/http"
+import { requestJson } from "./internal/http"
 import { selectOutputs } from "./internal/outputs"
 import { providerOptions } from "./internal/provider-options"
 import { waitForProviderJob } from "./internal/polling"
+import { isRecord } from "./internal/record"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   FileRouterProvider,
