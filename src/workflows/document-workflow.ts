@@ -1,5 +1,9 @@
 import { WorkflowEntrypoint } from "cloudflare:workers"
-import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers"
+import type {
+  WorkflowEvent,
+  WorkflowStep,
+  WorkflowStepConfig,
+} from "cloudflare:workers"
 import { and, eq } from "drizzle-orm"
 import {
   FileRouterError,
@@ -44,28 +48,38 @@ export interface DocumentWorkflowParams {
   userId: string
 }
 
-const SINGLE_ATTEMPT = {
-  retries: { backoff: "constant" as const, delay: 0, limit: 1 },
-  timeout: "15 minutes" as const,
-}
+const PROVIDER_EXECUTION_STEP = {
+  retries: { backoff: "constant", delay: 0, limit: 1 },
+  timeout: "15 minutes",
+} as const satisfies WorkflowStepConfig
 
-const RETRYABLE_CHECK = {
+const STORAGE_STEP = {
+  retries: { backoff: "exponential", delay: "2 seconds", limit: 3 },
+  timeout: "15 minutes",
+} as const satisfies WorkflowStepConfig
+
+const CLEANUP_STEP = {
+  retries: { backoff: "exponential", delay: "2 seconds", limit: 3 },
+  timeout: "1 minute",
+} as const satisfies WorkflowStepConfig
+
+const PROVIDER_STATUS_STEP = {
   retries: {
-    backoff: "exponential" as const,
-    delay: "10 seconds" as const,
+    backoff: "exponential",
+    delay: "10 seconds",
     limit: 3,
   },
-  timeout: "1 minute" as const,
-}
+  timeout: "1 minute",
+} as const satisfies WorkflowStepConfig
 
-const RETRYABLE_METERING = {
+const METERING_STEP = {
   retries: {
-    backoff: "exponential" as const,
-    delay: "5 seconds" as const,
+    backoff: "exponential",
+    delay: "5 seconds",
     limit: 5,
   },
-  timeout: "1 minute" as const,
-}
+  timeout: "1 minute",
+} as const satisfies WorkflowStepConfig
 
 type ProviderStepStatus =
   | { status: "pending" | "running" }
@@ -113,7 +127,7 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
           .where(eq(documentJob.id, params.jobId))
         return timestamp.toISOString()
       })
-      await step.do("materialize document source", SINGLE_ATTEMPT, () =>
+      await step.do("materialize document source", STORAGE_STEP, () =>
         materializeDocumentSource(
           this.env.FILEROUTER_FILES,
           params.source,
@@ -275,16 +289,13 @@ async function trackUsageWithoutFailingJob(
   providers: Array<ProviderOutcome>
 ): Promise<MeteringOutcome> {
   try {
-    const result = await step.do(
-      "track managed execution",
-      RETRYABLE_METERING,
-      () =>
-        trackManagedExecutionUsage(env, {
-          jobId: params.jobId,
-          operation: params.operation,
-          providers,
-          userId: params.userId,
-        })
+    const result = await step.do("track managed execution", METERING_STEP, () =>
+      trackManagedExecutionUsage(env, {
+        jobId: params.jobId,
+        operation: params.operation,
+        providers,
+        userId: params.userId,
+      })
     )
     return "skipped" in result
       ? { status: "skipped" }
@@ -314,7 +325,7 @@ async function deleteResultObjects(
     return { status: "skipped" }
   }
   try {
-    await step.do(stepName, SINGLE_ATTEMPT, async () => {
+    await step.do(stepName, CLEANUP_STEP, async () => {
       await bucket.delete(keys)
       return true
     })
@@ -347,12 +358,15 @@ async function processProvider(
   try {
     return provider.jobs
       ? await processAsyncProvider(step, provider, input, params, env)
-      : await step.do(`process ${provider.id}`, SINGLE_ATTEMPT, async () =>
-          storeProviderResult(
-            env.FILEROUTER_FILES,
-            params.jobId,
-            await provider.parse(input, parseOptions(params, provider.id))
-          )
+      : await step.do(
+          `process ${provider.id}`,
+          PROVIDER_EXECUTION_STEP,
+          async () =>
+            storeProviderResult(
+              env.FILEROUTER_FILES,
+              params.jobId,
+              await provider.parse(input, parseOptions(params, provider.id))
+            )
         )
   } catch (error) {
     return {
@@ -376,15 +390,17 @@ async function processAsyncProvider(
     throw new Error(`Provider ${provider.id} does not support durable jobs.`)
   }
 
-  const job = await step.do(`submit ${provider.id}`, SINGLE_ATTEMPT, async () =>
-    jobs.submit(input, parseOptions(params, provider.id))
+  const job = await step.do(
+    `submit ${provider.id}`,
+    PROVIDER_EXECUTION_STEP,
+    async () => jobs.submit(input, parseOptions(params, provider.id))
   )
 
   const deadline = new Date(job.submittedAt).getTime() + 14 * 60 * 1000
   while (Date.now() < deadline) {
     const status: ProviderStepStatus = await step.do(
       `check ${provider.id}`,
-      RETRYABLE_CHECK,
+      PROVIDER_STATUS_STEP,
       async () => {
         const current = await jobs.get(job, parseOptions(params, provider.id))
         if (current.status !== "complete") {
@@ -430,7 +446,7 @@ async function persistResult(
     return { pageCount: result.pageCount, resultKey: result.resultKey }
   }
 
-  return step.do("store comparison", SINGLE_ATTEMPT, () =>
+  return step.do("store comparison", STORAGE_STEP, () =>
     storeComparisonResult(bucket, {
       fileName: params.fileName,
       jobId: params.jobId,
@@ -449,7 +465,7 @@ async function deleteDocumentSource(
 ): Promise<CleanupOutcome> {
   const sourceKey = params.source.key
   try {
-    await step.do(stepName, SINGLE_ATTEMPT, async () => {
+    await step.do(stepName, CLEANUP_STEP, async () => {
       await env.FILEROUTER_FILES.delete(sourceKey)
       return true
     })
