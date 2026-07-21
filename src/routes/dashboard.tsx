@@ -1,10 +1,4 @@
-import {
-  ArrowUpRight,
-  BookOpenText,
-  BracketsCurly,
-  CloudArrowUp,
-  SignOut,
-} from "@phosphor-icons/react"
+import { BookOpenText, CloudArrowUp, SignOut } from "@phosphor-icons/react"
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 
@@ -33,8 +27,6 @@ export const Route = createFileRoute("/dashboard")({
         search: { redirect: location.href },
       })
     }
-
-    return { session }
   },
   head: () => ({
     meta: [
@@ -47,7 +39,6 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const router = useRouter()
-  const { session } = Route.useRouteContext()
   const [signingOut, setSigningOut] = useState(false)
 
   async function signOut() {
@@ -60,17 +51,7 @@ function DashboardPage() {
   return (
     <main className="min-h-svh bg-background text-foreground">
       <AppNavbar>
-        <Button
-          asChild
-          className="hidden h-9 px-3 sm:inline-flex"
-          variant="outline"
-        >
-          <a href="https://docs.filerouter.dev">
-            <BookOpenText weight="bold" />
-            Docs
-          </a>
-        </Button>
-        <div className="flex items-center gap-1 border-l border-border pl-2">
+        <div className="flex items-center gap-1">
           <ModeToggle className="size-9" />
           <Button
             aria-label="Sign out"
@@ -85,98 +66,50 @@ function DashboardPage() {
         </div>
       </AppNavbar>
 
-      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
-        <div className="mb-8 flex items-center justify-between gap-4 border-b border-border pb-4">
-          <h1 className="text-xl font-medium">Get started</h1>
-          <p className="truncate text-sm text-muted-foreground">
-            {session.user.email}
-          </p>
-        </div>
-
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_15rem]">
-          <div className="grid gap-6">
+      <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 sm:py-10">
+        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_15rem]">
+          <div className="grid min-w-0 gap-12">
             <DashboardQuickstart />
             <ApiKeys />
           </div>
 
-          <aside className="grid gap-8 lg:sticky lg:top-20">
-            <section>
-              <h2 className="text-sm font-medium">Documentation</h2>
-              <nav
-                aria-label="Documentation"
-                className="mt-3 border-t border-border"
-              >
-                {[
-                  {
-                    href: "https://docs.filerouter.dev/quickstart",
-                    icon: BookOpenText,
-                    label: "Quickstart",
-                  },
-                  {
-                    href: "https://docs.filerouter.dev/sdk/parse",
-                    icon: BracketsCurly,
-                    label: "TypeScript SDK",
-                  },
-                  {
-                    href: "https://docs.filerouter.dev/api/overview",
-                    icon: CloudArrowUp,
-                    label: "API reference",
-                  },
-                ].map(({ href, icon: Icon, label }) => (
-                  <a
-                    className="group flex items-center gap-3 border-b border-border py-3 text-sm transition-colors hover:text-primary"
-                    href={href}
-                    key={label}
-                  >
-                    <Icon
-                      className="size-4 text-muted-foreground"
-                      weight="bold"
-                    />
-                    <span className="flex-1">{label}</span>
-                    <ArrowUpRight
-                      className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                      weight="bold"
-                    />
-                  </a>
-                ))}
-              </nav>
-            </section>
-
-            <section>
-              <h2 className="text-sm font-medium">Community</h2>
-              <nav
-                aria-label="Community"
-                className="mt-3 border-t border-border"
-              >
-                {[
-                  {
-                    href: DISCORD_URL,
-                    icon: DiscordIcon,
-                    label: "Discord",
-                  },
-                  {
-                    href: "https://github.com/ThinkEx-OSS/filerouter",
-                    icon: GitHubIcon,
-                    label: "GitHub",
-                  },
-                ].map(({ href, icon: Icon, label }) => (
-                  <a
-                    className="group flex items-center gap-3 border-b border-border py-3 text-sm transition-colors hover:text-primary"
-                    href={href}
-                    key={label}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <Icon className="size-4 text-muted-foreground" />
-                    <span className="flex-1">{label}</span>
-                    <ArrowUpRight
-                      className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                      weight="bold"
-                    />
-                  </a>
-                ))}
-              </nav>
-            </section>
+          <aside className="min-w-0 bg-muted/35 p-4 lg:sticky lg:top-20">
+            <h2 className="text-sm font-medium">Resources</h2>
+            <nav aria-label="Resources" className="mt-2 grid gap-1">
+              {[
+                {
+                  href: "https://docs.filerouter.dev",
+                  icon: BookOpenText,
+                  label: "Documentation",
+                },
+                {
+                  href: "https://docs.filerouter.dev/api/overview",
+                  icon: CloudArrowUp,
+                  label: "API reference",
+                },
+                {
+                  href: "https://github.com/ThinkEx-OSS/filerouter",
+                  icon: GitHubIcon,
+                  label: "GitHub",
+                },
+                {
+                  href: DISCORD_URL,
+                  icon: DiscordIcon,
+                  label: "Discord",
+                },
+              ].map(({ href, icon: Icon, label }) => (
+                <a
+                  className="flex items-center gap-3 px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  href={href}
+                  key={label}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <Icon className="size-4 shrink-0" weight="bold" />
+                  {label}
+                </a>
+              ))}
+            </nav>
           </aside>
         </div>
       </div>
