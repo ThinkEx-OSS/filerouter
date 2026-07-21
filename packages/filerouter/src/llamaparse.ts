@@ -3,6 +3,7 @@ import { readEnv } from "./internal/env"
 import { selectOutputs } from "./internal/outputs"
 import { waitForProviderJob } from "./internal/polling"
 import { providerOptions } from "./internal/provider-options"
+import { isRecord } from "./internal/record"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type { ClientOptions, LlamaCloud } from "@llamaindex/llama-cloud"
 import type {
@@ -537,9 +538,6 @@ const stringField = (value: unknown): string | undefined =>
 
 const numberField = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null
 
 const objectField = (value: unknown): Record<string, unknown> =>
   isRecord(value) ? value : {}

@@ -4,6 +4,7 @@ import type { FileRouterProvider, ProviderParseOptions } from "@file_router/sdk"
 
 import { HttpError } from "@/lib/http.server"
 import { createNativeParserProvider } from "@/lib/native-parser.server"
+import { isRecord } from "@/lib/record"
 import { JOB_ID_HEADER, REQUEST_ID_HEADER } from "@/observability/log"
 
 const blockedTransportOptions: Record<ProviderId, ReadonlySet<string>> = {
@@ -175,8 +176,4 @@ function assertNoBlockedOptions(
       `Hosted ${providerId} options cannot set: ${blocked.join(", ")}.`
     )
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

@@ -1,5 +1,6 @@
 import { withAuth } from "@/lib/auth.server"
 import { HttpError } from "@/lib/http.server"
+import { isRecord } from "@/lib/record"
 
 export interface ApiPrincipal {
   credentialId: string
@@ -82,8 +83,4 @@ function getApiKeyLimitError(error: unknown): HttpError | undefined {
       headers: { "Retry-After": String(retryAfterSeconds) },
     }),
   })
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }

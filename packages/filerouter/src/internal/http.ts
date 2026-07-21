@@ -1,5 +1,6 @@
 import { FileRouterError, toFileRouterError } from "../errors"
 import type { FileRouterErrorCode } from "../errors"
+import { isRecord } from "./record"
 
 export interface JsonRequestOptions extends RequestInit {
   fetch?: typeof globalThis.fetch | undefined
@@ -91,8 +92,4 @@ async function readJson(response: Response): Promise<unknown> {
   }
 
   return response.json()
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
