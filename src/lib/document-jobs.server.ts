@@ -124,14 +124,7 @@ export async function createDocumentJob(
       ...(input.providerOptions && { providerOptions: input.providerOptions }),
     }
     try {
-      await env.DOCUMENT_WORKFLOW.create({
-        id,
-        params,
-        retention: {
-          errorRetention: "7 days",
-          successRetention: "1 day",
-        },
-      })
+      await startDocumentWorkflow(env.DOCUMENT_WORKFLOW, id, params)
     } catch (error) {
       await db.delete(documentJob).where(eq(documentJob.id, id))
       throw error
@@ -150,6 +143,31 @@ export async function createDocumentJob(
           ...serializeError(error),
         })
       })
+    }
+  }
+}
+
+async function startDocumentWorkflow(
+  workflow: Cloudflare.Env["DOCUMENT_WORKFLOW"],
+  id: string,
+  params: DocumentWorkflowParams
+): Promise<void> {
+  try {
+    await workflow.createBatch([
+      {
+        id,
+        params,
+        retention: {
+          errorRetention: "7 days",
+          successRetention: "1 day",
+        },
+      },
+    ])
+  } catch (error) {
+    try {
+      await workflow.get(id)
+    } catch {
+      throw error
     }
   }
 }

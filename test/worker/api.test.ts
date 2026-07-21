@@ -71,8 +71,8 @@ describe("FileRouter Worker", () => {
         body: { name: "Binary upload test", userId: "user-binary-upload" },
       })
     )
-    const createWorkflow = vi.fn().mockResolvedValue({ id: "workflow-upload" })
-    const testEnv = envWithWorkflow(createWorkflow)
+    const createBatch = vi.fn().mockResolvedValue([{ id: "workflow-upload" }])
+    const testEnv = envWithWorkflow(createBatch)
     const response = await api.fetch(
       new Request("https://filerouter.test/api/v1/jobs", {
         body: '{"document":true}',
@@ -92,7 +92,7 @@ describe("FileRouter Worker", () => {
     const sourceKey = `jobs/${job.id}/source`
 
     try {
-      expect(createWorkflow).toHaveBeenCalledOnce()
+      expect(createBatch).toHaveBeenCalledOnce()
       const source = await env.FILEROUTER_FILES.head(sourceKey)
       expect(source?.httpMetadata?.contentType).toBe("application/json")
     } finally {
@@ -234,8 +234,8 @@ describe("FileRouter Worker", () => {
 
   test("replays idempotent jobs without starting another Workflow", async () => {
     await insertUser("user-idempotent")
-    const createWorkflow = vi.fn().mockResolvedValue({ id: "workflow-1" })
-    const testEnv = envWithWorkflow(createWorkflow)
+    const createBatch = vi.fn().mockResolvedValue([{ id: "workflow-1" }])
+    const testEnv = envWithWorkflow(createBatch)
 
     const first = await createDocumentJob(
       urlJobRequest("https://example.com/report.pdf"),
@@ -257,7 +257,7 @@ describe("FileRouter Worker", () => {
       replayed: false,
     })
     expect(replay).toEqual({ ...first, replayed: true })
-    expect(createWorkflow).toHaveBeenCalledTimes(1)
+    expect(createBatch).toHaveBeenCalledTimes(1)
 
     await expect(
       createDocumentJob(
@@ -275,7 +275,7 @@ describe("FileRouter Worker", () => {
     const created = await createDocumentJob(
       urlJobRequest("https://example.com/report.pdf"),
       "user-complete-result",
-      envWithWorkflow(vi.fn().mockResolvedValue({ id: "workflow-result" })),
+      envWithWorkflow(vi.fn().mockResolvedValue([{ id: "workflow-result" }])),
       "complete-result-1",
       "request-complete-result"
     )
@@ -317,7 +317,7 @@ describe("FileRouter Worker", () => {
     const created = await createDocumentJob(
       urlJobRequest("https://example.com/expired.pdf"),
       "user-expired-result",
-      envWithWorkflow(vi.fn().mockResolvedValue({ id: "workflow-expired" })),
+      envWithWorkflow(vi.fn().mockResolvedValue([{ id: "workflow-expired" }])),
       "expired-result-1",
       "request-expired-result"
     )
@@ -343,16 +343,10 @@ describe("FileRouter Worker", () => {
   test("cleans up D1 and R2 when Workflow startup fails", async () => {
     await insertUser("user-cleanup")
     const testEnv = envWithWorkflow(
-      vi.fn().mockRejectedValue(new Error("workflow unavailable"))
+      vi.fn().mockRejectedValue(new Error("workflow unavailable")),
+      vi.fn().mockRejectedValue(new Error("workflow not found"))
     )
-    const request = new Request("https://filerouter.test/api/v1/jobs", {
-      body: new Blob(["document"], { type: "application/pdf" }),
-      headers: {
-        "Content-Type": "application/pdf",
-        "X-FileRouter-Filename": "report.pdf",
-      },
-      method: "POST",
-    })
+    const request = uploadJobRequest()
 
     await expect(
       createDocumentJob(
@@ -374,6 +368,43 @@ describe("FileRouter Worker", () => {
     expect(jobs?.count).toBe(0)
     expect(objects.objects).toHaveLength(0)
   })
+
+  test("preserves a job when Workflow startup succeeded ambiguously", async () => {
+    await insertUser("user-workflow-reconcile")
+    const createBatch = vi
+      .fn()
+      .mockRejectedValue(new Error("workflow response was lost"))
+    const getWorkflow = vi.fn().mockResolvedValue({ id: "workflow-reconciled" })
+    const testEnv = envWithWorkflow(createBatch, getWorkflow)
+    const request = uploadJobRequest()
+
+    const created = await createDocumentJob(
+      request,
+      "user-workflow-reconcile",
+      testEnv,
+      "reconcile-report-1",
+      "request-reconcile"
+    )
+    const sourceKey = `jobs/${created.job.id}/source`
+
+    try {
+      expect(created.job.status).toBe("queued")
+      expect(createBatch).toHaveBeenCalledOnce()
+      expect(createBatch).toHaveBeenCalledWith([
+        expect.objectContaining({
+          id: created.job.id,
+          params: expect.objectContaining({ jobId: created.job.id }),
+        }),
+      ])
+      expect(getWorkflow).toHaveBeenCalledWith(created.job.id)
+      expect(await env.FILEROUTER_FILES.head(sourceKey)).not.toBeNull()
+    } finally {
+      await env.FILEROUTER_FILES.delete(sourceKey)
+      await env.DB.prepare("DELETE FROM document_job WHERE id = ?")
+        .bind(created.job.id)
+        .run()
+    }
+  })
 })
 
 function urlJobRequest(url: string): Request {
@@ -384,6 +415,17 @@ function urlJobRequest(url: string): Request {
       source: { url },
     }),
     headers: { "Content-Type": "application/json" },
+    method: "POST",
+  })
+}
+
+function uploadJobRequest(): Request {
+  return new Request("https://filerouter.test/api/v1/jobs", {
+    body: new Blob(["document"], { type: "application/pdf" }),
+    headers: {
+      "Content-Type": "application/pdf",
+      "X-FileRouter-Filename": "report.pdf",
+    },
     method: "POST",
   })
 }
@@ -402,9 +444,12 @@ function authRequest(path: string, init?: RequestInit): Promise<Response> {
   )
 }
 
-function envWithWorkflow(create: ReturnType<typeof vi.fn>): Cloudflare.Env {
+function envWithWorkflow(
+  createBatch: ReturnType<typeof vi.fn>,
+  get: ReturnType<typeof vi.fn> = vi.fn()
+): Cloudflare.Env {
   return {
     ...env,
-    DOCUMENT_WORKFLOW: { create },
+    DOCUMENT_WORKFLOW: { createBatch, get },
   } as unknown as Cloudflare.Env
 }
