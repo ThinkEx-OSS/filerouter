@@ -55,8 +55,7 @@ export function BenchmarkSection() {
             </h2>
           </div>
           <p className="max-w-2xl leading-7 text-muted-foreground lg:justify-self-end">
-            Switch the workload and metric to see how document parsers stack up.
-            Every score comes from a published, dated benchmark.
+            See where each parser performs best.
           </p>
         </div>
 
@@ -74,7 +73,7 @@ export function BenchmarkSection() {
                   aria-controls="benchmark-panel"
                   aria-selected={selected}
                   className={cn(
-                    "relative min-h-14 border-border px-2 py-3 text-center text-xs font-medium transition-colors not-first:border-l sm:px-5 sm:text-left sm:text-sm",
+                    "relative min-h-14 min-w-0 border-border px-1 py-3 text-center text-xs font-medium transition-colors not-first:border-l sm:px-5 sm:text-left sm:text-sm",
                     selected
                       ? "bg-muted/55 text-foreground"
                       : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
@@ -84,7 +83,10 @@ export function BenchmarkSection() {
                   role="tab"
                   type="button"
                 >
-                  {candidate.tabLabel}
+                  <span className="block font-mono text-[9px] tracking-tight text-primary uppercase sm:text-[11px] sm:tracking-normal">
+                    {candidate.sourceName}
+                  </span>
+                  <span className="mt-0.5 block">{candidate.tabLabel}</span>
                   {selected && (
                     <span className="absolute inset-x-0 bottom-0 h-px bg-primary" />
                   )}

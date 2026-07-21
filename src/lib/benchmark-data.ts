@@ -11,6 +11,9 @@ export type BenchmarkMetricId =
   | "leafAccuracy"
   | "readingOrder"
   | "headings"
+  | "oldScans"
+  | "multiColumn"
+  | "longText"
 
 export type BenchmarkEntry = {
   name: string
@@ -31,7 +34,7 @@ export type BenchmarkMetric = {
 }
 
 export type BenchmarkDefinition = {
-  id: "parsebench" | "long-extraction" | "local"
+  id: "parsebench" | "long-extraction" | "olmocr"
   tabLabel: string
   tabHint: string
   title: string
@@ -244,61 +247,79 @@ const longExtractionEntries = [
   },
 ] satisfies ReadonlyArray<BenchmarkEntry>
 
-const localEntries = [
+const olmOcrEntries = [
   {
-    name: "pdf-inspector",
-    category: "Local · no OCR",
+    name: "Chandra OCR 0.1.0",
+    category: "Open model",
     scores: {
-      overall: 0.875,
-      readingOrder: 0.915,
-      tables: 0.814,
-      headings: 0.788,
+      overall: 83.1,
+      tables: 88,
+      oldScans: 50.4,
+      multiColumn: 84.2,
+      longText: 92.3,
     },
-    secondary: "2.8s / 200 docs",
+    secondary: "±0.9 overall",
   },
   {
-    name: "LiteParse",
-    category: "Local · no OCR",
+    name: "Infinity-Parser 7B",
+    category: "Open model",
     scores: {
-      overall: 0.87,
-      readingOrder: 0.908,
-      tables: 0.693,
-      headings: 0.811,
+      overall: 82.5,
+      tables: 85,
+      oldScans: 47.9,
+      multiColumn: 84.2,
+      longText: 86.4,
     },
-    secondary: "13.9s / 200 docs",
+    secondary: "7B parameters",
   },
   {
-    name: "OpenDataLoader",
-    category: "Local · no OCR",
+    name: "olmOCR v0.4.0",
+    category: "Open model",
     scores: {
-      overall: 0.843,
-      readingOrder: 0.912,
-      tables: 0.489,
-      headings: 0.76,
+      overall: 82.4,
+      tables: 84.9,
+      oldScans: 47.7,
+      multiColumn: 83.7,
+      longText: 81.9,
     },
-    secondary: "9.8s / 200 docs",
+    secondary: "±1.1 overall",
   },
   {
-    name: "PyMuPDF4LLM",
-    category: "Local · no OCR",
+    name: "PaddleOCR-VL",
+    category: "Open model",
     scores: {
-      overall: 0.735,
-      readingOrder: 0.886,
-      tables: 0.401,
-      headings: 0.424,
+      overall: 80,
+      tables: 84.1,
+      oldScans: 37.8,
+      multiColumn: 79.9,
+      longText: 85.7,
     },
-    secondary: "15.5s / 200 docs",
+    secondary: "Local-capable",
   },
   {
-    name: "MarkItDown",
-    category: "Local · no OCR",
+    name: "Marker 1.10.1",
+    category: "Open parser",
     scores: {
-      overall: 0.583,
-      readingOrder: 0.879,
-      tables: 0,
-      headings: 0,
+      overall: 76.1,
+      tables: 72.9,
+      oldScans: 33.5,
+      multiColumn: 80,
+      longText: 85.7,
     },
-    secondary: "6.7s / 200 docs",
+    secondary: "±1.1 overall",
+  },
+  {
+    name: "Mistral OCR API",
+    category: "Hosted API",
+    scores: {
+      overall: 72,
+      tables: 60.6,
+      oldScans: 29.3,
+      multiColumn: 71.3,
+      longText: 77.1,
+    },
+    secondary: "±1.1 overall",
+    featured: true,
   },
 ] satisfies ReadonlyArray<BenchmarkEntry>
 
@@ -434,57 +455,65 @@ export const benchmarks = [
     entries: longExtractionEntries,
   },
   {
-    id: "local",
-    tabLabel: "Fast and local",
-    tabHint: "Native-text PDFs",
-    title: "How far can a local parser go?",
+    id: "olmocr",
+    tabLabel: "Hard PDFs",
+    tabHint: "OCR and structure",
+    title: "Can it handle the difficult pages?",
     description:
-      "Lightweight engines running without OCR or model-based parsing, compared on document structure and speed.",
-    sourceName: "pdf-inspector published run",
-    sourceUrl: "https://github.com/firecrawl/pdf-inspector#benchmark",
-    snapshotLabel: "Refreshed July 16, 2026",
+      "Open parsers and hosted OCR tested on scans, tables, multi-column layouts, and long or tiny text.",
+    sourceName: "olmOCR-Bench",
+    sourceUrl: "https://github.com/allenai/olmocr#benchmark",
+    snapshotLabel: "olmOCR-Bench public table · accessed July 21, 2026",
     methodologyNote:
-      "200-PDF OpenDataLoader corpus on an Apple M4 Pro. Scores are 0–1; speed is the median of three corpus runs.",
+      "7,010 unit tests across 1,403 PDFs. Scores are pass rates from 0–100; higher is better.",
     defaultMetric: "overall",
     metrics: [
       {
         id: "overall",
         label: "Overall",
-        technicalLabel: "Composite",
-        description: "Combined reading-order, table, and heading performance.",
-        maximum: 1,
-        decimals: 3,
-        suffix: "",
-      },
-      {
-        id: "readingOrder",
-        label: "Reading order",
-        technicalLabel: "NID",
-        description:
-          "Similarity between extracted and ground-truth reading sequence.",
-        maximum: 1,
-        decimals: 3,
+        technicalLabel: "Mean pass rate",
+        description: "Average pass rate across the benchmark categories.",
+        maximum: 100,
+        decimals: 1,
         suffix: "",
       },
       {
         id: "tables",
         label: "Tables",
-        technicalLabel: "TEDS",
-        description: "Table structure and cell-text similarity.",
-        maximum: 1,
-        decimals: 3,
+        technicalLabel: "Table tests",
+        description: "Pass rate on extracting and preserving tables.",
+        maximum: 100,
+        decimals: 1,
         suffix: "",
       },
       {
-        id: "headings",
-        label: "Headings",
-        technicalLabel: "MHS",
-        description: "Preservation of heading hierarchy.",
-        maximum: 1,
-        decimals: 3,
+        id: "oldScans",
+        label: "Old scans",
+        technicalLabel: "Old scan tests",
+        description: "Pass rate on degraded and historical scanned pages.",
+        maximum: 100,
+        decimals: 1,
+        suffix: "",
+      },
+      {
+        id: "multiColumn",
+        label: "Multi-column",
+        technicalLabel: "Multi-column tests",
+        description: "Pass rate on pages with multiple reading columns.",
+        maximum: 100,
+        decimals: 1,
+        suffix: "",
+      },
+      {
+        id: "longText",
+        label: "Long text",
+        technicalLabel: "Long and tiny text tests",
+        description: "Pass rate on unusually long or very small text.",
+        maximum: 100,
+        decimals: 1,
         suffix: "",
       },
     ],
-    entries: localEntries,
+    entries: olmOcrEntries,
   },
 ] as const satisfies ReadonlyArray<BenchmarkDefinition>
