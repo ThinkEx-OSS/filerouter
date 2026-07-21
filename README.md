@@ -103,6 +103,9 @@ const result = await router.parse("./report.pdf", {
 - **LlamaParse** for layout-aware document parsing.
 - **Mistral OCR** for OCR with structured document output.
 - **Datalab** for document conversion and extraction.
+- **LiteParse** for open-source parsing with optional OCR, screenshots, and
+  Office conversion.
+- **PDF Inspector** for fast PDF classification and text-layer inspection.
 
 More adapters are coming.
 
