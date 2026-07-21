@@ -16,6 +16,7 @@ export type ProviderOutcome =
       provider: string
       resultKey: string
       status: "parsed"
+      usage?: ParseResult["usage"]
     }
 
 export async function storeProviderResult(
@@ -33,6 +34,7 @@ export async function storeProviderResult(
     provider: result.provider,
     resultKey,
     status: "parsed",
+    ...(result.usage && { usage: result.usage }),
   }
 }
 

@@ -241,13 +241,15 @@ describe("FileRouter Worker", () => {
       urlJobRequest("https://example.com/report.pdf"),
       "user-idempotent",
       testEnv,
-      "retry-report-1"
+      "retry-report-1",
+      "request-idempotent-1"
     )
     const replay = await createDocumentJob(
       urlJobRequest("https://example.com/report.pdf"),
       "user-idempotent",
       testEnv,
-      "retry-report-1"
+      "retry-report-1",
+      "request-idempotent-2"
     )
 
     expect(first).toMatchObject({
@@ -262,7 +264,8 @@ describe("FileRouter Worker", () => {
         urlJobRequest("https://example.com/different.pdf"),
         "user-idempotent",
         testEnv,
-        "retry-report-1"
+        "retry-report-1",
+        "request-idempotent-3"
       )
     ).rejects.toMatchObject({ code: "idempotency_conflict", status: 409 })
   })
@@ -273,7 +276,8 @@ describe("FileRouter Worker", () => {
       urlJobRequest("https://example.com/report.pdf"),
       "user-complete-result",
       envWithWorkflow(vi.fn().mockResolvedValue({ id: "workflow-result" })),
-      "complete-result-1"
+      "complete-result-1",
+      "request-complete-result"
     )
     const resultKey = `jobs/${created.job.id}/result.json`
     const result = {
@@ -292,7 +296,8 @@ describe("FileRouter Worker", () => {
     const response = await getDocumentJobResponse(
       created.job.id,
       "user-complete-result",
-      env
+      env,
+      "request-complete-result"
     )
     expect(response).toBeInstanceOf(Response)
     if (!(response instanceof Response)) {
@@ -313,7 +318,8 @@ describe("FileRouter Worker", () => {
       urlJobRequest("https://example.com/expired.pdf"),
       "user-expired-result",
       envWithWorkflow(vi.fn().mockResolvedValue({ id: "workflow-expired" })),
-      "expired-result-1"
+      "expired-result-1",
+      "request-expired-result"
     )
     const resultKey = `jobs/${created.job.id}/result.json`
     await env.FILEROUTER_FILES.put(resultKey, '{"outputs":{}}')
@@ -324,7 +330,12 @@ describe("FileRouter Worker", () => {
       .run()
 
     await expect(
-      getDocumentJobResponse(created.job.id, "user-expired-result", env)
+      getDocumentJobResponse(
+        created.job.id,
+        "user-expired-result",
+        env,
+        "request-expired-result"
+      )
     ).rejects.toMatchObject({ code: "result_expired", status: 410 })
     expect(await env.FILEROUTER_FILES.head(resultKey)).toBeNull()
   })
@@ -344,7 +355,13 @@ describe("FileRouter Worker", () => {
     })
 
     await expect(
-      createDocumentJob(request, "user-cleanup", testEnv, "cleanup-report-1")
+      createDocumentJob(
+        request,
+        "user-cleanup",
+        testEnv,
+        "cleanup-report-1",
+        "request-cleanup"
+      )
     ).rejects.toThrow("workflow unavailable")
 
     const jobs = await env.DB.prepare(

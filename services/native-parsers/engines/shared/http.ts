@@ -1,6 +1,14 @@
 import { createServer } from "node:http"
 import type { IncomingMessage, ServerResponse } from "node:http"
 
+import {
+  JOB_ID_HEADER,
+  RELEASE_ID_HEADER,
+  REQUEST_ID_HEADER,
+  emitWideEvent,
+  serializeError,
+} from "./observability.ts"
+
 export const ENGINE_OPTIONS_HEADER = "x-filerouter-engine-options"
 export const FILE_NAME_HEADER = "x-filerouter-file-name"
 
@@ -25,29 +33,50 @@ export type ParserServerOptions = {
 export function startParserServer(options: ParserServerOptions): void {
   let activeRequests = 0
   const server = createServer(async (request, response) => {
-    if (request.method === "GET" && request.url === "/health") {
-      sendJson(response, 200, { parser: options.parserId, status: "ok" })
-      return
-    }
-    if (request.method !== "POST" || request.url !== "/parse") {
-      sendJson(response, 404, {
-        error: { code: "route_not_found", message: "Parser route not found." },
-      })
-      return
-    }
-    if (activeRequests >= options.maxConcurrency) {
-      sendJson(response, 429, {
-        error: {
-          code: "capacity_exceeded",
-          message: `${options.parserId} is at capacity.`,
-        },
-      })
-      return
-    }
+    const startedAt = Date.now()
+    const requestId =
+      singleHeader(request.headers[REQUEST_ID_HEADER]) ?? crypto.randomUUID()
+    const path = new URL(request.url ?? "/", "http://container").pathname
+    response.setHeader("X-Request-Id", requestId)
+    let bodyBytes: number | undefined
+    let errorCode: string | undefined
+    let failure: unknown
+    let requestActive = false
+    let status = 500
 
-    activeRequests += 1
     try {
+      if (request.method === "GET" && path === "/health") {
+        status = sendJson(response, 200, {
+          parser: options.parserId,
+          status: "ok",
+        })
+        return
+      }
+      if (request.method !== "POST" || path !== "/parse") {
+        errorCode = "route_not_found"
+        status = sendJson(response, 404, {
+          error: { code: errorCode, message: "Parser route not found." },
+        })
+        return
+      }
+      if (activeRequests >= options.maxConcurrency) {
+        errorCode = "capacity_exceeded"
+        status = sendJson(response, 429, {
+          error: {
+            code: errorCode,
+            message: `${options.parserId} is at capacity.`,
+          },
+        })
+        return
+      }
+
+      activeRequests += 1
+      requestActive = true
       const bytes = await readBody(request, options.maxBytes)
+      bodyBytes = bytes.byteLength
+      const engineOptions = parseOptions(
+        singleHeader(request.headers[ENGINE_OPTIONS_HEADER])
+      )
       const result = await options.handler({
         bytes,
         contentType:
@@ -56,24 +85,47 @@ export function startParserServer(options: ParserServerOptions): void {
         fileName:
           decodeHeader(singleHeader(request.headers[FILE_NAME_HEADER])) ??
           "document",
-        options: parseOptions(
-          singleHeader(request.headers[ENGINE_OPTIONS_HEADER])
-        ),
+        options: engineOptions,
       })
-      sendJson(response, 200, result, options.maxResponseBytes)
-    } catch (error) {
-      if (!(error instanceof ParserRequestError)) {
-        console.error(
-          JSON.stringify({
-            errorType: error instanceof Error ? error.name : "UnknownError",
-            parser: options.parserId,
-          })
-        )
+      status = sendJson(response, 200, result, options.maxResponseBytes)
+      if (status >= 400) {
+        errorCode = "provider_limit_exceeded"
       }
-      const failure = toParserFailure(error)
-      sendJson(response, failure.status, { error: failure.error })
+    } catch (error) {
+      failure = error
+      const parserFailure = toParserFailure(error)
+      errorCode = parserFailure.error.code
+      status = sendJson(response, parserFailure.status, {
+        error: parserFailure.error,
+      })
     } finally {
-      activeRequests -= 1
+      if (requestActive) {
+        activeRequests -= 1
+      }
+      emitWideEvent(status >= 500 ? "error" : "info", {
+        active_requests: activeRequests,
+        body_bytes: bodyBytes,
+        content_length: numericHeader(
+          singleHeader(request.headers["content-length"])
+        ),
+        content_type:
+          singleHeader(request.headers["content-type"]) ?? undefined,
+        duration_ms: Date.now() - startedAt,
+        error_code: errorCode,
+        event: "parser_engine_request_completed",
+        job_id: singleHeader(request.headers[JOB_ID_HEADER]),
+        max_concurrency: options.maxConcurrency,
+        method: request.method,
+        outcome:
+          status >= 500 ? "error" : status >= 400 ? "rejected" : "success",
+        parser: options.parserId,
+        path,
+        release_id: singleHeader(request.headers[RELEASE_ID_HEADER]),
+        request_id: requestId,
+        service: `filerouter-${options.parserId}`,
+        status_code: status,
+        ...(failure ? serializeError(failure) : {}),
+      })
     }
   })
 
@@ -166,22 +218,27 @@ function sendJson(
   status: number,
   value: unknown,
   maxBytes?: number
-): void {
+): number {
   const body = JSON.stringify(value)
   if (maxBytes && Buffer.byteLength(body) > maxBytes) {
-    sendJson(response, 413, {
+    return sendJson(response, 413, {
       error: {
         code: "provider_limit_exceeded",
         message: `Parser response exceeds the ${maxBytes}-byte output limit.`,
       },
     })
-    return
   }
   response.writeHead(status, {
     "Content-Length": Buffer.byteLength(body),
     "Content-Type": "application/json; charset=utf-8",
   })
   response.end(body)
+  return status
+}
+
+function numericHeader(value: string | undefined): number | undefined {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : undefined
 }
 
 function toParserFailure(error: unknown): {

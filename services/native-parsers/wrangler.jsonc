@@ -8,6 +8,18 @@
   "preview_urls": false,
   "observability": {
     "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+    },
+  },
+  "version_metadata": {
+    "binding": "WORKER_VERSION",
   },
   "vars": {
     "SOURCE_ORIGIN": "https://filerouter.dev",

@@ -1,6 +1,6 @@
 import { BookOpenText, CloudArrowUp, SignOut } from "@phosphor-icons/react"
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { ApiKeys } from "@/components/api-keys"
 import { AppNavbar } from "@/components/app-navbar"
@@ -12,6 +12,11 @@ import {
 import { DashboardQuickstart } from "@/components/dashboard-quickstart"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
+import {
+  captureBrowserException,
+  identifyBrowserUser,
+  resetBrowserUser,
+} from "@/integrations/posthog/browser"
 import { authClient } from "@/lib/auth-client"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
 
@@ -27,6 +32,8 @@ export const Route = createFileRoute("/dashboard")({
         search: { redirect: location.href },
       })
     }
+
+    return { session }
   },
   head: () => ({
     meta: [
@@ -38,14 +45,28 @@ export const Route = createFileRoute("/dashboard")({
 })
 
 function DashboardPage() {
+  const { session } = Route.useRouteContext()
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
 
+  useEffect(() => {
+    identifyBrowserUser(session.user.id)
+  }, [session.user.id])
+
   async function signOut() {
     setSigningOut(true)
-    await authClient.signOut()
-    await router.invalidate()
-    await router.navigate({ to: "/" })
+    try {
+      const result = await authClient.signOut()
+      if (result.error) {
+        throw new Error(result.error.message)
+      }
+      resetBrowserUser()
+      await router.invalidate()
+      await router.navigate({ to: "/" })
+    } catch (error) {
+      captureBrowserException(error, { operation: "sign_out" })
+      setSigningOut(false)
+    }
   }
 
   return (
