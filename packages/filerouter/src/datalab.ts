@@ -275,15 +275,17 @@ function normalizeDatalab(
   const images = normalizeImages(raw.images)
   const pageCount = readNumber(raw.page_count) ?? pages.length
   const qualityScore = readNumber(raw.parse_quality_score)
-  const totalCost = readNumber(raw.total_cost)
+  const costBreakdown = isRecord(raw.cost_breakdown)
+    ? raw.cost_breakdown
+    : undefined
+  const totalCost =
+    readNumber(costBreakdown?.total) ?? readNumber(raw.total_cost)
   const metadata = {
     ...(isRecord(raw.metadata) ? raw.metadata : {}),
     ...(typeof raw.checkpoint_id === "string" && {
       checkpointId: raw.checkpoint_id,
     }),
-    ...(isRecord(raw.cost_breakdown) && {
-      costBreakdown: raw.cost_breakdown,
-    }),
+    ...(costBreakdown && { costBreakdown }),
     ...(typeof raw.output_format === "string" && {
       outputFormat: raw.output_format,
     }),

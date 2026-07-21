@@ -18,13 +18,12 @@ describe("Datalab provider", () => {
         Response.json({
           images: { "figure.png": "base64-image" },
           checkpoint_id: "checkpoint-1",
-          cost_breakdown: { conversion: 7 },
+          cost_breakdown: { conversion: 7, total: 7 },
           markdown: "# Done",
           output_format: "markdown,json",
           page_count: 2,
           parse_quality_score: 4.5,
           status: "complete",
-          total_cost: 7,
         })
       )
     const provider = datalab({

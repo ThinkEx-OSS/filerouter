@@ -220,7 +220,7 @@ const resolveClient = async (
 }
 
 const outputsToExpand = (outputs: Array<ParseOutput>): Array<string> => {
-  const expand = new Set<string>()
+  const expand = new Set<string>(["job_metadata"])
 
   if (outputs.includes("markdown") || outputs.includes("pages")) {
     expand.add("markdown")
@@ -241,7 +241,6 @@ const outputsToExpand = (outputs: Array<ParseOutput>): Array<string> => {
   }
   if (outputs.includes("metadata") || outputs.includes("pages")) {
     expand.add("metadata")
-    expand.add("job_metadata")
   }
 
   return Array.from(expand)
