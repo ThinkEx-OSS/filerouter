@@ -326,11 +326,11 @@ const olmOcrEntries = [
 export const benchmarks = [
   {
     id: "parsebench",
-    tabLabel: "Agent-ready",
+    tabLabel: "Output quality",
     tabHint: "Enterprise PDFs",
-    title: "Can an agent use the result?",
+    title: "Which parser preserves the most useful content?",
     description:
-      "Human-verified enterprise documents scored for the structure and meaning AI agents need to act reliably.",
+      "Compares tables, charts, content accuracy, formatting, and layout across real enterprise documents.",
     sourceName: "ParseBench",
     sourceUrl: "https://github.com/run-llama/ParseBench",
     snapshotLabel: "Latest public leaderboard · accessed July 20, 2026",
@@ -400,11 +400,11 @@ export const benchmarks = [
   },
   {
     id: "long-extraction",
-    tabLabel: "Long documents",
+    tabLabel: "Extraction at scale",
     tabHint: "Dense extraction",
-    title: "Can it finish the whole document?",
+    title: "Which parser stays reliable on long documents?",
     description:
-      "A stress test of production extraction systems on long, table-heavy documents with tens of thousands of values.",
+      "Measures completion and field accuracy across hundreds-page, table-heavy documents.",
     sourceName: "LongExtractionBench",
     sourceUrl: "https://www.micro1.ai/benchmark/long-extraction",
     snapshotLabel: "Published July 2026",
@@ -456,11 +456,11 @@ export const benchmarks = [
   },
   {
     id: "olmocr",
-    tabLabel: "Hard PDFs",
+    tabLabel: "Complex PDFs",
     tabHint: "OCR and structure",
-    title: "Can it handle the difficult pages?",
+    title: "Which parser handles difficult pages best?",
     description:
-      "Open parsers and hosted OCR tested on scans, tables, multi-column layouts, and long or tiny text.",
+      "Tests old scans, tables, multi-column layouts, and long or tiny text across 1,400 PDFs.",
     sourceName: "olmOCR-Bench",
     sourceUrl: "https://github.com/allenai/olmocr#benchmark",
     snapshotLabel: "olmOCR-Bench public table · accessed July 21, 2026",
