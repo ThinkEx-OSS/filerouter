@@ -19,6 +19,11 @@ Hosted processing is the shortest path to production. FileRouter accepts the inp
 
 Hosted binary uploads are limited to **100 MB**. Completed results expire after **7 days**, and job records are retained for **30 days**.
 
+Public URL inputs are fetched once into temporary FileRouter storage before any
+provider runs. This gives comparisons one immutable source and avoids sending a
+user-controlled URL to private native parsers. Source objects are deleted when
+the job reaches a terminal state.
+
 ## Direct / BYOK
 
 Direct processing uses provider adapters from `@file_router/sdk` inside your runtime. Your document and provider credential do not pass through FileRouter, but the selected provider still receives the document.

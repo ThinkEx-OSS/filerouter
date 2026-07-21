@@ -34,6 +34,10 @@ Processes a document with one provider and returns a `ParseResult`.
 
 Processes the same resolved document across several providers concurrently. The returned `CompareResult` retains a status and duration for every provider, including failures and unsupported output combinations.
 
-## Built-in adapters
+## Built-in providers
 
-The SDK currently includes adapters for `llamaparse`, `mistral-ocr`, and `datalab`. Each adapter advertises its supported outputs and execution model through the provider catalog.
+Hosted jobs can select `llamaparse`, `mistral-ocr`, `datalab`, `liteparse`, or
+`pdf-inspector`. LiteParse and PDF Inspector run in separate private parser
+pools so lightweight PDF inspection does not inherit the OCR and Office
+conversion footprint. Every provider advertises its supported outputs and
+execution model through its runtime adapter.

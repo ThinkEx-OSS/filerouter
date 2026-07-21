@@ -22,6 +22,8 @@ Each provider reads only its own namespace:
 - `providerOptions.llamaparse`
 - `providerOptions["mistral-ocr"]`
 - `providerOptions.datalab`
+- `providerOptions.liteparse`
+- `providerOptions["pdf-inspector"]`
 
 This keeps native settings available without flattening incompatible provider APIs into one shared object.
 
@@ -32,3 +34,9 @@ This keeps native settings available without flattening incompatible provider AP
 </Note>
 
 Hosted requests encode provider options as JSON. The encoded options are limited to **64 KiB**.
+
+Hosted LiteParse supports curated options for managed OCR, Office conversion,
+image handling, complexity analysis, and screenshots. Transport credentials,
+custom OCR server URLs, passwords, and filesystem paths are rejected. FileRouter
+never silently disables a requested capability; unsupported options fail the
+job explicitly.
