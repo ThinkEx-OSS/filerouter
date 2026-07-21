@@ -88,13 +88,27 @@ export function ApiKeys() {
   const error = keys.error ?? createKeyMutation.error ?? revokeKeyMutation.error
 
   return (
-    <section className="mt-10 border-t border-border pt-8">
-      <div className="flex items-center gap-2">
-        <Key className="size-5 text-primary" weight="bold" />
-        <h2 className="text-lg font-medium">API keys</h2>
+    <section
+      aria-labelledby="api-keys-title"
+      className="scroll-mt-20 border-t border-border pt-6"
+      id="api-keys"
+    >
+      <div>
+        <div className="flex items-center gap-2">
+          <Key className="size-5 text-primary" weight="bold" />
+          <h2 className="text-xl font-medium" id="api-keys-title">
+            API keys
+          </h2>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create a key for the TypeScript SDK or hosted HTTP API.
+        </p>
       </div>
 
-      <form className="mt-4 flex max-w-xl gap-2" onSubmit={createKey}>
+      <form
+        className="flex flex-col gap-2 py-5 sm:max-w-2xl sm:flex-row"
+        onSubmit={createKey}
+      >
         <label className="sr-only" htmlFor="api-key-name">
           API key name
         </label>
@@ -117,7 +131,7 @@ export function ApiKeys() {
       </form>
 
       {createdKey ? (
-        <Alert className="mt-4 max-w-2xl border-primary/30 bg-primary/5">
+        <Alert className="mb-5 max-w-2xl border-primary/30 bg-primary/5">
           <AlertTitle>Copy this key now</AlertTitle>
           <AlertDescription>It will not be shown again.</AlertDescription>
           <div className="mt-3 flex items-center gap-2">
@@ -137,12 +151,12 @@ export function ApiKeys() {
       ) : null}
 
       {error ? (
-        <p className="mt-4 text-sm text-destructive" role="alert">
+        <p className="mb-5 text-sm text-destructive" role="alert">
           {error.message}
         </p>
       ) : null}
 
-      <div className="mt-6 divide-y divide-border border-y border-border">
+      <div className="divide-y divide-border border-y border-border">
         {keys.isPending ? (
           <p className="py-4 text-sm text-muted-foreground">Loading keys...</p>
         ) : keys.data?.length === 0 ? (
