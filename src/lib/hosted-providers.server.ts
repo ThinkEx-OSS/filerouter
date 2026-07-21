@@ -1,0 +1,175 @@
+import { builtInProviders } from "@file_router/sdk/catalog"
+import type { ProviderId } from "@file_router/sdk/catalog"
+import type { FileRouterProvider, ProviderParseOptions } from "@file_router/sdk"
+
+import { HttpError } from "@/lib/http.server"
+import { createNativeParserProvider } from "@/lib/native-parser.server"
+
+const blockedTransportOptions: Record<ProviderId, ReadonlySet<string>> = {
+  datalab: new Set([
+    "checkpoint_id",
+    "eval_rubric_id",
+    "file",
+    "file_url",
+    "webhook_url",
+    "workflowstepdata_id",
+  ]),
+  llamaparse: new Set([
+    "configuration_id",
+    "file_id",
+    "http_proxy",
+    "organization_id",
+    "project_id",
+    "source_url",
+    "upload_file",
+    "webhook_configuration_ids",
+    "webhook_configurations",
+  ]),
+  liteparse: new Set(),
+  "mistral-ocr": new Set(["document"]),
+  "pdf-inspector": new Set(),
+}
+
+const liteParseOptions = new Set([
+  "convertOffice",
+  "imageMode",
+  "includeComplexity",
+  "ocr",
+  "ocrLanguage",
+  "raw",
+  "screenshots",
+])
+
+const liteParseRawOptions = new Set([
+  "cropBox",
+  "dpi",
+  "emitWordBoxes",
+  "extractLinks",
+  "ocrFailureFatal",
+  "preserveVerySmallText",
+  "quiet",
+  "skipDiagonalText",
+])
+
+const validateProviderOptions: Record<
+  ProviderId,
+  (options: Record<string, unknown>) => void
+> = {
+  datalab(options) {
+    assertNoBlockedOptions("datalab", options)
+    if (isRecord(options.raw)) {
+      assertNoBlockedOptions("datalab", options.raw)
+    }
+  },
+  llamaparse: (options) => assertNoBlockedOptions("llamaparse", options),
+  liteparse(options) {
+    assertOnlyOptions("liteparse", options, liteParseOptions)
+    if (isRecord(options.raw)) {
+      assertOnlyOptions("liteparse", options.raw, liteParseRawOptions)
+    }
+  },
+  "mistral-ocr": (options) => assertNoBlockedOptions("mistral-ocr", options),
+  "pdf-inspector"(options) {
+    if (Object.keys(options).length > 0) {
+      throw new HttpError(400, "Hosted pdf-inspector accepts no options.")
+    }
+  },
+}
+
+export function createHostedProviders(
+  env: Cloudflare.Env
+): Record<ProviderId, FileRouterProvider> {
+  const managed = builtInProviders({
+    datalabApiKey: env.DATALAB_API_KEY,
+    llamaCloudApiKey: env.LLAMA_CLOUD_API_KEY,
+    mistralApiKey: env.MISTRAL_API_KEY,
+  })
+  const nativeFetch = (request: Request) => env.NATIVE_PARSERS.fetch(request)
+  return {
+    ...managed,
+    liteparse: createNativeParserProvider({
+      capabilities: {
+        execution: "sync",
+        features: [
+          "classification",
+          "ocr",
+          "office-conversion",
+          "page-selection",
+          "screenshots",
+        ],
+        outputs: ["images", "markdown", "metadata", "pages", "text"],
+      },
+      fetch: nativeFetch,
+      id: "liteparse",
+      name: "LiteParse",
+    }),
+    "pdf-inspector": createNativeParserProvider({
+      capabilities: {
+        execution: "sync",
+        features: ["classification", "page-selection"],
+        outputs: ["markdown", "metadata", "pages"],
+      },
+      fetch: nativeFetch,
+      id: "pdf-inspector",
+      name: "PDF Inspector",
+    }),
+  }
+}
+
+export function validateHostedProviderOptions(
+  value: unknown,
+  isProviderId: (value: string) => value is ProviderId
+): ProviderParseOptions {
+  if (!isRecord(value)) {
+    throw new HttpError(400, "Provider options must be an object.")
+  }
+
+  for (const [providerId, options] of Object.entries(value)) {
+    if (!isProviderId(providerId)) {
+      throw new HttpError(400, `Unsupported provider options: ${providerId}`)
+    }
+    if (!isRecord(options)) {
+      throw new HttpError(
+        400,
+        `Provider options for ${providerId} must be an object.`
+      )
+    }
+    validateProviderOptions[providerId](options)
+  }
+
+  return value
+}
+
+function assertOnlyOptions(
+  providerId: ProviderId,
+  options: Record<string, unknown>,
+  allowedOptions: ReadonlySet<string>
+): void {
+  const unsupported = Object.keys(options).filter(
+    (key) => !allowedOptions.has(key)
+  )
+  if (unsupported.length > 0) {
+    throw new HttpError(
+      400,
+      `Hosted ${providerId} options do not support: ${unsupported.join(", ")}.`
+    )
+  }
+}
+
+function assertNoBlockedOptions(
+  providerId: ProviderId,
+  options: Record<string, unknown>
+): void {
+  const blockedOptions = blockedTransportOptions[providerId]
+  const blocked = Object.keys(options).filter((key) => blockedOptions.has(key))
+  if (blocked.length > 0) {
+    throw new HttpError(
+      400,
+      `Hosted ${providerId} options cannot set: ${blocked.join(", ")}.`
+    )
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}

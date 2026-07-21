@@ -28,21 +28,6 @@ export async function createProviderSourceUrl(
   return url.toString()
 }
 
-export function canProvidersReachSourceUrl(baseUrl: string): boolean {
-  try {
-    const hostname = new URL(baseUrl).hostname.toLowerCase()
-    return !(
-      hostname === "localhost" ||
-      hostname === "0.0.0.0" ||
-      hostname === "::1" ||
-      hostname.endsWith(".local") ||
-      isPrivateIpv4(hostname)
-    )
-  } catch {
-    return false
-  }
-}
-
 export async function getProviderSourceResponse(
   request: Request,
   env: Cloudflare.Env,
@@ -250,20 +235,4 @@ function fromBase64Url(value: string): Uint8Array {
     .replaceAll("_", "/")
     .padEnd(Math.ceil(value.length / 4) * 4, "=")
   return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0))
-}
-
-function isPrivateIpv4(hostname: string): boolean {
-  const parts = hostname.split(".").map(Number)
-  if (
-    parts.length !== 4 ||
-    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
-  ) {
-    return false
-  }
-  return (
-    parts[0] === 10 ||
-    (parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31) ||
-    (parts[0] === 192 && parts[1] === 168) ||
-    parts[0] === 127
-  )
 }

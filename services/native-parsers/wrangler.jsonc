@@ -1,0 +1,51 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "filerouter-native-parsers",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-21",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "SOURCE_ORIGIN": "https://filerouter.dev",
+  },
+  "containers": [
+    {
+      "name": "filerouter-pdf-inspector",
+      "class_name": "PdfInspectorContainer",
+      "image": "./engines/pdf-inspector/Dockerfile",
+      "image_build_context": "./engines",
+      "instance_type": "basic",
+      "max_instances": 4,
+    },
+    {
+      "name": "filerouter-liteparse",
+      "class_name": "LiteParseContainer",
+      "image": "./engines/liteparse/Dockerfile",
+      "image_build_context": "./engines",
+      "instance_type": "standard-1",
+      "max_instances": 2,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PDF_INSPECTOR_CONTAINERS",
+        "class_name": "PdfInspectorContainer",
+      },
+      {
+        "name": "LITEPARSE_CONTAINERS",
+        "class_name": "LiteParseContainer",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PdfInspectorContainer", "LiteParseContainer"],
+    },
+  ],
+}

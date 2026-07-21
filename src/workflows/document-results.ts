@@ -11,6 +11,7 @@ export type ProviderOutcome =
     }
   | {
       durationMs: number
+      engine?: { id: string; version: string }
       pageCount: number
       provider: string
       resultKey: string
@@ -24,13 +25,32 @@ export async function storeProviderResult(
 ): Promise<Extract<ProviderOutcome, { status: "parsed" }>> {
   const resultKey = `jobs/${jobId}/providers/${encodeURIComponent(result.provider)}.json`
   await putJson(bucket, resultKey, result)
+  const engine = readEngine(result.outputs.metadata?.engine)
   return {
     durationMs: result.timing.durationMs,
+    ...(engine && { engine }),
     pageCount: result.pageCount,
     provider: result.provider,
     resultKey,
     status: "parsed",
   }
+}
+
+function readEngine(
+  value: unknown
+): { id: string; version: string } | undefined {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    !("id" in value) ||
+    !("version" in value) ||
+    typeof value.id !== "string" ||
+    typeof value.version !== "string"
+  ) {
+    return undefined
+  }
+  return { id: value.id, version: value.version }
 }
 
 export async function storeComparisonResult(
