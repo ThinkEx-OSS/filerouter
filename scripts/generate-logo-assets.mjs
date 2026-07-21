@@ -8,15 +8,15 @@ const MASTER_HEIGHT = 920
 const ROWS = 9
 const STEP = MASTER_HEIGHT / ROWS
 
-// Approved 9-row, pattern 1 FileRouter mark. Keep this map as the canonical
+// Approved 9-row FileRouter mark. Keep this map as the canonical
 // brand source; every SVG, PNG, ICO, React, and README asset derives from it.
 const CELL_MAP = [
   "###.#..",
   "###.##.",
   "###.###",
-  ".##....",
+  "###....",
   "###.###",
-  "###.#.#",
+  "###.###",
   "###.###",
   ".##.###",
   "#.#.###",
@@ -71,6 +71,13 @@ function logoSvg() {
 `
 }
 
+function docsLogoSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="708" height="920" viewBox="0 0 ${MASTER_WIDTH} ${MASTER_HEIGHT}" role="img" aria-label="FileRouter logo">
+  <path fill="#00bdf7" d="${MARK_PATH}" />
+</svg>
+`
+}
+
 function faviconSvg() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="FileRouter logo">
   <path fill="#00bdf7" transform="translate(79 26) scale(.5)" d="${MARK_PATH}" />
@@ -110,14 +117,18 @@ function reactComponent() {
 }
 
 function updateWordmark(source) {
+  const sizedSource = source.replace(
+    /width="430" height="84" viewBox="0 10 430 84"/,
+    'width="382" height="84" viewBox="34 10 382 84"'
+  )
   const mark = `  <g fill="#00bdf7" transform="translate(38 17) scale(.076087)">
     <path d="${MARK_PATH}" />
   </g>`
   const pattern = /  <g fill="#00bdf7"[^>]*>[\s\S]*?  <\/g>/
-  if (!pattern.test(source)) {
+  if (!pattern.test(sizedSource)) {
     throw new Error("Could not locate README wordmark logo")
   }
-  return source.replace(pattern, mark)
+  return sizedSource.replace(pattern, mark)
 }
 
 function makeCanvas(width, height, background = [0, 0, 0, 0]) {
@@ -271,6 +282,7 @@ async function main() {
   await Promise.all([
     writeFile("public/logo.svg", logo),
     writeFile("src/logo.svg", logo),
+    writeFile("docs/assets/filerouter-logo.svg", docsLogoSvg()),
     writeFile("public/favicon.svg", favicon),
     writeFile("docs/assets/favicon.svg", favicon),
     writeFile("public/app-icon.svg", appIcon),
