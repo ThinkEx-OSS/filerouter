@@ -1,3 +1,4 @@
+import { ArrowsSplit, FileText } from "@phosphor-icons/react"
 import { Highlight, themes } from "prism-react-renderer"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -21,6 +22,11 @@ const results = await client.compare(file, {
 })`,
 } as const
 
+const exampleTabs = [
+  { icon: FileText, id: "parse", label: "Parse" },
+  { icon: ArrowsSplit, id: "compare", label: "Compare" },
+] as const
+
 const codeThemes = [
   { className: "dark:hidden", name: "light", theme: themes.vsLight },
   { className: "hidden dark:block", name: "dark", theme: themes.vsDark },
@@ -36,13 +42,14 @@ export function SdkExample() {
         className="grid w-full grid-cols-2 border-b border-border"
         variant="panel"
       >
-        {Object.keys(examples).map((id) => (
+        {exampleTabs.map(({ icon: Icon, id, label }) => (
           <TabsTrigger
-            className="h-14 capitalize not-first:border-l not-first:border-border"
+            className="h-14 not-first:border-l not-first:border-border"
             key={id}
             value={id}
           >
-            {id}
+            <Icon className="size-4 text-primary" weight="regular" />
+            {label}
           </TabsTrigger>
         ))}
       </TabsList>
