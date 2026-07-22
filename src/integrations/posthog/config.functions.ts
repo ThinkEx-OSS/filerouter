@@ -1,7 +1,8 @@
+import { env as workerEnv } from "cloudflare:workers"
 import { createServerFn } from "@tanstack/react-start"
 
-import { readPublicPostHogConfig } from "@/integrations/posthog/config.server"
+import { getPostHogConfig } from "@/integrations/posthog/config"
 
 export const getPublicPostHogConfig = createServerFn({ method: "GET" }).handler(
-  () => readPublicPostHogConfig()
+  () => getPostHogConfig(workerEnv)
 )
