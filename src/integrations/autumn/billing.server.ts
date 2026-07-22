@@ -29,7 +29,6 @@ export interface AutumnBillingClient {
   billing: {
     attach: (request: {
       customerId: string
-      enablePlanImmediately: boolean
       featureQuantities: Array<{ featureId: string; quantity: number }>
       metadata: Record<string, string>
       planId: string
@@ -130,7 +129,6 @@ export async function createHostedCreditCheckout(
   await ensureAutumnCustomer(client, account)
   const checkout = await client.billing.attach({
     customerId: account.id,
-    enablePlanImmediately: true,
     featureQuantities: [
       {
         featureId: HOSTED_CREDIT_FEATURE_ID,

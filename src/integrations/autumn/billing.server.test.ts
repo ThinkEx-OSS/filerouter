@@ -56,7 +56,7 @@ describe("hosted billing", () => {
     ).rejects.toMatchObject({ code: "insufficient_credits", status: 402 })
   })
 
-  test("creates the fixed Stripe top-up checkout", async () => {
+  test("defers the top-up grant until Stripe confirms payment", async () => {
     const client = autumnClient({})
     vi.mocked(client.billing.attach).mockResolvedValue({
       paymentUrl: "https://checkout.stripe.com/test",
@@ -70,19 +70,19 @@ describe("hosted billing", () => {
         client
       )
     ).resolves.toBe("https://checkout.stripe.com/test")
-    expect(client.billing.attach).toHaveBeenCalledWith(
-      expect.objectContaining({
-        customerId: account.id,
-        featureQuantities: [
-          {
-            featureId: HOSTED_CREDIT_FEATURE_ID,
-            quantity: HOSTED_TOP_UP_CREDITS,
-          },
-        ],
-        planId: HOSTED_CREDIT_TOP_UP_PLAN_ID,
-        redirectMode: "always",
-      })
-    )
+    expect(client.billing.attach).toHaveBeenCalledWith({
+      customerId: account.id,
+      featureQuantities: [
+        {
+          featureId: HOSTED_CREDIT_FEATURE_ID,
+          quantity: HOSTED_TOP_UP_CREDITS,
+        },
+      ],
+      metadata: { product: "filerouter", purchase: "hosted_credits" },
+      planId: HOSTED_CREDIT_TOP_UP_PLAN_ID,
+      redirectMode: "always",
+      successUrl: "https://filerouter.dev/dashboard?credits=added",
+    })
   })
 })
 
