@@ -4,6 +4,9 @@
   "compatibility_date": "2026-07-19",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "main": "src/server.ts",
+  "vars": {
+    "HOSTED_BILLING_ENABLED": "true",
+  },
   "routes": [
     {
       "pattern": "filerouter.dev",

@@ -14,6 +14,7 @@ export default defineConfig({
         bindings: {
           BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
           BETTER_AUTH_URL: "https://filerouter.test",
+          HOSTED_BILLING_ENABLED: "false",
           TEST_MIGRATIONS: await readD1Migrations(
             fileURLToPath(new URL("./drizzle", import.meta.url))
           ),

@@ -1,8 +1,8 @@
-import { Autumn } from "autumn-js"
-import { eq } from "drizzle-orm"
-
-import { user } from "@/db/schema"
-import { createDb } from "@/db/server"
+import { createAutumnClient } from "@/integrations/autumn/client.server"
+import {
+  HOSTED_CREDIT_FEATURE_ID,
+  HOSTED_RATE_CARD_VERSION,
+} from "@/integrations/autumn/config"
 import { estimateManagedExecution } from "@/integrations/autumn/managed-execution-cost"
 import type {
   ManagedExecutionEstimate,
@@ -10,28 +10,14 @@ import type {
 } from "@/integrations/autumn/managed-execution-cost"
 import type { ProviderOutcome } from "@/workflows/document-results"
 
-export const MANAGED_EXECUTION_FEATURE_ID = "managed_execution_units"
-export const MANAGED_EXECUTION_FREE_PLAN_ID = "developer"
-
 export interface AutumnUsageClient {
-  customers: {
-    getOrCreate: (
-      request: {
-        autoEnablePlanId: string
-        customerId: string
-        email: string
-        metadata: Record<string, string>
-        name: string
-      },
-      options?: RequestInit
-    ) => Promise<unknown>
-  }
   track: (
     request: {
       customerId: string
       featureId: string
       properties: Record<string, boolean | number | string>
       value: number
+      overageBehavior: "overflow"
     },
     options?: RequestInit
   ) => Promise<unknown>
@@ -39,7 +25,7 @@ export interface AutumnUsageClient {
 
 interface AutumnUsageEnv {
   AUTUMN_SECRET_KEY?: string
-  DB: D1Database
+  HOSTED_BILLING_ENABLED?: string
 }
 
 export interface TrackManagedExecutionInput {
@@ -52,7 +38,7 @@ export interface TrackManagedExecutionInput {
 export async function trackManagedExecutionUsage(
   env: AutumnUsageEnv,
   input: TrackManagedExecutionInput,
-  client = createAutumnClient(env.AUTUMN_SECRET_KEY)
+  client = createAutumnClient(env)
 ): Promise<
   | { skipped: true }
   | { trackedProviders: number; unpricedProviders: Array<string> }
@@ -61,31 +47,13 @@ export async function trackManagedExecutionUsage(
     return { skipped: true }
   }
 
-  const account = await createDb(env.DB)
-    .select({ email: user.email, name: user.name })
-    .from(user)
-    .where(eq(user.id, input.userId))
-    .get()
-  if (!account) {
-    throw new Error(`Cannot meter job ${input.jobId}: user not found.`)
-  }
-
-  return trackManagedExecutionForAccount(client, input, account)
+  return trackManagedExecution(client, input)
 }
 
-export async function trackManagedExecutionForAccount(
+export async function trackManagedExecution(
   client: AutumnUsageClient,
-  input: TrackManagedExecutionInput,
-  account: { email: string; name: string }
+  input: TrackManagedExecutionInput
 ): Promise<{ trackedProviders: number; unpricedProviders: Array<string> }> {
-  await client.customers.getOrCreate({
-    autoEnablePlanId: MANAGED_EXECUTION_FREE_PLAN_ID,
-    customerId: input.userId,
-    email: account.email,
-    metadata: { account_type: "developer", product: "filerouter" },
-    name: account.name,
-  })
-
   const parsedProviders = input.providers.filter(
     (provider): provider is ParsedProviderOutcome =>
       provider.status === "parsed"
@@ -104,9 +72,10 @@ export async function trackManagedExecutionForAccount(
       return client.track(
         {
           customerId: input.userId,
-          featureId: MANAGED_EXECUTION_FEATURE_ID,
+          featureId: HOSTED_CREDIT_FEATURE_ID,
+          overageBehavior: "overflow",
           properties: usageProperties(input, provider, estimate),
-          value: estimate.units,
+          value: estimate.credits,
         },
         {
           headers: {
@@ -131,6 +100,7 @@ function usageProperties(
     operation: input.operation,
     pages: provider.usage?.pages ?? provider.pageCount,
     provider: provider.provider,
+    rate_card_version: HOSTED_RATE_CARD_VERSION,
     raw_cost_usd: estimate.rawCostUsd,
     ...(provider.usage?.costUsd !== undefined && {
       provider_cost_usd: provider.usage.costUsd,
@@ -139,13 +109,4 @@ function usageProperties(
       provider_credits: provider.usage.credits,
     }),
   }
-}
-
-function createAutumnClient(
-  secretKey: string | undefined
-): AutumnUsageClient | undefined {
-  if (!secretKey?.trim()) {
-    return undefined
-  }
-  return new Autumn({ secretKey, timeoutMs: 10_000 })
 }

@@ -1,3 +1,4 @@
+import { HOSTED_BETA_MARGIN_MULTIPLIER } from "@/integrations/autumn/config"
 import type { ProviderOutcome } from "@/workflows/document-results"
 
 const MILLIUSD_PER_USD = 1_000
@@ -13,10 +14,8 @@ const LLAMAPARSE_USD_PER_CREDIT = 0.00125
 // Covers the Worker, Workflow, D1, and R2 work around one provider execution.
 const PLATFORM_USD_PER_EXECUTION = 0.00025
 
-// Native parser estimates use https://developers.cloudflare.com/containers/pricing/
-// plus one sleep-after window per execution. Shared warm windows make this
-// estimate deliberately conservative at higher volume.
-const CONTAINER_IDLE_ALLOWANCE_SECONDS = 60
+// Native parser estimates use https://developers.cloudflare.com/containers/pricing/.
+// Shared idle time belongs to the container lifecycle, not an individual job.
 const CONTAINER_CPU_USD_PER_VCPU_SECOND = 0.00002
 const CONTAINER_MEMORY_USD_PER_GIB_SECOND = 0.0000025
 const CONTAINER_DISK_USD_PER_GB_SECOND = 0.00000007
@@ -27,8 +26,8 @@ export type ParsedProviderOutcome = Extract<
 >
 
 export interface ManagedExecutionEstimate {
+  credits: number
   rawCostUsd: number
-  units: number
 }
 
 export function estimateManagedExecution(
@@ -40,8 +39,8 @@ export function estimateManagedExecution(
   }
   const rawCostUsd = providerCost + PLATFORM_USD_PER_EXECUTION
   return {
+    credits: rawCostUsd * MILLIUSD_PER_USD * HOSTED_BETA_MARGIN_MULTIPLIER,
     rawCostUsd,
-    units: rawCostUsd * MILLIUSD_PER_USD,
   }
 }
 
@@ -87,10 +86,7 @@ function containerCostUsd(
     resources.memoryGib * CONTAINER_MEMORY_USD_PER_GIB_SECOND +
     resources.diskGb * CONTAINER_DISK_USD_PER_GB_SECOND
   const cpuPerSecond = resources.vcpu * CONTAINER_CPU_USD_PER_VCPU_SECOND
-  return (
-    activeSeconds * (memoryAndDiskPerSecond + cpuPerSecond) +
-    CONTAINER_IDLE_ALLOWANCE_SECONDS * memoryAndDiskPerSecond
-  )
+  return activeSeconds * (memoryAndDiskPerSecond + cpuPerSecond)
 }
 
 function isNonNegativeFinite(value: unknown): value is number {
