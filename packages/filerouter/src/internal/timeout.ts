@@ -9,25 +9,37 @@ export async function withTimeout<T>(
   assertTimeoutMs(timeoutMs)
 
   const timeoutController = new AbortController()
-  const timeout = setTimeout(() => timeoutController.abort(), timeoutMs)
+  const timeoutError = new FileRouterError("FileRouter job timed out.", {
+    code: "Timeout",
+  })
+  const timeout = setTimeout(
+    () => timeoutController.abort(timeoutError),
+    timeoutMs
+  )
   if (timeoutMs === 0) {
-    timeoutController.abort()
+    timeoutController.abort(timeoutError)
   }
   const operationSignal = signal
     ? AbortSignal.any([signal, timeoutController.signal])
     : timeoutController.signal
+  let rejectOnAbort: (() => void) | undefined
 
   try {
     operationSignal.throwIfAborted()
-    return await operation(operationSignal)
+    const aborted = new Promise<never>((_, reject) => {
+      rejectOnAbort = () => reject(operationSignal.reason)
+      operationSignal.addEventListener("abort", rejectOnAbort, { once: true })
+    })
+    return await Promise.race([operation(operationSignal), aborted])
   } catch (error) {
     if (timeoutController.signal.aborted && !signal?.aborted) {
-      throw new FileRouterError("FileRouter job timed out.", {
-        code: "Timeout",
-      })
+      throw timeoutError
     }
     throw error
   } finally {
     clearTimeout(timeout)
+    if (rejectOnAbort) {
+      operationSignal.removeEventListener("abort", rejectOnAbort)
+    }
   }
 }

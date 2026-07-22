@@ -211,6 +211,27 @@ describe("FileRouterClient", () => {
     })
   })
 
+  test("identifies an empty hosted credit balance", async () => {
+    const client = new FileRouterClient({
+      apiKey: "fr_test_key",
+      baseURL: "https://example.com",
+      fetch: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          Response.json({ detail: "You're out of credits." }, { status: 402 })
+        ),
+    })
+
+    await expect(client.jobs.get("job-payment-required")).rejects.toMatchObject(
+      {
+        code: "PaymentRequired",
+        providerId: "filerouter",
+        retryable: false,
+        statusCode: 402,
+      }
+    )
+  })
+
   test("normalizes hosted network failures", async () => {
     const client = new FileRouterClient({
       apiKey: "fr_test_key",

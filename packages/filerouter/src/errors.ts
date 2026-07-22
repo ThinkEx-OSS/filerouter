@@ -4,6 +4,7 @@ export type FileRouterErrorCode =
   | "ProviderUnavailable"
   | "InvalidInput"
   | "Auth"
+  | "PaymentRequired"
   | "RateLimit"
   | "Timeout"
   | "ParseFailed"
