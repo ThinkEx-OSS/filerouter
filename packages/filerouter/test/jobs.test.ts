@@ -147,6 +147,33 @@ describe("FileRouterClient jobs", () => {
     ).rejects.toMatchObject({ code: "Timeout" })
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  test("enforces wait timeouts when custom fetch ignores abort signals", async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      () => new Promise<Response>(() => undefined)
+    )
+    const client = createClient(fetchMock)
+
+    await expect(
+      client.jobs.wait("job-9", { timeoutMs: 10 })
+    ).rejects.toMatchObject({ code: "Timeout" })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  test("validates pages before resolving file input", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    const client = createClient(fetchMock)
+
+    await expect(
+      client.jobs.create(
+        { kind: "file", path: "/file-that-must-not-be-read.pdf" },
+        { pages: [0] }
+      )
+    ).rejects.toMatchObject({
+      message: "Pages must be positive, one-based integers.",
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
 
 function createClient(fetchMock: typeof fetch): FileRouterClient {

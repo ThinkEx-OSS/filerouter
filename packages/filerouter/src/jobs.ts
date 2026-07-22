@@ -15,6 +15,7 @@ import type {
 } from "./hosted"
 import { requestJson } from "./internal/http"
 import { resolveParseInput } from "./internal/input"
+import { assertPages } from "./internal/provider-options"
 import { abortableSleep } from "./internal/sleep"
 import { withTimeout } from "./internal/timeout"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
@@ -140,6 +141,7 @@ export class HostedJobs implements FileRouterJobs {
     input: ParseInput,
     options: HostedParseJobOptions | HostedCompareJobOptions = {}
   ): Promise<HostedJob> {
+    assertPages(options.pages)
     const idempotencyKey = options.idempotencyKey ?? crypto.randomUUID()
     const request = createJobRequest(options)
     const resolved = await resolveParseInput(input, options.signal)

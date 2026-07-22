@@ -47,6 +47,9 @@ function errorCodeForStatus(status: number): FileRouterErrorCode {
   if (status === 401 || status === 403) {
     return "Auth"
   }
+  if (status === 402) {
+    return "PaymentRequired"
+  }
   if (status === 408 || status === 504) {
     return "Timeout"
   }

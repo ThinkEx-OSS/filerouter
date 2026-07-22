@@ -43,6 +43,7 @@ export {
   normalizeDocumentFileName,
   resolveDocumentMimeType,
 } from "./internal/input"
+export { selectOutputs as selectParseOutputs } from "./internal/outputs"
 export type {
   CompareOptions,
   CompareProviderResult,
