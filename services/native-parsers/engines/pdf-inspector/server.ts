@@ -1,6 +1,7 @@
 import { classifyPdf, extractPagesMarkdown } from "@firecrawl/pdf-inspector"
 
 import runtimePackage from "./package.json" with { type: "json" }
+import { assertPdfInspectorPageLimit } from "./options.ts"
 
 import type { NativeParserResult } from "../shared/contracts.ts"
 import { ParserRequestError, startParserServer } from "../shared/http.ts"
@@ -9,7 +10,6 @@ import { readNativeParserOptions, readObject } from "../shared/options.ts"
 const ENGINE_VERSION = runtimePackage.dependencies["@firecrawl/pdf-inspector"]
 const MAX_INPUT_BYTES = 50 * 1024 * 1024
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024
-const MAX_PAGES = 1_000
 
 startParserServer({
   handler: async ({ bytes, options }) => parsePdf(bytes, options),
@@ -33,13 +33,9 @@ function parsePdf(bytes: Buffer, value: unknown): NativeParserResult {
     )
   }
   const classification = classifyPdf(bytes)
-  if (classification.pageCount > MAX_PAGES && !requestedPages) {
-    throw new ParserRequestError(
-      413,
-      "provider_limit_exceeded",
-      `PDF Inspector supports at most ${MAX_PAGES} pages per request.`
-    )
-  }
+  assertPdfInspectorPageLimit(
+    requestedPages?.length ?? classification.pageCount
+  )
   if (requestedPages?.some((page) => page > classification.pageCount)) {
     throw new ParserRequestError(
       400,

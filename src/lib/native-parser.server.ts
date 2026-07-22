@@ -1,9 +1,7 @@
 import { z } from "zod"
-import { FileRouterError } from "@file_router/sdk"
+import { FileRouterError, selectParseOutputs } from "@file_router/sdk"
 import type {
   FileRouterProvider,
-  ParseOutput,
-  ParseOutputValues,
   ParseResult,
   ProviderInput,
 } from "@file_router/sdk"
@@ -133,7 +131,7 @@ async function parseNative(
   const confidence = native.metadata.confidence
   return {
     id: crypto.randomUUID(),
-    outputs: selectOutputs(options.outputs ?? ["markdown"], {
+    outputs: selectParseOutputs(options.outputs ?? ["markdown"], {
       images: native.images,
       markdown: native.markdown,
       metadata,
@@ -153,45 +151,6 @@ async function parseNative(
     },
     usage: { pages: pages.length },
     warnings: native.warnings,
-  }
-}
-
-function selectOutputs(
-  requested: Array<ParseOutput>,
-  available: Partial<ParseOutputValues>
-): ParseResult["outputs"] {
-  const outputs: ParseResult["outputs"] = {}
-  for (const output of requested) {
-    assignOutput(outputs, output, available)
-  }
-  return outputs
-}
-
-function assignOutput(
-  outputs: ParseResult["outputs"],
-  output: ParseOutput,
-  available: Partial<ParseOutputValues>
-): void {
-  switch (output) {
-    case "images":
-      if (available.images !== undefined) outputs.images = available.images
-      return
-    case "markdown":
-      if (available.markdown !== undefined)
-        outputs.markdown = available.markdown
-      return
-    case "metadata":
-      if (available.metadata !== undefined)
-        outputs.metadata = available.metadata
-      return
-    case "pages":
-      if (available.pages !== undefined) outputs.pages = available.pages
-      return
-    case "text":
-      if (available.text !== undefined) outputs.text = available.text
-      return
-    default:
-      return
   }
 }
 

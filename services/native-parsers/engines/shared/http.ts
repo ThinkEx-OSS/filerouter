@@ -102,30 +102,34 @@ export function startParserServer(options: ParserServerOptions): void {
       if (requestActive) {
         activeRequests -= 1
       }
-      emitWideEvent(status >= 500 ? "error" : "info", {
-        active_requests: activeRequests,
-        body_bytes: bodyBytes,
-        content_length: numericHeader(
-          singleHeader(request.headers["content-length"])
-        ),
-        content_type:
-          singleHeader(request.headers["content-type"]) ?? undefined,
-        duration_ms: Date.now() - startedAt,
-        error_code: errorCode,
-        event: "parser_engine_request_completed",
-        job_id: singleHeader(request.headers[JOB_ID_HEADER]),
-        max_concurrency: options.maxConcurrency,
-        method: request.method,
-        outcome:
-          status >= 500 ? "error" : status >= 400 ? "rejected" : "success",
-        parser: options.parserId,
-        path,
-        release_id: singleHeader(request.headers[RELEASE_ID_HEADER]),
-        request_id: requestId,
-        service: `filerouter-${options.parserId}`,
-        status_code: status,
-        ...(failure ? serializeError(failure) : {}),
-      })
+      emitWideEvent(
+        status >= 500 ? "error" : "info",
+        {
+          active_requests: activeRequests,
+          body_bytes: bodyBytes,
+          content_length: numericHeader(
+            singleHeader(request.headers["content-length"])
+          ),
+          content_type:
+            singleHeader(request.headers["content-type"]) ?? undefined,
+          duration_ms: Date.now() - startedAt,
+          error_code: errorCode,
+          event: "parser_engine_request_completed",
+          job_id: singleHeader(request.headers[JOB_ID_HEADER]),
+          max_concurrency: options.maxConcurrency,
+          method: request.method,
+          outcome:
+            status >= 500 ? "error" : status >= 400 ? "rejected" : "success",
+          parser: options.parserId,
+          path,
+          release_id: singleHeader(request.headers[RELEASE_ID_HEADER]),
+          request_id: requestId,
+          service: `filerouter-${options.parserId}`,
+          status_code: status,
+          ...(failure ? serializeError(failure) : {}),
+        },
+        process.env.NODE_ENV ?? "production"
+      )
     }
   })
 

@@ -1,6 +1,9 @@
-export const REQUEST_ID_HEADER = "x-request-id"
-export const JOB_ID_HEADER = "x-filerouter-job-id"
-export const RELEASE_ID_HEADER = "x-filerouter-release-id"
+export {
+  JOB_ID_HEADER,
+  RELEASE_ID_HEADER,
+  REQUEST_ID_HEADER,
+  serializeError,
+} from "../engines/shared/observability"
 
 export function emitWideEvent(
   env: Cloudflare.Env,
@@ -15,12 +18,6 @@ export function emitWideEvent(
     release_uploaded_at: env.WORKER_VERSION.timestamp,
     ...event,
   })
-}
-
-export function serializeError(error: unknown) {
-  return error instanceof Error
-    ? { error_message: error.message, error_type: error.name }
-    : { error_message: "Unknown error", error_type: "UnknownError" }
 }
 
 export function responseWithRequestId(

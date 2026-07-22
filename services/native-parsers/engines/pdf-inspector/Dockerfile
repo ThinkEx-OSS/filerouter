@@ -7,7 +7,7 @@ COPY pdf-inspector/package.json pdf-inspector/package-lock.json ./pdf-inspector/
 RUN cd pdf-inspector && npm ci --omit=dev --no-audit --no-fund
 
 COPY shared ./shared
-COPY pdf-inspector/server.ts ./pdf-inspector/server.ts
+COPY pdf-inspector/*.ts ./pdf-inspector/
 
 USER node
 EXPOSE 8080

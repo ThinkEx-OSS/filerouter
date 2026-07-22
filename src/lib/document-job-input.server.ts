@@ -149,7 +149,6 @@ function parseHeaderOptions(
   if (pages?.some((page) => !Number.isSafeInteger(page) || page < 1)) {
     throw new HttpError(400, "Pages must be positive, one-based integers.")
   }
-
   if (!optionsHeader) {
     return pages ? { pages: [...new Set(pages)] } : {}
   }
