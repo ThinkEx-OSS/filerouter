@@ -10,6 +10,7 @@ import {
   GitHubIcon,
 } from "@/components/community-links"
 import { DashboardQuickstart } from "@/components/dashboard-quickstart"
+import { DashboardBilling } from "@/components/dashboard-billing"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 import {
@@ -95,6 +96,8 @@ function DashboardPage() {
           </div>
 
           <aside className="min-w-0 bg-muted/35 p-4 lg:sticky lg:top-20">
+            <DashboardBilling />
+            <div className="my-5 h-px bg-border" />
             <h2 className="text-sm font-medium">Resources</h2>
             <nav aria-label="Resources" className="mt-2 grid gap-1">
               {[

@@ -15,7 +15,7 @@ BETTER_AUTH_URL="http://localhost:3000"
 # DATALAB_API_KEY=""
 
 # Autumn usage metering. Use a sandbox key for local development.
-# AUTUMN_SECRET_KEY=""
+# AUTUMN_SECRET_KEY="am_sk_test_..."
 
 # Optional product analytics and error tracking. The project token is public;
 # leave it unset to disable PostHog without changing application behavior.

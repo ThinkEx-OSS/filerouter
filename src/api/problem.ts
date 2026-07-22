@@ -6,6 +6,7 @@ import type { HttpError } from "@/lib/http.server"
 const statusMetadata = {
   400: { code: "bad_request", title: "Bad Request" },
   401: { code: "unauthorized", title: "Unauthorized" },
+  402: { code: "payment_required", title: "Payment Required" },
   403: { code: "forbidden", title: "Forbidden" },
   404: { code: "not_found", title: "Not Found" },
   409: { code: "conflict", title: "Conflict" },

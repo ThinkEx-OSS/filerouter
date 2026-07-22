@@ -135,6 +135,7 @@ export const createJobRoute = createRoute({
     },
     400: problem,
     401: problem,
+    402: problem,
     409: problem,
     413: problem,
     429: problem,
