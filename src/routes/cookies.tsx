@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { LegalPage } from "@/components/legal-page"
 import type { LegalDocument } from "@/components/legal-page"
+import { buildPublicMeta, getAbsoluteUrl } from "@/lib/seo"
 
 const cookieDocument = {
   description:
@@ -49,17 +50,12 @@ const cookieDocument = {
 
 export const Route = createFileRoute("/cookies")({
   head: () => ({
-    meta: [
-      { title: "Cookie Policy — FileRouter" },
-      { name: "description", content: cookieDocument.description },
-      { property: "og:title", content: "Cookie Policy — FileRouter" },
-      {
-        property: "og:description",
-        content: cookieDocument.description,
-      },
-      { property: "og:url", content: "https://filerouter.dev/cookies" },
-    ],
-    links: [{ rel: "canonical", href: "https://filerouter.dev/cookies" }],
+    meta: buildPublicMeta({
+      title: cookieDocument.title,
+      description: cookieDocument.description,
+      path: "/cookies",
+    }),
+    links: [{ rel: "canonical", href: getAbsoluteUrl("/cookies") }],
   }),
   component: CookiesPage,
 })

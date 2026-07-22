@@ -12,37 +12,40 @@ import { RoutingCanvas } from "@/components/routing-canvas"
 import { SdkExample } from "@/components/sdk-example"
 import { Button } from "@/components/ui/button"
 import { availableProviders } from "@/lib/provider-display"
+import { buildSocialImageMeta } from "@/lib/seo"
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "FileRouter — Durable document parsing across providers" },
+      { title: "FileRouter: One API for document processing" },
       {
         name: "description",
         content:
-          "Run durable document parsing across providers with one TypeScript SDK, CLI, and API. Compare quality, latency, reliability, and cost without rebuilding integrations.",
+          "Inspect, parse, and compare documents across providers through one durable API. Switch providers without rebuilding your pipeline.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "FileRouter" },
+      { property: "og:locale", content: "en_US" },
       {
         property: "og:title",
-        content: "FileRouter — Durable document parsing across providers",
+        content: "FileRouter: One API for document processing",
       },
       {
         property: "og:description",
         content:
-          "Parse and compare documents across providers through one API, with durable jobs and consistent results.",
+          "Inspect, parse, and compare documents across providers through one durable API.",
       },
       { property: "og:url", content: "https://filerouter.dev/" },
-      { name: "twitter:card", content: "summary" },
+      ...buildSocialImageMeta(),
+      { name: "twitter:card", content: "summary_large_image" },
       {
         name: "twitter:title",
-        content: "FileRouter — Durable document parsing across providers",
+        content: "FileRouter: One API for document processing",
       },
       {
         name: "twitter:description",
         content:
-          "Parse and compare documents across providers through one API, with durable jobs and consistent results.",
+          "Inspect, parse, and compare documents across providers through one durable API.",
       },
     ],
     links: [{ rel: "canonical", href: "https://filerouter.dev/" }],
@@ -216,9 +219,16 @@ const homeStructuredData = {
     {
       "@id": "https://filerouter.dev/#organization",
       "@type": "Organization",
-      name: "ThinkEx Inc.",
-      url: "https://thinkex.app/",
-      logo: "https://filerouter.dev/icon-512.png",
+      name: "FileRouter",
+      legalName: "ThinkEx Inc.",
+      url: "https://filerouter.dev/",
+      logo: {
+        "@type": "ImageObject",
+        contentUrl: "https://filerouter.dev/icon-512.png",
+        width: 512,
+        height: 512,
+      },
+      sameAs: ["https://github.com/ThinkEx-OSS/filerouter"],
     },
     {
       "@id": "https://filerouter.dev/#website",
@@ -226,7 +236,7 @@ const homeStructuredData = {
       name: "FileRouter",
       url: "https://filerouter.dev/",
       description:
-        "Durable document parsing across providers through one TypeScript SDK, CLI, and hosted API.",
+        "Inspect, parse, and compare documents across providers through one durable API.",
       publisher: { "@id": "https://filerouter.dev/#organization" },
     },
     {

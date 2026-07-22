@@ -18,6 +18,7 @@ export const Route = createFileRoute("/blog/$slug")({
         title: loaderData.title,
         description: loaderData.description,
         openGraphType: "article",
+        path: getBlogPostUrl(loaderData.slug),
       }).concat([
         {
           property: "article:published_time",

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { LegalPage } from "@/components/legal-page"
 import type { LegalDocument } from "@/components/legal-page"
+import { buildPublicMeta, getAbsoluteUrl } from "@/lib/seo"
 
 const privacyDocument = {
   description:
@@ -91,17 +92,12 @@ const privacyDocument = {
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
-    meta: [
-      { title: "Privacy Policy — FileRouter" },
-      { name: "description", content: privacyDocument.description },
-      { property: "og:title", content: "Privacy Policy — FileRouter" },
-      {
-        property: "og:description",
-        content: privacyDocument.description,
-      },
-      { property: "og:url", content: "https://filerouter.dev/privacy" },
-    ],
-    links: [{ rel: "canonical", href: "https://filerouter.dev/privacy" }],
+    meta: buildPublicMeta({
+      title: privacyDocument.title,
+      description: privacyDocument.description,
+      path: "/privacy",
+    }),
+    links: [{ rel: "canonical", href: getAbsoluteUrl("/privacy") }],
   }),
   component: PrivacyPage,
 })

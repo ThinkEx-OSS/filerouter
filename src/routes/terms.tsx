@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { LegalPage } from "@/components/legal-page"
 import type { LegalDocument } from "@/components/legal-page"
+import { buildPublicMeta, getAbsoluteUrl } from "@/lib/seo"
 
 const termsDocument = {
   description:
@@ -86,17 +87,12 @@ const termsDocument = {
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
-    meta: [
-      { title: "Terms of Service — FileRouter" },
-      { name: "description", content: termsDocument.description },
-      { property: "og:title", content: "Terms of Service — FileRouter" },
-      {
-        property: "og:description",
-        content: termsDocument.description,
-      },
-      { property: "og:url", content: "https://filerouter.dev/terms" },
-    ],
-    links: [{ rel: "canonical", href: "https://filerouter.dev/terms" }],
+    meta: buildPublicMeta({
+      title: termsDocument.title,
+      description: termsDocument.description,
+      path: "/terms",
+    }),
+    links: [{ rel: "canonical", href: getAbsoluteUrl("/terms") }],
   }),
   component: TermsPage,
 })

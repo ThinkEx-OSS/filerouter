@@ -9,6 +9,7 @@ export const Route = createFileRoute("/blog/")({
       title: "Blog",
       description:
         "Practical guides, product updates, and engineering notes about document parsing across providers.",
+      path: "/blog",
     }),
     links: [{ rel: "canonical", href: getAbsoluteUrl("/blog") }],
   }),

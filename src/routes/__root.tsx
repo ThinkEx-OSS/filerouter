@@ -40,7 +40,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       {
         name: "description",
         content:
-          "Parse and compare documents across providers with one TypeScript API.",
+          "Inspect, parse, and compare documents across providers through one durable API.",
       },
       {
         name: "application-name",
