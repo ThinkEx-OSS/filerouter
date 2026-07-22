@@ -77,10 +77,13 @@ npx @file_router/cli@latest parse report.pdf
 |                       | Hosted API                             | Direct with your keys                  |
 | --------------------- | -------------------------------------- | -------------------------------------- |
 | Best for              | The fastest setup                      | Keeping provider calls in your runtime |
-| Authentication        | One FileRouter API key                 | Your provider API keys                 |
+| Authentication        | A FileRouter API key                   | Your provider API keys                 |
 | Document sent through | FileRouter, then the selected provider | The selected provider only             |
+| Billing               | FileRouter credits                     | Provider billing                       |
 | TypeScript            | `FileRouterClient`                     | `FileRouter`                           |
 | CLI                   | Default after `filerouter login`       | Add `--local`                          |
+
+Credits pay for hosted processing. Each account receives 5,000 free credits each month, purchased credits never expire, and direct requests do not use FileRouter credits.
 
 Direct TypeScript example:
 

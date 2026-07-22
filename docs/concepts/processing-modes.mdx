@@ -11,11 +11,14 @@ FileRouter supports two explicit processing modes. Neither mode silently falls b
 | Authentication         | FileRouter API key               | Provider API keys    |
 | Document route         | Your app → FileRouter → provider | Your app → provider  |
 | Job orchestration      | Managed by FileRouter            | Runs in your process |
+| Billing                | FileRouter credits               | Provider billing     |
 | CLI                    | Default after `login`            | Add `--local`        |
 
 ## Hosted
 
 Hosted processing is the shortest path to production. FileRouter accepts the input, creates a durable job, submits it to the selected provider, polls long-running provider jobs, stores the result, and cleans up uploaded source documents after the job reaches a terminal state.
+
+Credits pay for FileRouter-hosted processing. Each account receives **5,000 free credits each month**, and purchased credits never expire. Direct or BYOK requests do not use FileRouter credits.
 
 Hosted binary uploads are limited to **100 MB**. Completed results expire after **7 days**, and job records are retained for **30 days**.
 

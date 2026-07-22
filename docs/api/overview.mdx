@@ -40,3 +40,5 @@ API errors use `application/problem+json` and include a stable code, HTTP status
   "request_id": "..."
 }
 ```
+
+A `402 Payment Required` response with code `insufficient_credits` means the account is out of credits. Add credits from the [dashboard](https://filerouter.dev/dashboard) before retrying the request.
