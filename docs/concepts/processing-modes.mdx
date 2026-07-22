@@ -20,6 +20,14 @@ Hosted processing is the shortest path to production. FileRouter accepts the inp
 
 Credits pay for FileRouter-hosted processing. Each account receives **5,000 free credits each month**, and purchased credits never expire. Direct or BYOK requests do not use FileRouter credits.
 
+## How credits work
+
+**1,000 credits equal $1 of FileRouter-hosted usage.** Credit usage is based on the selected parser's upstream price and the infrastructure needed to run the job, with a 10% FileRouter beta margin included. Native parser usage depends on active processing time and allocated compute.
+
+A comparison uses credits for each provider that successfully returns a parsed result. Providers that fail before returning a result do not consume credits. Direct or BYOK requests are billed by the provider and never use FileRouter credits.
+
+Free credits reset each month. Purchased credits never expire and remain available after the monthly allowance resets.
+
 Hosted binary uploads are limited to **100 MB**. Completed results expire after **7 days**, and job records are retained for **30 days**.
 
 Public URL inputs are fetched once into temporary FileRouter storage before any
