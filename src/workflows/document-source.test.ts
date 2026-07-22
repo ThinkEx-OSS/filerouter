@@ -14,6 +14,9 @@ describe("hosted document URL policy", () => {
     "http://127.0.0.1/report.pdf",
     "http://169.254.169.254/latest/meta-data",
     "http://192.168.1.4/report.pdf",
+    "http://localhost./report.pdf",
+    "http://service.local./report.pdf",
+    "http://127.0.0.1./report.pdf",
     "http://[::1]/report.pdf",
     "http://[fd00::1]/report.pdf",
   ])("rejects non-public source %s", (source) => {

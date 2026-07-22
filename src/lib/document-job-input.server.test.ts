@@ -110,10 +110,39 @@ describe("document job input", () => {
       request({ liteparse: { inventedOption: true } })
     ).rejects.toMatchObject({ status: 400 })
     await expect(
-      request({ liteparse: { ocr: "auto", screenshots: true } })
+      request({ liteparse: { raw: "not-an-object" } })
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(
+      request({ liteparse: { raw: { dpi: 301 } } })
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(
+      request({
+        liteparse: {
+          raw: { cropBox: { bottom: 0, left: -0.1, right: 1, top: 1 } },
+        },
+      })
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(
+      request({
+        liteparse: {
+          ocr: "auto",
+          raw: {
+            cropBox: { bottom: 0, left: 0, right: 1, top: 1 },
+            dpi: 300,
+          },
+          screenshots: true,
+        },
+      })
     ).resolves.toMatchObject({
       providerOptions: {
-        liteparse: { ocr: "auto", screenshots: true },
+        liteparse: {
+          ocr: "auto",
+          raw: {
+            cropBox: { bottom: 0, left: 0, right: 1, top: 1 },
+            dpi: 300,
+          },
+          screenshots: true,
+        },
       },
     })
   })
@@ -137,6 +166,26 @@ describe("document job input", () => {
     expect(input.providerOptions).toEqual({
       datalab: { model_override_settings: '{"temperature":0}' },
     })
+  })
+
+  test("rejects Mistral models missing from the hosted rate card", async () => {
+    await expect(
+      readDocumentJobInput(
+        new Request("https://filerouter.test/api/v1/jobs", {
+          body: JSON.stringify({
+            operation: "parse",
+            outputs: ["markdown"],
+            provider: "mistral-ocr",
+            providerOptions: {
+              "mistral-ocr": { model: "unpriced-preview-model" },
+            },
+            source: { url: "https://example.com/report.pdf" },
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        })
+      )
+    ).rejects.toMatchObject({ status: 400 })
   })
 
   test("infers upload MIME type from its filename", async () => {

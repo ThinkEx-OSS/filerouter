@@ -4,11 +4,12 @@ export const RELEASE_ID_HEADER = "x-filerouter-release-id"
 
 export function emitWideEvent(
   level: "error" | "info",
-  event: Record<string, unknown> & { event: string; service: string }
+  event: Record<string, unknown> & { event: string; service: string },
+  environment = "production"
 ): void {
   const record = JSON.stringify({
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV ?? "production",
+    environment,
     ...event,
   })
   console[level](record)

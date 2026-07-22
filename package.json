@@ -17,7 +17,7 @@
     "db:migrate": "wrangler d1 migrations apply DB --remote",
     "db:check": "drizzle-kit check",
     "r2:lifecycle": "wrangler r2 bucket lifecycle set filerouter-files --file infra/r2-lifecycle.json --force",
-    "test": "vp test run --passWithNoTests && pnpm test:worker && pnpm --filter @file_router/sdk test && pnpm --filter @file_router/cli test",
+    "test": "vp test run --passWithNoTests && pnpm test:worker && pnpm --filter @file_router/sdk test && pnpm --filter @file_router/cli test && pnpm --filter @file_router/native-parsers test",
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "lint": "vp lint",
     "format": "vp fmt",

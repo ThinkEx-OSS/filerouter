@@ -53,6 +53,14 @@ const liteParseRawOptions = new Set([
   "skipDiagonalText",
 ])
 
+const liteParseCropBoxOptions = new Set(["bottom", "left", "right", "top"])
+const MAX_LITEPARSE_DPI = 300
+const HOSTED_MISTRAL_OCR_MODELS = new Set([
+  "mistral-ocr-2512",
+  "mistral-ocr-4-0",
+  "mistral-ocr-latest",
+])
+
 const validateProviderOptions: Record<
   ProviderId,
   (options: Record<string, unknown>) => void
@@ -66,16 +74,71 @@ const validateProviderOptions: Record<
   llamaparse: (options) => assertNoBlockedOptions("llamaparse", options),
   liteparse(options) {
     assertOnlyOptions("liteparse", options, liteParseOptions)
-    if (isRecord(options.raw)) {
-      assertOnlyOptions("liteparse", options.raw, liteParseRawOptions)
+    validateLiteParseRawOptions(options.raw)
+  },
+  "mistral-ocr"(options) {
+    assertNoBlockedOptions("mistral-ocr", options)
+    if (
+      options.model !== undefined &&
+      (typeof options.model !== "string" ||
+        !HOSTED_MISTRAL_OCR_MODELS.has(options.model))
+    ) {
+      throw new HttpError(
+        400,
+        "Hosted mistral-ocr only accepts models on the published rate card."
+      )
     }
   },
-  "mistral-ocr": (options) => assertNoBlockedOptions("mistral-ocr", options),
   "pdf-inspector"(options) {
     if (Object.keys(options).length > 0) {
       throw new HttpError(400, "Hosted pdf-inspector accepts no options.")
     }
   },
+}
+
+function validateLiteParseRawOptions(value: unknown): void {
+  if (value === undefined) {
+    return
+  }
+  if (!isRecord(value)) {
+    throw new HttpError(400, "Hosted liteparse raw options must be an object.")
+  }
+  assertOnlyOptions("liteparse", value, liteParseRawOptions)
+
+  if (
+    value.dpi !== undefined &&
+    (typeof value.dpi !== "number" ||
+      !Number.isFinite(value.dpi) ||
+      value.dpi <= 0 ||
+      value.dpi > MAX_LITEPARSE_DPI)
+  ) {
+    throw new HttpError(
+      400,
+      `Hosted liteparse dpi must be greater than 0 and at most ${MAX_LITEPARSE_DPI}.`
+    )
+  }
+
+  if (value.cropBox === undefined) {
+    return
+  }
+  if (!isRecord(value.cropBox)) {
+    throw new HttpError(400, "Hosted liteparse cropBox must be an object.")
+  }
+  assertOnlyOptions("liteparse", value.cropBox, liteParseCropBoxOptions)
+  for (const side of liteParseCropBoxOptions) {
+    const fraction = value.cropBox[side]
+    if (
+      typeof fraction !== "number" ||
+      !Number.isFinite(fraction) ||
+      fraction < 0 ||
+      fraction > 1
+    ) {
+      throw new HttpError(
+        400,
+        `Hosted liteparse cropBox.${side} must be between 0 and 1.`
+      )
+    }
+  }
 }
 
 export function createHostedProviders(

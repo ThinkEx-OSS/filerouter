@@ -25,6 +25,7 @@ const ENGINE_VERSION = runtimePackage.dependencies["@llamaindex/liteparse"]
 const MAX_INPUT_BYTES = 100 * 1024 * 1024
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 const MAX_PAGES = 500
+const MAX_DPI = 300
 const OFFICE_EXTENSIONS = new Set([
   ".csv",
   ".doc",
@@ -300,7 +301,7 @@ function readRawOptions(value: unknown): LiteParseHostedOptions["raw"] {
     raw.skipDiagonalText,
     "raw.skipDiagonalText"
   )
-  const dpi = readPositiveNumber(raw.dpi, "raw.dpi")
+  const dpi = readPositiveNumber(raw.dpi, "raw.dpi", MAX_DPI)
   const cropBox = readCropBox(raw.cropBox)
   return {
     ...(cropBox && { cropBox }),
@@ -314,14 +315,23 @@ function readRawOptions(value: unknown): LiteParseHostedOptions["raw"] {
   }
 }
 
-function readPositiveNumber(value: unknown, name: string): number | undefined {
+function readPositiveNumber(
+  value: unknown,
+  name: string,
+  max: number
+): number | undefined {
   if (value === undefined) {
     return undefined
   }
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value > 0 &&
+    value <= max
+  ) {
     return value
   }
-  throw invalidOptions(`${name} must be a positive number.`)
+  throw invalidOptions(`${name} must be greater than 0 and at most ${max}.`)
 }
 
 function readCropBox(value: unknown): LiteParseConfig["cropBox"] | undefined {
@@ -330,16 +340,21 @@ function readCropBox(value: unknown): LiteParseConfig["cropBox"] | undefined {
   }
   const cropBox = readObject(value, "raw.cropBox must be an object.")
   assertAllowedKeys(cropBox, ["bottom", "left", "right", "top"])
-  const bottom = readFiniteNumber(cropBox.bottom, "raw.cropBox.bottom")
-  const left = readFiniteNumber(cropBox.left, "raw.cropBox.left")
-  const right = readFiniteNumber(cropBox.right, "raw.cropBox.right")
-  const top = readFiniteNumber(cropBox.top, "raw.cropBox.top")
+  const bottom = readFraction(cropBox.bottom, "raw.cropBox.bottom")
+  const left = readFraction(cropBox.left, "raw.cropBox.left")
+  const right = readFraction(cropBox.right, "raw.cropBox.right")
+  const top = readFraction(cropBox.top, "raw.cropBox.top")
   return { bottom, left, right, top }
 }
 
-function readFiniteNumber(value: unknown, name: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw invalidOptions(`${name} must be a finite number.`)
+function readFraction(value: unknown, name: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 1
+  ) {
+    throw invalidOptions(`${name} must be between 0 and 1.`)
   }
   return value
 }

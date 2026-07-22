@@ -3,7 +3,10 @@ export function readPublicHttpUrl(value: string): URL {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("URLs must use HTTP or HTTPS.")
   }
-  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "")
+  const hostname = url.hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "")
   if (
     hostname === "localhost" ||
     hostname === "0.0.0.0" ||
