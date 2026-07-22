@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils"
 const pricingPlans = [
   {
     cta: "Read the docs",
-    description: "Run providers from your environment with your own keys.",
+    description: "Call providers from your own runtime with your own keys.",
     emphasized: false,
     features: [
-      "No FileRouter usage fee",
-      "Provider-native billing",
+      "No FileRouter credits",
+      "Pay providers directly",
       "Typed SDK and CLI",
       "Parse and compare locally",
     ],
@@ -22,17 +22,17 @@ const pricingPlans = [
   },
   {
     cta: "Start for free",
-    description: "Let FileRouter handle the durable execution layer.",
+    description: "Send documents through FileRouter for hosted processing.",
     emphasized: true,
     features: [
-      "One FileRouter API key",
+      "FileRouter API key",
+      "5,000 free credits each month",
       "Durable jobs and retries",
-      "Managed uploads and cleanup",
-      "Normalized provider results",
+      "Uploads and cleanup included",
     ],
     id: "hosted",
     name: "Hosted",
-    price: "Coming soon",
+    price: "Pay as you go",
   },
   {
     cta: "Talk to us",
@@ -62,8 +62,8 @@ export function PricingSection() {
           Simple, flexible pricing
         </h2>
         <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
-          Call providers directly with your own keys, or let FileRouter handle
-          uploads, polling, retries, and cleanup.
+          Use your provider keys for free, or use FileRouter credits for hosted
+          processing.
         </p>
 
         <div className="mt-8 grid gap-5 md:grid-cols-3">

@@ -38,7 +38,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "One durable control plane for document parsing across providers, with normalized results and built-in comparison.",
+          "Parse and compare documents across providers through one API, with durable jobs and consistent results.",
       },
       { property: "og:url", content: "https://filerouter.dev/" },
       { name: "twitter:card", content: "summary" },
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/")({
       {
         name: "twitter:description",
         content:
-          "One durable control plane for document parsing across providers, with normalized results and built-in comparison.",
+          "Parse and compare documents across providers through one API, with durable jobs and consistent results.",
       },
     ],
     links: [{ rel: "canonical", href: "https://filerouter.dev/" }],
@@ -96,8 +96,8 @@ function App() {
             One API for document parsing.
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
-            Optimize accuracy, reliability, latency, and cost with durable
-            execution across providers.
+            Optimize accuracy, reliability, latency, and cost across document
+            parsers.
           </p>
 
           <div className="mt-9 flex w-full max-w-[21rem] flex-col items-center gap-4">
@@ -154,6 +154,21 @@ function App() {
         </div>
       </section>
 
+      <section>
+        <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
+          <p className="text-sm font-normal text-muted-foreground">Routing</p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-medium md:text-4xl">
+            Route every document on your terms.
+          </h2>
+          <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
+            Run through FileRouter, call providers directly, or compare routes
+            before you switch.
+          </p>
+
+          <RoutingCanvas />
+        </div>
+      </section>
+
       <section className="border-y border-border bg-muted/25" id="sdk">
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
@@ -170,21 +185,6 @@ function App() {
           </div>
 
           <SdkExample />
-        </div>
-      </section>
-
-      <section>
-        <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
-          <p className="text-sm font-normal text-muted-foreground">Routing</p>
-          <h2 className="mt-3 max-w-3xl text-3xl font-medium md:text-4xl">
-            Route every document on your terms.
-          </h2>
-          <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
-            Run through FileRouter, call providers directly, or compare routes
-            before you switch.
-          </p>
-
-          <RoutingCanvas />
         </div>
       </section>
 
@@ -258,7 +258,7 @@ const homeStructuredData = {
       "@type": "SoftwareSourceCode",
       name: "@file_router/sdk",
       description:
-        "A provider-neutral TypeScript SDK for parsing and comparing documents through hosted or direct provider execution.",
+        "A provider-neutral TypeScript SDK for parsing and comparing documents through FileRouter or directly with provider keys.",
       codeRepository: "https://github.com/ThinkEx-OSS/filerouter",
       license: "https://opensource.org/license/mit",
       programmingLanguage: "TypeScript",
