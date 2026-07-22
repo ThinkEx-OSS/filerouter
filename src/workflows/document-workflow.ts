@@ -4,7 +4,7 @@ import type {
   WorkflowStep,
   WorkflowStepConfig,
 } from "cloudflare:workers"
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import {
   FileRouterError,
   assertProviderOutputs,
@@ -22,7 +22,7 @@ import { documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
 import { trackManagedExecutionUsage } from "@/integrations/autumn/managed-execution"
 import { captureServerTelemetry } from "@/integrations/posthog/server"
-import { MAX_HOSTED_UPLOAD_BYTES } from "@/lib/document-limits"
+import { failDocumentJob } from "@/lib/document-jobs.server"
 import { createProviderSourceUrl } from "@/lib/document-source.server"
 import { resultExpiresAt } from "@/lib/document-retention"
 import { createHostedProviders } from "@/lib/hosted-providers.server"
@@ -93,12 +93,7 @@ type CleanupOutcome =
 
 type MeteringOutcome =
   | { status: "not_run" | "skipped" }
-  | {
-      status: "tracked"
-      tracked_providers: number
-      unpriced_providers: Array<string>
-    }
-  | ({ status: "failed" } & ReturnType<typeof serializeError>)
+  | { status: "tracked"; tracked_providers: number }
 
 export class DocumentWorkflow extends WorkflowEntrypoint<
   Cloudflare.Env,
@@ -108,7 +103,8 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
     event: Readonly<WorkflowEvent<DocumentWorkflowParams>>,
     step: WorkflowStep
   ) {
-    const params = assertParams(event.payload)
+    const params = event.payload
+    assertParams(params)
     const observedStartedAt = Date.now()
     let providerResults: Array<ProviderOutcome> = []
     let resultCleanup: CleanupOutcome = { status: "not_run" }
@@ -138,7 +134,14 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
         jobId: params.jobId,
         requestId: params.requestId,
       })
-      const input = await sourceInput(this.env, params)
+      const input: ProviderInput = {
+        kind: "url",
+        url: await createProviderSourceUrl(
+          this.env,
+          params.jobId,
+          params.fileName
+        ),
+      }
       providerResults = await Promise.all(
         params.providers.map((providerId) =>
           processProvider(step, configured[providerId], input, params, this.env)
@@ -162,19 +165,14 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
       } else {
         resultCleanup = { status: "skipped" }
       }
-      sourceCleanup = await deleteDocumentSource(
+      sourceCleanup = await deleteResultObjects(
         step,
-        this.env,
-        params,
+        this.env.FILEROUTER_FILES,
+        [params.source.key],
         "delete document source"
       )
 
-      metering = await trackUsageWithoutFailingJob(
-        step,
-        this.env,
-        params,
-        providerResults
-      )
+      metering = await trackUsage(step, this.env, params, providerResults)
 
       await step.do("mark job complete", async () => {
         const completedAt = new Date()
@@ -206,27 +204,18 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
         ],
         "delete failed results"
       )
-      sourceCleanup = await deleteDocumentSource(
+      sourceCleanup = await deleteResultObjects(
         step,
-        this.env,
-        params,
+        this.env.FILEROUTER_FILES,
+        [params.source.key],
         "delete failed document source"
       )
       await step.do("mark job failed", async () => {
-        await createDb(this.env.DB)
-          .update(documentJob)
-          .set({
-            error: message,
-            ...(sourceCleanup.status === "deleted" && { sourceKey: null }),
-            status: "failed",
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(documentJob.id, params.jobId),
-              eq(documentJob.status, "running")
-            )
-          )
+        await failDocumentJob(this.env.DB, {
+          clearSource: sourceCleanup.status === "deleted",
+          error: message,
+          jobId: params.jobId,
+        })
         return { error: message, status: "failed" }
       })
       throw error
@@ -237,27 +226,7 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
         (provider) => provider.status === "parsed"
       )
       const failedProviders = providerResults.length - parsedProviders.length
-      emitWideEvent(this.env, outcome === "failed" ? "error" : "info", {
-        duration_ms: durationMs,
-        event: "document_job_completed",
-        failed_provider_count: failedProviders,
-        job_id: params.jobId,
-        metering,
-        operation: params.operation,
-        outcome,
-        page_count: pageCount,
-        provider_count: providerResults.length,
-        provider_outcomes: providerOutcomes,
-        request_id: params.requestId,
-        result_cleanup: resultCleanup,
-        service: "filerouter-workflow",
-        source_cleanup: sourceCleanup,
-        successful_provider_count: parsedProviders.length,
-        user_id: params.userId,
-        ...(failure ? serializeError(failure) : {}),
-      })
-
-      const properties = {
+      const completionProperties = {
         duration_ms: durationMs,
         failed_provider_count: failedProviders,
         job_id: params.jobId,
@@ -270,42 +239,55 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
         request_id: params.requestId,
         successful_provider_count: parsedProviders.length,
       }
+      emitWideEvent(this.env, outcome === "failed" ? "error" : "info", {
+        ...completionProperties,
+        event: "document_job_completed",
+        metering,
+        provider_outcomes: providerOutcomes,
+        result_cleanup: resultCleanup,
+        service: "filerouter-workflow",
+        source_cleanup: sourceCleanup,
+        user_id: params.userId,
+        ...(failure ? serializeError(failure) : {}),
+      })
+
       this.ctx.waitUntil(
         captureServerTelemetry(this.env, {
           distinctId: params.userId,
           event: "document_job_completed",
           ...(failure ? { exception: failure } : {}),
-          properties,
+          properties: completionProperties,
         })
       )
     }
   }
 }
 
-async function trackUsageWithoutFailingJob(
+async function trackUsage(
   step: WorkflowStep,
   env: Cloudflare.Env,
   params: DocumentWorkflowParams,
   providers: Array<ProviderOutcome>
 ): Promise<MeteringOutcome> {
-  try {
-    const result = await step.do("track managed execution", METERING_STEP, () =>
-      trackManagedExecutionUsage(env, {
-        jobId: params.jobId,
-        operation: params.operation,
-        providers,
-        userId: params.userId,
-      })
+  const result = await step.do("track managed execution", METERING_STEP, () =>
+    trackManagedExecutionUsage(env, {
+      jobId: params.jobId,
+      operation: params.operation,
+      providers,
+      userId: params.userId,
+    })
+  )
+  if ("skipped" in result) {
+    return { status: "skipped" }
+  }
+  if (result.unpricedProviders.length > 0) {
+    throw new Error(
+      `Cannot bill unpriced hosted providers: ${result.unpricedProviders.join(", ")}.`
     )
-    return "skipped" in result
-      ? { status: "skipped" }
-      : {
-          status: "tracked",
-          tracked_providers: result.trackedProviders,
-          unpriced_providers: result.unpricedProviders,
-        }
-  } catch (error) {
-    return { status: "failed", ...serializeError(error) }
+  }
+  return {
+    status: "tracked",
+    tracked_providers: result.trackedProviders,
   }
 }
 
@@ -457,24 +439,6 @@ async function persistResult(
   )
 }
 
-async function deleteDocumentSource(
-  step: WorkflowStep,
-  env: Cloudflare.Env,
-  params: DocumentWorkflowParams,
-  stepName: string
-): Promise<CleanupOutcome> {
-  const sourceKey = params.source.key
-  try {
-    await step.do(stepName, CLEANUP_STEP, async () => {
-      await env.FILEROUTER_FILES.delete(sourceKey)
-      return true
-    })
-    return { object_count: 1, status: "deleted" }
-  } catch (error) {
-    return { status: "failed", ...serializeError(error) }
-  }
-}
-
 function providerLogFields(provider: ProviderOutcome) {
   return provider.status === "parsed"
     ? {
@@ -506,30 +470,11 @@ function parseOptions(params: DocumentWorkflowParams, provider: string) {
   }
 }
 
-async function sourceInput(
-  env: Cloudflare.Env,
-  params: DocumentWorkflowParams
-): Promise<ProviderInput> {
-  const object = await env.FILEROUTER_FILES.head(params.source.key)
-  if (!object) {
-    throw new Error("Uploaded document is unavailable.")
-  }
-  if (object.size > MAX_HOSTED_UPLOAD_BYTES) {
-    throw new Error("Uploaded document exceeds the hosted size limit.")
-  }
-  return {
-    kind: "url",
-    url: await createProviderSourceUrl(env, params.jobId, params.fileName),
-  }
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Document job failed."
 }
 
-function assertParams(
-  params: Readonly<DocumentWorkflowParams>
-): DocumentWorkflowParams {
+function assertParams(params: Readonly<DocumentWorkflowParams>): void {
   if (
     !params.jobId ||
     !params.requestId ||
@@ -540,5 +485,4 @@ function assertParams(
   ) {
     throw new Error("Invalid document workflow payload.")
   }
-  return { ...params }
 }

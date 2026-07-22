@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import type { HostedJobStatus } from "@file_router/sdk/hosted"
 
 import { documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
 import { readDocumentJobInput } from "@/lib/document-job-input.server"
+import { requireHostedCreditForUser } from "@/integrations/autumn/billing.server"
 import {
   MAX_HOSTED_UPLOAD_BYTES,
   MAX_HOSTED_UPLOAD_LABEL,
@@ -80,6 +81,8 @@ export async function createDocumentJob(
     if (replay) {
       return replay
     }
+
+    await requireHostedCreditForUser(env, userId)
 
     try {
       await db.insert(documentJob).values({
@@ -255,6 +258,26 @@ export async function getDocumentJobResponse(
     throw new HttpError(500, "Document job result is unavailable.")
   }
   return streamCompletedJob(id, result)
+}
+
+export async function failDocumentJob(
+  database: D1Database,
+  options: { clearSource: boolean; error: string; jobId: string }
+): Promise<void> {
+  await createDb(database)
+    .update(documentJob)
+    .set({
+      error: options.error,
+      ...(options.clearSource && { sourceKey: null }),
+      status: "failed",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(documentJob.id, options.jobId),
+        inArray(documentJob.status, ["queued", "running"])
+      )
+    )
 }
 
 function streamCompletedJob(id: string, result: R2ObjectBody): Response {
