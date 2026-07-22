@@ -1,28 +1,8 @@
-import { Check, Copy } from "@phosphor-icons/react"
-
 import { AgentMarks } from "@/components/agent-marks"
-import { Button } from "@/components/ui/button"
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
+import { ClipboardCopyButton } from "@/components/clipboard-copy-button"
 
 const integrationPrompt =
   "Use https://docs.filerouter.dev to understand FileRouter. Inspect this project's document flow, ask clarifying questions, and propose the cleanest integration plan before changing code."
-
-function CopyButton({ label, value }: { label: string; value: string }) {
-  const { copied, copy } = useCopyToClipboard()
-
-  return (
-    <Button
-      aria-label={copied ? `${label} copied` : label}
-      className="absolute top-2 right-2"
-      onClick={() => copy(value)}
-      size="icon-sm"
-      type="button"
-      variant="ghost"
-    >
-      {copied ? <Check weight="bold" /> : <Copy weight="bold" />}
-    </Button>
-  )
-}
 
 function QuickstartItem({
   children,
@@ -60,9 +40,12 @@ export function DashboardQuickstart() {
             <pre className="max-w-full overflow-x-auto py-4 pr-12 pl-4 font-mono text-sm leading-6 whitespace-pre-wrap">
               <code>{integrationPrompt}</code>
             </pre>
-            <CopyButton
-              label="Copy integration prompt"
+            <ClipboardCopyButton
+              className="absolute top-2 right-2"
+              label="integration prompt"
+              size="icon-sm"
               value={integrationPrompt}
+              variant="ghost"
             />
           </div>
         </QuickstartItem>

@@ -1,8 +1,9 @@
 import type { ApiKey } from "@better-auth/api-key"
-import { Check, Copy, Trash, X } from "@phosphor-icons/react"
+import { Trash, X } from "@phosphor-icons/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
+import { ClipboardCopyButton } from "@/components/clipboard-copy-button"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -35,7 +36,6 @@ export function ApiKeys() {
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [createdKey, setCreatedKey] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   const keys = useQuery({
     queryKey: apiKeysQueryKey,
@@ -61,7 +61,6 @@ export function ApiKeys() {
     onSuccess: async (key) => {
       captureBrowserEvent("api_key_created", { named: Boolean(name.trim()) })
       setName("")
-      setCopied(false)
       setCreatedKey(key)
       await queryClient.invalidateQueries({ queryKey: apiKeysQueryKey })
     },
@@ -87,12 +86,6 @@ export function ApiKeys() {
     event.preventDefault()
     const keyName = name.trim()
     createKeyMutation.mutate(keyName || undefined)
-  }
-
-  async function copyCreatedKey() {
-    if (!createdKey) return
-    await navigator.clipboard.writeText(createdKey)
-    setCopied(true)
   }
 
   const error = keys.error ?? createKeyMutation.error ?? revokeKeyMutation.error
@@ -138,10 +131,7 @@ export function ApiKeys() {
           <Button
             aria-label="Dismiss API key"
             className="absolute top-1.5 right-1.5"
-            onClick={() => {
-              setCreatedKey(null)
-              setCopied(false)
-            }}
+            onClick={() => setCreatedKey(null)}
             size="icon-sm"
             type="button"
             variant="ghost"
@@ -154,14 +144,13 @@ export function ApiKeys() {
             <code className="block min-w-0 flex-1 overflow-x-auto rounded-none bg-background px-3 py-2 text-sm whitespace-nowrap">
               {createdKey}
             </code>
-            <Button
-              aria-label="Copy API key"
+            <ClipboardCopyButton
+              key={createdKey}
+              label="API key"
               size="icon"
+              value={createdKey}
               variant="outline"
-              onClick={copyCreatedKey}
-            >
-              {copied ? <Check weight="bold" /> : <Copy weight="bold" />}
-            </Button>
+            />
           </div>
         </Alert>
       ) : null}

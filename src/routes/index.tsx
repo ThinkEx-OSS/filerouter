@@ -1,27 +1,19 @@
-import { ArrowRight, Check, Copy } from "@phosphor-icons/react"
+import { ArrowRight } from "@phosphor-icons/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 
 import { BenchmarkSection } from "@/components/benchmark-section"
 import { LatestBlogSection } from "@/components/blog/latest-blog-section"
 import { CalBookingButton } from "@/components/cal-booking-button"
+import { ClipboardCopyButton } from "@/components/clipboard-copy-button"
 import { DitherButton } from "@/components/dither-kit/button"
 import { PricingSection } from "@/components/pricing-section"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { RoutingCanvas } from "@/components/routing-canvas"
 import { SdkExample } from "@/components/sdk-example"
 import { Button } from "@/components/ui/button"
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
-import { getAuthSessionQueryOptions } from "@/lib/session-query"
 import { availableProviders } from "@/lib/provider-display"
 
 export const Route = createFileRoute("/")({
-  beforeLoad: async ({ context }) => {
-    const session = await context.queryClient.ensureQueryData(
-      getAuthSessionQueryOptions()
-    )
-
-    return { session }
-  },
   head: () => ({
     meta: [
       { title: "FileRouter — Durable document parsing across providers" },
@@ -89,9 +81,6 @@ function getProviderLogoHeightClass(label: string) {
 }
 
 function App() {
-  const { session } = Route.useRouteContext()
-  const { copied, copy } = useCopyToClipboard()
-
   return (
     <PublicPageShell>
       <section>
@@ -101,32 +90,20 @@ function App() {
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
             Optimize accuracy, reliability, latency, and cost across document
-            parsers.
+            providers with durable processing.
           </p>
 
           <div className="mt-9 flex w-full max-w-[23rem] flex-col items-center gap-4">
             <div className="grid w-full gap-3 sm:grid-cols-2">
-              {session ? (
-                <Button
-                  asChild
-                  className="h-11 w-full px-5 text-base font-normal"
-                >
-                  <Link to="/dashboard">
-                    Dashboard
-                    <ArrowRight className="size-4" weight="bold" />
-                  </Link>
-                </Button>
-              ) : (
-                <DitherButton
-                  asChild
-                  className="h-11 w-full px-5 text-base font-normal"
-                >
-                  <Link search={{ redirect: "/dashboard" }} to="/sign-in">
-                    Start for free
-                    <ArrowRight className="size-4" weight="bold" />
-                  </Link>
-                </DitherButton>
-              )}
+              <DitherButton
+                asChild
+                className="h-11 w-full px-5 text-base font-normal"
+              >
+                <Link search={{ redirect: "/dashboard" }} to="/sign-in">
+                  Start for free
+                  <ArrowRight className="size-4" weight="bold" />
+                </Link>
+              </DitherButton>
               <CalBookingButton className="h-11 w-full px-5 text-base">
                 Talk to the team
               </CalBookingButton>
@@ -135,18 +112,13 @@ function App() {
               <code className="inline-flex min-h-10 w-full items-center justify-center rounded-none border border-border bg-card py-2 pr-12 pl-4 font-mono text-sm text-muted-foreground">
                 {cliLoginCommand}
               </code>
-              <Button
-                aria-label={
-                  copied ? "CLI login command copied" : "Copy CLI login command"
-                }
+              <ClipboardCopyButton
                 className="absolute top-1.5 right-2"
-                onClick={() => copy(cliLoginCommand)}
+                label="CLI login command"
                 size="icon-sm"
-                type="button"
+                value={cliLoginCommand}
                 variant="ghost"
-              >
-                {copied ? <Check weight="bold" /> : <Copy weight="bold" />}
-              </Button>
+              />
             </div>
           </div>
 
@@ -214,25 +186,15 @@ function App() {
             Better results for every document.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Optimize for accuracy, reliability, speed, and cost across
-            providers.
+            Optimize every document for accuracy, reliability, latency, and cost
+            with durable processing.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            {session ? (
-              <Button
-                asChild
-                className="h-12 px-6 text-base font-normal"
-                size="lg"
-              >
-                <Link to="/dashboard">Open dashboard</Link>
-              </Button>
-            ) : (
-              <DitherButton asChild className="h-12 px-6 text-base font-normal">
-                <Link search={{ redirect: "/dashboard" }} to="/sign-in">
-                  Start for free
-                </Link>
-              </DitherButton>
-            )}
+            <DitherButton asChild className="h-12 px-6 text-base font-normal">
+              <Link search={{ redirect: "/dashboard" }} to="/sign-in">
+                Start for free
+              </Link>
+            </DitherButton>
             <Button
               asChild
               className="h-12 px-6 text-base font-normal"
