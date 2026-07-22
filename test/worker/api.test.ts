@@ -5,6 +5,7 @@ import { env } from "cloudflare:workers"
 import { api } from "@/api/app"
 import {
   createDocumentJob,
+  failDocumentJob,
   getDocumentJobResponse,
 } from "@/lib/document-jobs.server"
 import { requireApiPrincipal } from "@/lib/api-auth.server"
@@ -405,6 +406,57 @@ describe("FileRouter Worker", () => {
         .run()
     }
   })
+
+  test.each(["queued", "running"] as const)(
+    "can mark a %s job failed after a workflow error",
+    async (status) => {
+      const userId = `user-failed-${status}`
+      await insertUser(userId)
+      const created = await createDocumentJob(
+        urlJobRequest("https://example.com/report.pdf"),
+        userId,
+        envWithWorkflow(
+          vi.fn().mockResolvedValue([{ id: `workflow-${status}` }])
+        ),
+        `failed-${status}-1`,
+        `request-failed-${status}`
+      )
+
+      try {
+        if (status === "running") {
+          await env.DB.prepare(
+            "UPDATE document_job SET status = 'running' WHERE id = ?"
+          )
+            .bind(created.job.id)
+            .run()
+        }
+        await failDocumentJob(env.DB, {
+          clearSource: true,
+          error: "Workflow failed before execution started.",
+          jobId: created.job.id,
+        })
+
+        const job = await env.DB.prepare(
+          "SELECT error, source_key, status FROM document_job WHERE id = ?"
+        )
+          .bind(created.job.id)
+          .first<{
+            error: string | null
+            source_key: string | null
+            status: string
+          }>()
+        expect(job).toEqual({
+          error: "Workflow failed before execution started.",
+          source_key: null,
+          status: "failed",
+        })
+      } finally {
+        await env.DB.prepare("DELETE FROM document_job WHERE id = ?")
+          .bind(created.job.id)
+          .run()
+      }
+    }
+  )
 })
 
 function urlJobRequest(url: string): Request {
