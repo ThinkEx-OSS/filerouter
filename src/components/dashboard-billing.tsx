@@ -1,11 +1,16 @@
-import { ArrowSquareOut, Coins } from "@phosphor-icons/react"
+import { ArrowSquareOut, Coins, Info } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { Popover } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
 import {
   getBillingSummary,
   startCreditCheckout,
 } from "@/integrations/autumn/billing.functions"
+
+const creditFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+})
 
 export function DashboardBilling() {
   const summary = useQuery({
@@ -33,6 +38,31 @@ export function DashboardBilling() {
       <div className="flex items-center gap-2 text-sm font-medium">
         <Coins className="size-4" weight="bold" />
         <h2 id="credit-balance-title">Credit balance</h2>
+        <Popover.Root>
+          <Popover.Trigger asChild>
+            <button
+              aria-label="How FileRouter credits work"
+              className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+              type="button"
+            >
+              <Info className="size-4" weight="bold" />
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              align="start"
+              className="z-50 w-72 border border-border bg-popover p-3 text-popover-foreground shadow-md outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+              sideOffset={8}
+            >
+              <p className="text-sm font-medium">How credits work</p>
+              <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                1,000 credits equal $1 of hosted usage. Usage varies by parser,
+                pages, and processing time. Comparisons use credits for each
+                successful provider. Direct requests use no FileRouter credits.
+              </p>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       </div>
       <p className="mt-3 font-mono text-2xl font-medium tabular-nums">
         {remaining}
@@ -66,7 +96,5 @@ export function DashboardBilling() {
 }
 
 function formatCredits(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 2,
-  }).format(value)
+  return creditFormatter.format(value)
 }
