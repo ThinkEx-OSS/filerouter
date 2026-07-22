@@ -1,4 +1,4 @@
-import { ArrowRight } from "@phosphor-icons/react"
+import { ArrowRight, Check, Copy } from "@phosphor-icons/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 
 import { BenchmarkSection } from "@/components/benchmark-section"
@@ -10,6 +10,7 @@ import { PublicPageShell } from "@/components/public-page-shell"
 import { RoutingCanvas } from "@/components/routing-canvas"
 import { SdkExample } from "@/components/sdk-example"
 import { Button } from "@/components/ui/button"
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 import { getAuthSessionQueryOptions } from "@/lib/session-query"
 import { availableProviders } from "@/lib/provider-display"
 
@@ -79,6 +80,8 @@ const providerLogos = [
   availableProviders[2],
 ] as const
 
+const cliLoginCommand = "npx @file_router/cli@latest login"
+
 function getProviderLogoHeightClass(label: string) {
   if (label === "Firecrawl") return "h-7"
   if (label === "Reducto") return "h-[1.375rem]"
@@ -87,11 +90,12 @@ function getProviderLogoHeightClass(label: string) {
 
 function App() {
   const { session } = Route.useRouteContext()
+  const { copied, copy } = useCopyToClipboard()
 
   return (
     <PublicPageShell>
-      <section className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 pb-16 text-center md:pt-28 md:pb-20">
-        <div className="flex w-full min-w-0 flex-col items-center">
+      <section>
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 pb-16 text-center md:pt-28 md:pb-20">
           <h1 className="max-w-5xl text-4xl font-medium tracking-normal text-balance md:text-6xl lg:text-7xl">
             One API for document parsing.
           </h1>
@@ -100,7 +104,7 @@ function App() {
             parsers.
           </p>
 
-          <div className="mt-9 flex w-full max-w-[21rem] flex-col items-center gap-4">
+          <div className="mt-9 flex w-full max-w-[23rem] flex-col items-center gap-4">
             <div className="grid w-full gap-3 sm:grid-cols-2">
               {session ? (
                 <Button
@@ -127,9 +131,23 @@ function App() {
                 Talk to the team
               </CalBookingButton>
             </div>
-            <code className="inline-flex min-h-10 w-full items-center justify-center rounded-none border border-border bg-card px-4 py-2 font-mono text-sm text-muted-foreground">
-              npx @file_router/cli@latest login
-            </code>
+            <div className="relative w-full">
+              <code className="inline-flex min-h-10 w-full items-center justify-center rounded-none border border-border bg-card py-2 pr-12 pl-4 font-mono text-sm text-muted-foreground">
+                {cliLoginCommand}
+              </code>
+              <Button
+                aria-label={
+                  copied ? "CLI login command copied" : "Copy CLI login command"
+                }
+                className="absolute top-1.5 right-2"
+                onClick={() => copy(cliLoginCommand)}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                {copied ? <Check weight="bold" /> : <Copy weight="bold" />}
+              </Button>
+            </div>
           </div>
 
           <p className="mt-12 text-xs font-normal text-muted-foreground uppercase">
@@ -156,8 +174,7 @@ function App() {
 
       <section>
         <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
-          <p className="text-sm font-normal text-muted-foreground">Routing</p>
-          <h2 className="mt-3 max-w-3xl text-3xl font-medium md:text-4xl">
+          <h2 className="max-w-3xl text-3xl font-medium md:text-4xl">
             Route every document on your terms.
           </h2>
           <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
@@ -172,10 +189,7 @@ function App() {
       <section className="border-y border-border bg-muted/25" id="sdk">
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
-            <p className="text-sm font-normal text-muted-foreground">
-              TypeScript SDK
-            </p>
-            <h2 className="mt-3 text-3xl font-medium md:text-4xl">
+            <h2 className="text-3xl font-medium md:text-4xl">
               Change providers. Keep your pipeline.
             </h2>
             <p className="mt-4 max-w-lg leading-7 text-muted-foreground">

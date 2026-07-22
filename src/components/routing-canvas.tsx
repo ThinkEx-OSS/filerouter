@@ -28,7 +28,7 @@ const modes = [
 export function RoutingCanvas() {
   return (
     <Tabs
-      className="mt-10 gap-0 overflow-hidden rounded-none border border-border bg-card"
+      className="mt-10 gap-0 overflow-hidden rounded-none border border-border bg-background"
       defaultValue="hosted"
     >
       <div className="border-b border-border">
@@ -36,7 +36,7 @@ export function RoutingCanvas() {
           {modes.map(({ icon: Icon, id, label, shortLabel }) => (
             <TabsTrigger
               aria-label={`${label} execution mode`}
-              className="h-14 justify-center px-3 not-first:border-l not-first:border-border sm:justify-start sm:px-5"
+              className="h-14 justify-center px-3 not-first:border-l not-first:border-border after:h-px data-[state=inactive]:hover:bg-muted/30 sm:justify-start sm:px-5"
               key={id}
               value={id}
             >

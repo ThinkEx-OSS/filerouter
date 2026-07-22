@@ -1,6 +1,6 @@
 import { ArrowsSplit, FileText } from "@phosphor-icons/react"
-import { Highlight, themes } from "prism-react-renderer"
 
+import { SyntaxHighlight } from "@/components/syntax-highlight"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const examples = {
@@ -27,11 +27,6 @@ const exampleTabs = [
   { icon: ArrowsSplit, id: "compare", label: "Compare" },
 ] as const
 
-const codeThemes = [
-  { className: "dark:hidden", name: "light", theme: themes.vsLight },
-  { className: "hidden dark:block", name: "dark", theme: themes.vsDark },
-] as const
-
 export function SdkExample() {
   return (
     <Tabs
@@ -55,46 +50,13 @@ export function SdkExample() {
       </TabsList>
       {Object.entries(examples).map(([id, example]) => (
         <TabsContent className="min-w-0" key={id} value={id}>
-          <SyntaxHighlight code={example} id={id} />
+          <SyntaxHighlight
+            className="overflow-x-auto p-5 font-mono text-sm leading-7 md:p-7"
+            code={example}
+            id={id}
+          />
         </TabsContent>
       ))}
     </Tabs>
   )
-}
-
-function SyntaxHighlight({ code, id }: { code: string; id: string }) {
-  return codeThemes.map(({ className, name, theme }) => (
-    <Highlight code={code} key={name} language="tsx" theme={theme}>
-      {({
-        className: syntaxClassName,
-        getLineProps,
-        getTokenProps,
-        style,
-        tokens,
-      }) => (
-        <pre
-          className={`${syntaxClassName} ${className} overflow-x-auto p-5 font-mono text-sm leading-7 md:p-7`}
-          style={{ ...style, backgroundColor: "transparent" }}
-        >
-          <code>
-            {tokens.map((line, lineIndex) => (
-              <span
-                key={`${id}-${name}-line-${lineIndex}`}
-                {...getLineProps({ line })}
-                className="block"
-              >
-                {line.map((token, tokenIndex) => (
-                  <span
-                    key={`${id}-${name}-token-${lineIndex}-${tokenIndex}`}
-                    {...getTokenProps({ token })}
-                  />
-                ))}
-                {"\n"}
-              </span>
-            ))}
-          </code>
-        </pre>
-      )}
-    </Highlight>
-  ))
 }

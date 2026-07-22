@@ -1,4 +1,4 @@
-import { ArrowSquareOut, Coins, Info } from "@phosphor-icons/react"
+import { ArrowSquareOut, Info } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Popover } from "radix-ui"
 
@@ -36,7 +36,6 @@ export function DashboardBilling() {
   return (
     <section aria-labelledby="credit-balance-title">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <Coins className="size-4" weight="bold" />
         <h2 id="credit-balance-title">Credit balance</h2>
         <Popover.Root>
           <Popover.Trigger asChild>

@@ -1,4 +1,5 @@
 import { BookOpenText, CloudArrowUp, SignOut } from "@phosphor-icons/react"
+import { useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const { session } = Route.useRouteContext()
+  const queryClient = useQueryClient()
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -62,7 +64,7 @@ function DashboardPage() {
         throw new Error(result.error.message)
       }
       resetBrowserUser()
-      await router.invalidate()
+      queryClient.clear()
       await router.navigate({ to: "/" })
     } catch (error) {
       captureBrowserException(error, { operation: "sign_out" })
@@ -90,14 +92,12 @@ function DashboardPage() {
 
       <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 sm:py-10">
         <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_15rem]">
-          <div className="grid min-w-0 gap-12">
-            <DashboardQuickstart />
+          <div className="grid min-w-0 gap-10">
             <ApiKeys />
+            <DashboardQuickstart />
           </div>
 
           <aside className="min-w-0 bg-muted/35 p-4 lg:sticky lg:top-20">
-            <DashboardBilling />
-            <div className="my-5 h-px bg-border" />
             <h2 className="text-sm font-medium">Resources</h2>
             <nav aria-label="Resources" className="mt-2 grid gap-1">
               {[
@@ -134,6 +134,8 @@ function DashboardPage() {
                 </a>
               ))}
             </nav>
+            <div className="my-5 h-px bg-border" />
+            <DashboardBilling />
           </aside>
         </div>
       </div>

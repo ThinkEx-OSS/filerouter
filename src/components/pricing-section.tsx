@@ -54,9 +54,8 @@ export function PricingSection() {
   return (
     <section aria-labelledby="pricing-heading" id="pricing">
       <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
-        <p className="text-sm font-normal text-muted-foreground">Pricing</p>
         <h2
-          className="mt-3 max-w-3xl text-3xl font-medium md:text-4xl"
+          className="max-w-3xl text-3xl font-medium md:text-4xl"
           id="pricing-heading"
         >
           Simple, flexible pricing
@@ -100,25 +99,27 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              {plan.id === "enterprise" ? (
-                <CalBookingButton className="mt-8 h-10 w-full text-sm">
-                  {plan.cta}
-                </CalBookingButton>
-              ) : (
-                <Button
-                  asChild
-                  className="mt-8 h-10 w-full text-sm font-normal"
-                  variant={plan.emphasized ? "default" : "outline"}
-                >
-                  {plan.id === "hosted" ? (
-                    <Link search={{ redirect: "/dashboard" }} to="/sign-in">
-                      {plan.cta}
-                    </Link>
-                  ) : (
-                    <a href="https://docs.filerouter.dev">{plan.cta}</a>
-                  )}
-                </Button>
-              )}
+              <div className="mt-auto pt-8">
+                {plan.id === "enterprise" ? (
+                  <CalBookingButton className="h-10 w-full text-sm">
+                    {plan.cta}
+                  </CalBookingButton>
+                ) : (
+                  <Button
+                    asChild
+                    className="h-10 w-full text-sm font-normal"
+                    variant={plan.emphasized ? "default" : "outline"}
+                  >
+                    {plan.id === "hosted" ? (
+                      <Link search={{ redirect: "/dashboard" }} to="/sign-in">
+                        {plan.cta}
+                      </Link>
+                    ) : (
+                      <a href="https://docs.filerouter.dev">{plan.cta}</a>
+                    )}
+                  </Button>
+                )}
+              </div>
             </article>
           ))}
         </div>

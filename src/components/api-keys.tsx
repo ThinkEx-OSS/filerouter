@@ -1,5 +1,5 @@
 import type { ApiKey } from "@better-auth/api-key"
-import { Check, Copy, Trash } from "@phosphor-icons/react"
+import { Check, Copy, Trash, X } from "@phosphor-icons/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 
@@ -107,13 +107,10 @@ export function ApiKeys() {
         <h2 className="text-xl font-medium" id="api-keys-title">
           API keys
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create a key for the TypeScript SDK or hosted HTTP API.
-        </p>
       </div>
 
       <form
-        className="flex flex-col gap-2 py-5 sm:max-w-2xl sm:flex-row"
+        className="flex w-full flex-col gap-2 py-4 sm:flex-row"
         onSubmit={createKey}
       >
         <label className="sr-only" htmlFor="api-key-name">
@@ -137,7 +134,20 @@ export function ApiKeys() {
       </form>
 
       {createdKey ? (
-        <Alert className="ph-no-capture mb-5 max-w-full min-w-0 overflow-hidden border-primary/30 bg-primary/5">
+        <Alert className="ph-no-capture mb-5 max-w-full min-w-0 overflow-hidden border-primary/30 bg-primary/5 pr-10">
+          <Button
+            aria-label="Dismiss API key"
+            className="absolute top-1.5 right-1.5"
+            onClick={() => {
+              setCreatedKey(null)
+              setCopied(false)
+            }}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <X weight="bold" />
+          </Button>
           <AlertTitle>Copy this key now</AlertTitle>
           <AlertDescription>It will not be shown again.</AlertDescription>
           <div className="mt-3 flex min-w-0 items-center gap-2">

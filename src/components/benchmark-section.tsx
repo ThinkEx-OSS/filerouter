@@ -47,10 +47,9 @@ export function BenchmarkSection() {
   return (
     <section className="border-b border-border" id="benchmarks">
       <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
-        <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr] lg:items-end">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(15rem,0.7fr)] lg:items-end">
           <div>
-            <p className="text-sm text-muted-foreground">Benchmarks</p>
-            <h2 className="mt-3 max-w-3xl text-3xl font-medium text-balance md:text-4xl">
+            <h2 className="max-w-3xl text-3xl font-medium md:text-4xl md:whitespace-nowrap">
               Different documents. Different winners.
             </h2>
           </div>
