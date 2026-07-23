@@ -2,8 +2,12 @@ name: Publish packages
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - packages/cli/package.json
+      - packages/filerouter/package.json
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +24,7 @@ jobs:
     outputs:
       cli_exists: ${{ steps.versions.outputs.cli_exists }}
       sdk_exists: ${{ steps.versions.outputs.sdk_exists }}
+      version: ${{ steps.versions.outputs.version }}
     env:
       VITE_GIT_HOOKS: "0"
     steps:
@@ -41,9 +46,10 @@ jobs:
         run: |
           sdk_version=$(node -p "require('./packages/filerouter/package.json').version")
           cli_version=$(node -p "require('./packages/cli/package.json').version")
+          test "$GITHUB_REF" = "refs/heads/main"
           test "$sdk_version" = "$cli_version"
-          test "$GITHUB_REF_NAME" = "v$sdk_version"
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          echo "version=$sdk_version" >> "$GITHUB_OUTPUT"
           if npm view "@file_router/sdk@$sdk_version" version >/dev/null 2>&1; then
             echo "sdk_exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -110,15 +116,27 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         shell: bash
         run: |
-          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" \
+          tag="v$RELEASE_VERSION"
+          existing_commit=$(git rev-list -n 1 "$tag" 2>/dev/null || true)
+          if test -n "$existing_commit" && test "$existing_commit" != "$GITHUB_SHA"; then
+            echo "$tag already points to $existing_commit, not $GITHUB_SHA" >&2
+            exit 1
+          fi
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$tag" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "FileRouter $GITHUB_REF_NAME" \
+              --target "$GITHUB_SHA" \
+              --title "FileRouter $tag" \
               --generate-notes \
-              --verify-tag
+              --latest
           fi
