@@ -1,22 +1,20 @@
+import type { ParseOutput, ParseResult, ProviderCapabilities } from "./types"
+import type { ProviderId } from "./catalog"
+
 export const FILEROUTER_API_KEY_PREFIX = "fr_"
 export const FILEROUTER_CLI_CLIENT_ID = "filerouter-cli"
 export const FILEROUTER_CLI_SCOPE = "jobs:create jobs:read"
 export const FILEROUTER_DEFAULT_API_URL = "https://filerouter.dev"
+export const MAX_HOSTED_JOB_REQUEST_BYTES = 64 * 1024
+export const MAX_HOSTED_METADATA_ENTRIES = 50
 
+export const HOSTED_DOCUMENTS_PATH = "/api/v1/documents"
+export const HOSTED_EXECUTIONS_PATH = "/api/v1/executions"
 export const HOSTED_JOBS_PATH = "/api/v1/jobs"
-export const MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES = 64 * 1024
+export const HOSTED_PROVIDERS_PATH = "/api/v1/providers"
 
-export const HOSTED_JOB_HEADERS = {
-  contentType: "x-filerouter-content-type",
-  fileName: "x-filerouter-filename",
-  includeRaw: "x-filerouter-include-raw",
-  operation: "x-filerouter-operation",
-  outputs: "x-filerouter-outputs",
-  pages: "x-filerouter-pages",
-  provider: "x-filerouter-provider",
-  providerOptions: "x-filerouter-provider-options",
-  providers: "x-filerouter-providers",
-} as const
+export const hostedDocumentStatuses = ["ready", "expired"] as const
+export type HostedDocumentStatus = (typeof hostedDocumentStatuses)[number]
 
 export const hostedJobStatuses = [
   "queued",
@@ -24,25 +22,69 @@ export const hostedJobStatuses = [
   "complete",
   "failed",
 ] as const
-
 export type HostedJobStatus = (typeof hostedJobStatuses)[number]
 
-export type HostedJobOperation = "compare" | "parse"
+export const hostedExecutionStatuses = [
+  "queued",
+  "running",
+  "complete",
+  "failed",
+] as const
+export type HostedExecutionStatus = (typeof hostedExecutionStatuses)[number]
 
-export type HostedJobAccepted = { id: string; status: HostedJobStatus }
-
-export interface HostedJobHandle<
-  Operation extends HostedJobOperation = HostedJobOperation,
-> extends HostedJobAccepted {
-  idempotencyKey: string
-  operation: Operation
+export interface HostedDocument {
+  contentType: string
+  createdAt: string
+  etag: string
+  expiresAt: string
+  id: string
+  name: string
+  size: number
+  status: HostedDocumentStatus
 }
 
-export type HostedParseJob = HostedJobHandle<"parse">
-export type HostedCompareJob = HostedJobHandle<"compare">
-export type HostedJob = HostedCompareJob | HostedParseJob
+export interface HostedProviderTarget {
+  includeRaw?: boolean
+  options?: Record<string, unknown>
+  outputs?: Array<ParseOutput>
+  pages?: Array<number>
+  provider: ProviderId
+}
 
-export type HostedJobResponse<Result> =
-  | { error: string; id: string; status: "failed" }
-  | { id: string; result: Result; status: "complete" }
-  | { id: string; status: "queued" | "running" }
+export interface HostedExecution {
+  completedAt?: string
+  createdAt: string
+  durationMs?: number
+  error?: { code?: string; message: string }
+  id: string
+  jobId: string
+  outputs: Array<ParseOutput>
+  pageCount?: number
+  provider: ProviderId
+  resultAvailable: boolean
+  resultExpiresAt?: string
+  status: HostedExecutionStatus
+  usage?: ParseResult["usage"]
+}
+
+export interface HostedJob {
+  createdAt: string
+  documentId: string
+  error?: string
+  executions: Array<HostedExecution>
+  id: string
+  metadata?: Record<string, string>
+  status: HostedJobStatus
+  updatedAt: string
+}
+
+export interface HostedJobAccepted {
+  id: string
+  status: HostedJobStatus
+}
+
+export interface HostedProvider {
+  capabilities: ProviderCapabilities
+  id: ProviderId
+  name: string
+}

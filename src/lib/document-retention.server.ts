@@ -1,15 +1,16 @@
-import { and, eq, inArray, isNotNull, lte, or } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, lte, notExists } from "drizzle-orm"
 
-import { documentJob } from "@/db/schema"
+import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
 import { jobsCreatedBefore } from "@/lib/document-retention"
 
 const CLEANUP_BATCH_SIZE = 100
 
 export interface DocumentRetentionCleanupResult {
+  deletedDocuments: number
   deletedJobs: number
   deletedResults: number
-  deletedSources: number
+  expiredDocuments: number
 }
 
 export async function runDocumentRetentionCleanup(
@@ -18,88 +19,120 @@ export async function runDocumentRetentionCleanup(
 ): Promise<DocumentRetentionCleanupResult> {
   const db = createDb(env.DB)
 
-  const terminalSources = await db
-    .select({ id: documentJob.id, key: documentJob.sourceKey })
-    .from(documentJob)
+  const expiredResults = await db
+    .select({ id: documentExecution.id, key: documentExecution.resultKey })
+    .from(documentExecution)
     .where(
       and(
-        isNotNull(documentJob.sourceKey),
-        or(eq(documentJob.status, "complete"), eq(documentJob.status, "failed"))
+        isNotNull(documentExecution.resultKey),
+        isNotNull(documentExecution.resultExpiresAt),
+        lte(documentExecution.resultExpiresAt, now)
       )
     )
     .limit(CLEANUP_BATCH_SIZE)
-
   await deleteObjects(
     env.FILEROUTER_FILES,
-    terminalSources.map((job) => job.key)
+    expiredResults.map((execution) => execution.key)
   )
-  if (terminalSources.length > 0) {
+  if (expiredResults.length > 0) {
     await db
-      .update(documentJob)
-      .set({ sourceKey: null })
+      .update(documentExecution)
+      .set({ resultKey: null, updatedAt: now })
       .where(
         inArray(
-          documentJob.id,
-          terminalSources.map((job) => job.id)
+          documentExecution.id,
+          expiredResults.map((execution) => execution.id)
         )
       )
   }
 
-  const expiredResults = await db
-    .select({ id: documentJob.id, key: documentJob.resultKey })
-    .from(documentJob)
+  const expiredDocuments = await db
+    .select({ id: document.id, key: document.objectKey })
+    .from(document)
     .where(
       and(
-        isNotNull(documentJob.resultKey),
-        isNotNull(documentJob.resultExpiresAt),
-        lte(documentJob.resultExpiresAt, now)
+        eq(document.status, "ready"),
+        isNotNull(document.objectKey),
+        lte(document.expiresAt, now),
+        notExists(
+          db
+            .select({ id: documentJob.id })
+            .from(documentJob)
+            .where(
+              and(
+                eq(documentJob.documentId, document.id),
+                inArray(documentJob.status, ["queued", "running"])
+              )
+            )
+        )
       )
     )
     .limit(CLEANUP_BATCH_SIZE)
-
   await deleteObjects(
     env.FILEROUTER_FILES,
-    expiredResults.map((job) => job.key)
+    expiredDocuments.map((stored) => stored.key)
   )
-  if (expiredResults.length > 0) {
+  if (expiredDocuments.length > 0) {
     await db
-      .update(documentJob)
-      .set({ resultKey: null })
+      .update(document)
+      .set({ objectKey: null, status: "expired", updatedAt: now })
       .where(
         inArray(
-          documentJob.id,
-          expiredResults.map((job) => job.id)
+          document.id,
+          expiredDocuments.map((stored) => stored.id)
         )
       )
   }
 
   const oldJobs = await db
-    .select({
-      id: documentJob.id,
-      resultKey: documentJob.resultKey,
-      sourceKey: documentJob.sourceKey,
-    })
+    .select({ id: documentJob.id })
     .from(documentJob)
     .where(lte(documentJob.createdAt, jobsCreatedBefore(now)))
     .limit(CLEANUP_BATCH_SIZE)
-
-  await deleteObjects(
-    env.FILEROUTER_FILES,
-    oldJobs.flatMap((job) => [job.sourceKey, job.resultKey])
-  )
+  let oldJobResultKeys: Array<string | null> = []
   if (oldJobs.length > 0) {
-    await db.delete(documentJob).where(
+    const ids = oldJobs.map((job) => job.id)
+    oldJobResultKeys = (
+      await db
+        .select({ key: documentExecution.resultKey })
+        .from(documentExecution)
+        .where(inArray(documentExecution.jobId, ids))
+        .all()
+    ).map((execution) => execution.key)
+    await deleteObjects(env.FILEROUTER_FILES, oldJobResultKeys)
+    await db.delete(documentJob).where(inArray(documentJob.id, ids))
+  }
+
+  const oldDocuments = await db
+    .select({ id: document.id })
+    .from(document)
+    .where(
+      and(
+        eq(document.status, "expired"),
+        lte(document.createdAt, jobsCreatedBefore(now)),
+        notExists(
+          db
+            .select({ id: documentJob.id })
+            .from(documentJob)
+            .where(eq(documentJob.documentId, document.id))
+        )
+      )
+    )
+    .limit(CLEANUP_BATCH_SIZE)
+  if (oldDocuments.length > 0) {
+    await db.delete(document).where(
       inArray(
-        documentJob.id,
-        oldJobs.map((job) => job.id)
+        document.id,
+        oldDocuments.map((stored) => stored.id)
       )
     )
   }
 
   return {
+    deletedDocuments: oldDocuments.length,
     deletedJobs: oldJobs.length,
-    deletedResults: expiredResults.length,
-    deletedSources: terminalSources.length,
+    deletedResults: expiredResults.length + oldJobResultKeys.length,
+    expiredDocuments: expiredDocuments.length,
   }
 }
 

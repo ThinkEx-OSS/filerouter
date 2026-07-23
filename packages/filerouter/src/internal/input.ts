@@ -297,7 +297,7 @@ function hasControlCharacters(value: string): boolean {
   return false
 }
 
-function isReadableStream(
+export function isReadableStream(
   input: ParseInput
 ): input is ReadableStream<Uint8Array> {
   return (

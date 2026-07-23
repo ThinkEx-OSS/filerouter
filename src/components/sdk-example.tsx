@@ -4,19 +4,19 @@ import { SyntaxHighlight } from "@/components/syntax-highlight"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const examples = {
-  parse: `import { FileRouterClient } from "@file_router/sdk"
+  parse: `import { FileRouter } from "@file_router/sdk"
 
-const client = new FileRouterClient()
+const router = new FileRouter()
 
-const result = await client.parse(file, {
+const result = await router.parse(file, {
   provider: "llamaparse",
   outputs: ["markdown", "tables"],
 })`,
-  compare: `import { FileRouterClient } from "@file_router/sdk"
+  compare: `import { FileRouter } from "@file_router/sdk"
 
-const client = new FileRouterClient()
+const router = new FileRouter()
 
-const results = await client.compare(file, {
+const results = await router.compare(file, {
   providers: ["llamaparse", "mistral-ocr", "datalab"],
   outputs: ["markdown"],
 })`,

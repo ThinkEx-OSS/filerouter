@@ -14,18 +14,18 @@ import type {
   ProviderMap,
 } from "./types"
 
-export interface FileRouterOptions<
+export interface DirectFileRouterOptions<
   Providers extends ProviderMap = ProviderMap,
 > {
   defaultProvider?: keyof Providers & string
   providers: Providers
 }
 
-export class FileRouter<Providers extends ProviderMap = ProviderMap> {
+export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
   readonly #defaultProvider: string | undefined
   readonly #providers: Providers
 
-  constructor(opts: FileRouterOptions<Providers>) {
+  constructor(opts: DirectFileRouterOptions<Providers>) {
     this.#providers = opts.providers
     this.#defaultProvider = opts.defaultProvider
   }
@@ -172,8 +172,8 @@ export class FileRouter<Providers extends ProviderMap = ProviderMap> {
 }
 
 export const createFileRouter = <Providers extends ProviderMap>(
-  opts: FileRouterOptions<Providers>
-): FileRouter<Providers> => new FileRouter(opts)
+  opts: DirectFileRouterOptions<Providers>
+): DirectFileRouter<Providers> => new DirectFileRouter(opts)
 
 export const assertProviderOutputs = (
   provider: FileRouterProvider,

@@ -1,6 +1,6 @@
-import { builtInProviders } from "@file_router/sdk/catalog"
+import { builtInProviders, providerIds } from "@file_router/sdk/catalog"
 import type { ProviderId } from "@file_router/sdk/catalog"
-import type { FileRouterProvider, ProviderParseOptions } from "@file_router/sdk"
+import type { FileRouterProvider } from "@file_router/sdk"
 
 import { HttpError } from "@/lib/http.server"
 import { createNativeParserProvider } from "@/lib/native-parser.server"
@@ -187,28 +187,25 @@ export function createHostedProviders(
   }
 }
 
+export function hostedProviderCatalog(env: Cloudflare.Env) {
+  const providers = createHostedProviders(env, {
+    jobId: "catalog",
+    requestId: "catalog",
+  })
+  return {
+    data: providerIds.map((id) => ({
+      capabilities: providers[id].capabilities,
+      id,
+      name: providers[id].name,
+    })),
+  }
+}
+
 export function validateHostedProviderOptions(
-  value: unknown,
-  isProviderId: (value: string) => value is ProviderId
-): ProviderParseOptions {
-  if (!isRecord(value)) {
-    throw new HttpError(400, "Provider options must be an object.")
-  }
-
-  for (const [providerId, options] of Object.entries(value)) {
-    if (!isProviderId(providerId)) {
-      throw new HttpError(400, `Unsupported provider options: ${providerId}`)
-    }
-    if (!isRecord(options)) {
-      throw new HttpError(
-        400,
-        `Provider options for ${providerId} must be an object.`
-      )
-    }
-    validateProviderOptions[providerId](options)
-  }
-
-  return value
+  providerId: ProviderId,
+  options: Record<string, unknown>
+): void {
+  validateProviderOptions[providerId](options)
 }
 
 function assertOnlyOptions(

@@ -1,5 +1,5 @@
 import { runCommand } from "citty"
-import { FileRouter } from "@file_router/sdk"
+import { DirectFileRouter } from "@file_router/sdk"
 import { fakeProvider } from "@file_router/sdk/testing"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vite-plus/test"
@@ -14,7 +14,7 @@ const reportPath = fileURLToPath(
 function createRuntime() {
   const stdout: Array<string> = []
   const files = new Map<string, string>()
-  const router = new FileRouter({
+  const router = new DirectFileRouter({
     providers: {
       datalab: fakeProvider({ id: "datalab" }),
       llamaparse: fakeProvider({ id: "llamaparse" }),

@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vite-plus/test"
 
-import { FileRouter } from "../src/index"
+import { DirectFileRouter } from "../src/index"
 import { fakeProvider } from "../src/testing"
 import type { ProviderInput } from "../src/types"
 
 describe("compare", () => {
   test("compares all configured providers", async () => {
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         one: fakeProvider({ id: "one" }),
         two: fakeProvider({ id: "two" }),
@@ -25,7 +25,7 @@ describe("compare", () => {
   })
 
   test("returns unsupported provider rows without failing the full comparison", async () => {
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         textOnly: {
           ...fakeProvider({ id: "textOnly" }),
@@ -62,7 +62,7 @@ describe("compare", () => {
         },
       }
     }
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         one: captureProvider("one"),
         two: captureProvider("two"),

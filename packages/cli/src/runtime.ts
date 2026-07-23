@@ -1,14 +1,14 @@
 import {
   FILEROUTER_DEFAULT_API_URL,
+  DirectFileRouter,
   FileRouter,
-  FileRouterClient,
 } from "@file_router/sdk"
 import { builtInProviders, DEFAULT_PROVIDER_ID } from "@file_router/sdk/catalog"
 import type {
-  CompareOptions,
   CompareResult,
+  HostedCompareOptions,
+  HostedParseOptions,
   ParseInput,
-  ParseOptions,
   ParseResult,
   ProviderMap,
 } from "@file_router/sdk"
@@ -16,9 +16,12 @@ import type {
 interface DocumentRouter {
   compare: (
     input: ParseInput,
-    options?: CompareOptions
+    options?: HostedCompareOptions
   ) => Promise<CompareResult>
-  parse: (input: ParseInput, options?: ParseOptions) => Promise<ParseResult>
+  parse: (
+    input: ParseInput,
+    options?: HostedParseOptions
+  ) => Promise<ParseResult>
 }
 
 export interface CliRuntime {
@@ -50,7 +53,7 @@ export function createDefaultRuntime(): CliRuntime {
           "Not authenticated. Run filerouter login or use --local."
         )
       }
-      return new FileRouterClient({ apiKey, baseURL: apiURL })
+      return new FileRouter({ apiKey, baseURL: apiURL })
     },
     fetch: globalThis.fetch,
     listProviders: () => createLocalRouter().providers,
@@ -92,7 +95,7 @@ function trimSlash(value: string): string {
 
 function createLocalRouter() {
   const providers: ProviderMap = builtInProviders()
-  return new FileRouter({
+  return new DirectFileRouter({
     defaultProvider: DEFAULT_PROVIDER_ID,
     providers,
   })

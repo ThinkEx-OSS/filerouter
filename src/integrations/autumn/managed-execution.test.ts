@@ -11,6 +11,7 @@ function parsed(
 ): Extract<ProviderOutcome, { status: "parsed" }> {
   return {
     durationMs: 1_000,
+    executionId: "execution-test",
     pageCount: 1,
     resultKey: "jobs/test/result.json",
     status: "parsed",
@@ -97,7 +98,6 @@ describe("managed execution pricing", () => {
         { track },
         {
           jobId: "job-123",
-          operation: "compare",
           providers: [
             parsed({
               pageCount: 2,
@@ -107,6 +107,7 @@ describe("managed execution pricing", () => {
             {
               durationMs: 100,
               error: { message: "failed" },
+              executionId: "execution-failed",
               provider: "datalab",
               status: "failed",
             },
@@ -124,7 +125,7 @@ describe("managed execution pricing", () => {
       }),
       {
         headers: {
-          "Idempotency-Key": "document-job:job-123:mistral-ocr",
+          "Idempotency-Key": "document-execution:execution-test",
         },
       }
     )

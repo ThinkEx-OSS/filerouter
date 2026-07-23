@@ -6,7 +6,11 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core"
 import type { ParseOutput } from "@file_router/sdk"
-import { hostedJobStatuses } from "@file_router/sdk/hosted"
+import {
+  hostedDocumentStatuses,
+  hostedExecutionStatuses,
+  hostedJobStatuses,
+} from "@file_router/sdk/hosted"
 import type { ProviderId } from "@file_router/sdk/catalog"
 
 export const user = sqliteTable("user", {
@@ -158,34 +162,24 @@ export const deviceCode = sqliteTable(
   (table) => [index("device_code_user_code_idx").on(table.userCode)]
 )
 
-export const documentJob = sqliteTable(
-  "document_job",
+export const document = sqliteTable(
+  "document",
   {
     id: text("id").primaryKey(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    operation: text("operation", { enum: ["parse", "compare"] }).notNull(),
-    status: text("status", {
-      enum: hostedJobStatuses,
-    })
-      .default("queued")
+    status: text("status", { enum: hostedDocumentStatuses })
+      .default("ready")
       .notNull(),
     fileName: text("file_name").notNull(),
-    sourceUrl: text("source_url"),
-    sourceKey: text("source_key"),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    etag: text("etag").notNull(),
+    objectKey: text("object_key"),
     idempotencyKeyHash: text("idempotency_key_hash").notNull(),
     requestHash: text("request_hash").notNull(),
-    providers: text("providers", { mode: "json" })
-      .$type<Array<ProviderId>>()
-      .notNull(),
-    outputs: text("outputs", { mode: "json" })
-      .$type<Array<ParseOutput>>()
-      .notNull(),
-    resultKey: text("result_key"),
-    resultExpiresAt: integer("result_expires_at", { mode: "timestamp" }),
-    error: text("error"),
-    pageCount: integer("page_count"),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
       .$defaultFn(() => new Date())
       .notNull(),
@@ -195,12 +189,100 @@ export const documentJob = sqliteTable(
       .notNull(),
   },
   (table) => [
-    index("document_job_user_id_idx").on(table.userId),
-    index("document_job_result_expires_at_idx").on(table.resultExpiresAt),
+    index("document_expires_at_idx").on(table.expiresAt),
+    uniqueIndex("document_user_id_idempotency_key_idx").on(
+      table.userId,
+      table.idempotencyKeyHash
+    ),
+  ]
+)
+
+export const documentJob = sqliteTable(
+  "document_job",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => document.id, { onDelete: "restrict" }),
+    status: text("status", {
+      enum: hostedJobStatuses,
+    })
+      .default("queued")
+      .notNull(),
+    idempotencyKeyHash: text("idempotency_key_hash").notNull(),
+    requestHash: text("request_hash").notNull(),
+    metadata: text("metadata", { mode: "json" }).$type<
+      Record<string, string>
+    >(),
+    meteringStatus: text("metering_status", {
+      enum: ["pending", "tracked", "failed", "skipped"],
+    })
+      .default("pending")
+      .notNull(),
+    error: text("error"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("document_job_document_id_idx").on(table.documentId),
     index("document_job_created_at_idx").on(table.createdAt),
     uniqueIndex("document_job_user_id_idempotency_key_idx").on(
       table.userId,
       table.idempotencyKeyHash
     ),
+  ]
+)
+
+export const documentExecution = sqliteTable(
+  "document_execution",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => documentJob.id, { onDelete: "cascade" }),
+    provider: text("provider").$type<ProviderId>().notNull(),
+    position: integer("position").notNull(),
+    status: text("status", { enum: hostedExecutionStatuses })
+      .default("queued")
+      .notNull(),
+    outputs: text("outputs", { mode: "json" })
+      .$type<Array<ParseOutput>>()
+      .notNull(),
+    options: text("options", { mode: "json" }).$type<Record<string, unknown>>(),
+    includeRaw: integer("include_raw", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    pages: text("pages", { mode: "json" }).$type<Array<number>>(),
+    resultKey: text("result_key"),
+    resultExpiresAt: integer("result_expires_at", { mode: "timestamp" }),
+    pageCount: integer("page_count"),
+    durationMs: integer("duration_ms"),
+    usage: text("usage", { mode: "json" }).$type<{
+      costUsd?: number
+      credits?: number
+      pages?: number
+    }>(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .$onUpdate(() => new Date())
+      .notNull(),
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("document_execution_job_id_idx").on(table.jobId),
+    index("document_execution_result_expires_at_idx").on(table.resultExpiresAt),
   ]
 )
