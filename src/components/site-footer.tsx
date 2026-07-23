@@ -16,18 +16,29 @@ const footerColumns = [
   {
     title: "Product",
     links: [
+      { label: "Providers", href: "/#providers" },
       { label: "TypeScript SDK", href: "/#sdk" },
+      { label: "Benchmarks", href: "/#benchmarks" },
+      { label: "Pricing", href: "/#pricing" },
       { label: "Dashboard", to: "/dashboard" },
     ],
   },
   {
-    title: "Resources",
+    title: "Developers",
     links: [
       {
         label: "Documentation",
         href: "https://docs.filerouter.dev",
       },
-      { label: "Blog", to: "/blog" },
+      {
+        label: "Quickstart",
+        href: "https://docs.filerouter.dev/quickstart",
+      },
+      {
+        label: "API Reference",
+        href: "https://docs.filerouter.dev/api/overview",
+      },
+      { label: "CLI", href: "https://docs.filerouter.dev/cli" },
       {
         label: "GitHub",
         href: "https://github.com/ThinkEx-OSS/filerouter",
@@ -35,11 +46,11 @@ const footerColumns = [
     ],
   },
   {
-    title: "Company",
+    title: "Connect",
     links: [
-      { label: "ThinkEx Inc.", href: "https://thinkex.app" },
+      { label: "Blog", to: "/blog" },
+      { label: "Discord", href: DISCORD_URL },
       { label: "Email", action: "copyEmail" },
-      { label: "Community", href: DISCORD_URL },
     ],
   },
   {
