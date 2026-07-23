@@ -11,7 +11,7 @@ const privacyDocument = {
   sections: [
     {
       title: "Who we are",
-      body: 'ThinkEx Inc. ("ThinkEx," "we," "us," and "our") operates FileRouter. We are responsible for personal information used to run the website, accounts, and hosted service. When a customer submits document content for hosted processing, we process that content on the customer\'s instructions to provide the service. You can contact us at hello@thinkex.app.',
+      body: 'ThinkEx Inc. ("we," "us," and "our") operates FileRouter. We are responsible for personal information used to run the website, accounts, and hosted service. When a customer submits document content for hosted processing, we process that content on the customer\'s instructions to provide the service. You can contact us at hello@thinkex.app.',
     },
     {
       title: "Information we collect",
@@ -57,7 +57,7 @@ const privacyDocument = {
     },
     {
       title: "Legal bases and international processing",
-      body: "Where data-protection law requires a legal basis, we process information as needed to provide the service and perform our contract with you, for legitimate interests such as security and service improvement, with consent where requested, and to comply with legal obligations. ThinkEx and its providers may process information in the United States and other countries, which may have different data-protection laws from your location.",
+      body: "Where data-protection law requires a legal basis, we process information as needed to provide the service and perform our contract with you, for legitimate interests such as security and service improvement, with consent where requested, and to comply with legal obligations. ThinkEx Inc. and its providers may process information in the United States and other countries, which may have different data-protection laws from your location.",
     },
     {
       title: "Cookies and browser storage",

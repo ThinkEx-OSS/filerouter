@@ -23,7 +23,7 @@ const cookieDocument = {
     },
     {
       title: "Scheduling",
-      body: "The Talk to the team button uses a Cal.com scheduling embed. Cal.com may receive technical information and use cookies or similar technology when its scheduling experience loads or when you interact with it. Information you submit to book a meeting is handled under Cal.com's terms and privacy notice as well as used by ThinkEx to arrange the requested meeting.",
+      body: "The Talk to the team button uses a Cal.com scheduling embed. Cal.com may receive technical information and use cookies or similar technology when its scheduling experience loads or when you interact with it. Information you submit to book a meeting is handled under Cal.com's terms and privacy notice as well as used by ThinkEx Inc. to arrange the requested meeting.",
     },
     {
       title: "Analytics and advertising",

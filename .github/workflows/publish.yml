@@ -2,8 +2,12 @@ name: Publish packages
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - packages/cli/package.json
+      - packages/filerouter/package.json
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,19 +24,21 @@ jobs:
     outputs:
       cli_exists: ${{ steps.versions.outputs.cli_exists }}
       sdk_exists: ${{ steps.versions.outputs.sdk_exists }}
+      version: ${{ steps.versions.outputs.version }}
     env:
       VITE_GIT_HOOKS: "0"
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install --global npm@11
+      - run: npm install --global npm@11.16.0
       - run: pnpm install --frozen-lockfile
       - name: Verify release versions
         id: versions
@@ -40,8 +46,10 @@ jobs:
         run: |
           sdk_version=$(node -p "require('./packages/filerouter/package.json').version")
           cli_version=$(node -p "require('./packages/cli/package.json').version")
+          test "$GITHUB_REF" = "refs/heads/main"
           test "$sdk_version" = "$cli_version"
-          test "$GITHUB_REF_NAME" = "v$sdk_version"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          echo "version=$sdk_version" >> "$GITHUB_OUTPUT"
           if npm view "@file_router/sdk@$sdk_version" version >/dev/null 2>&1; then
             echo "sdk_exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -54,23 +62,10 @@ jobs:
           fi
       - run: pnpm check
       - run: pnpm test
-      - name: Pack packages
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          pnpm --filter @file_router/sdk pack --pack-destination artifacts
-          pnpm --filter @file_router/cli pack --pack-destination artifacts
-      - name: Verify packed packages
-        shell: bash
-        run: |
-          test_dir=$(mktemp -d)
-          cd "$test_dir"
-          npm init --yes > /dev/null
-          npm install "$GITHUB_WORKSPACE"/artifacts/file_router-sdk-*.tgz "$GITHUB_WORKSPACE"/artifacts/file_router-cli-*.tgz
-          node --input-type=module --eval 'import { FileRouterClient } from "@file_router/sdk"; if (typeof FileRouterClient !== "function") process.exit(1)'
-          npx --no-install filerouter --help > /dev/null
+      - name: Pack and verify packages
+        run: node scripts/verify-release-packages.mjs artifacts
       - name: Upload release packages
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: npm-packages
           path: artifacts/*.tgz
@@ -88,14 +83,14 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install --global npm@11
+      - run: npm install --global npm@11.16.0
       - name: Download release packages
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: npm-packages
           path: artifacts
@@ -107,3 +102,41 @@ jobs:
         if: needs.build.outputs.cli_exists != 'true'
         shell: bash
         run: npm publish artifacts/file_router-cli-*.tgz --access public
+
+  release:
+    name: Create GitHub release
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+    needs:
+      - build
+      - publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          tag="v$RELEASE_VERSION"
+          existing_commit=$(git rev-list -n 1 "$tag" 2>/dev/null || true)
+          if test -n "$existing_commit" && test "$existing_commit" != "$GITHUB_SHA"; then
+            echo "$tag already points to $existing_commit, not $GITHUB_SHA" >&2
+            exit 1
+          fi
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "FileRouter $tag" \
+              --generate-notes \
+              --latest
+          fi

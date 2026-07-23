@@ -11,7 +11,7 @@ const termsDocument = {
   sections: [
     {
       title: "Agreement",
-      body: 'These Terms of Service are an agreement between you and ThinkEx Inc. ("ThinkEx," "we," "us," and "our"), which operates FileRouter. By accessing or using FileRouter, you agree to these terms. If you use FileRouter for an organization, you represent that you have authority to bind that organization.',
+      body: 'These Terms of Service are an agreement between you and ThinkEx Inc. ("we," "us," and "our"), which operates FileRouter. By accessing or using FileRouter, you agree to these terms. If you use FileRouter for an organization, you represent that you have authority to bind that organization.',
     },
     {
       title: "The FileRouter service",
@@ -27,7 +27,7 @@ const termsDocument = {
     },
     {
       title: "Your documents and results",
-      body: "You retain your rights in documents, URLs, instructions, provider options, and other content you submit, as well as in returned results to the extent permitted by law and third-party terms. You grant ThinkEx the limited permission needed to receive, store, copy, transmit, process, and delete that content to operate FileRouter and complete the requests you initiate.",
+      body: "You retain your rights in documents, URLs, instructions, provider options, and other content you submit, as well as in returned results to the extent permitted by law and third-party terms. You grant ThinkEx Inc. the limited permission needed to receive, store, copy, transmit, process, and delete that content to operate FileRouter and complete the requests you initiate.",
     },
     {
       title: "Your responsibilities",
@@ -43,7 +43,7 @@ const termsDocument = {
     },
     {
       title: "Third-party providers",
-      body: "Document-processing providers and other third-party services have their own terms, privacy practices, availability, limits, and output behavior. Your use of a provider may be subject to those terms. ThinkEx does not control third-party services and is not responsible for their acts, omissions, availability, security, retention, or results.",
+      body: "Document-processing providers and other third-party services have their own terms, privacy practices, availability, limits, and output behavior. Your use of a provider may be subject to those terms. ThinkEx Inc. does not control third-party services and is not responsible for their acts, omissions, availability, security, retention, or results.",
     },
     {
       title: "Acceptable use",
@@ -56,7 +56,7 @@ const termsDocument = {
     },
     {
       title: "Open-source software",
-      body: "FileRouter software made available under an open-source license is governed by that license. These terms separately govern the FileRouter website, hosted service, accounts, API, and other services operated by ThinkEx.",
+      body: "FileRouter software made available under an open-source license is governed by that license. These terms separately govern the FileRouter website, hosted service, accounts, API, and other services operated by ThinkEx Inc.",
     },
     {
       title: "Fees",
@@ -72,7 +72,7 @@ const termsDocument = {
     },
     {
       title: "Disclaimers and limitation of liability",
-      body: "To the maximum extent permitted by law, ThinkEx disclaims all warranties and will not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for lost data, profits, revenue, goodwill, or business opportunities arising from FileRouter or third-party providers. Nothing in these terms limits liability that cannot lawfully be limited.",
+      body: "To the maximum extent permitted by law, ThinkEx Inc. disclaims all warranties and will not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for lost data, profits, revenue, goodwill, or business opportunities arising from FileRouter or third-party providers. Nothing in these terms limits liability that cannot lawfully be limited.",
     },
     {
       title: "Changes",

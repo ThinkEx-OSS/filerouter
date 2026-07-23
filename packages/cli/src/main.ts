@@ -1,4 +1,5 @@
 import { defineCommand } from "citty"
+import { FILEROUTER_VERSION } from "@file_router/sdk"
 
 import {
   createCompareCommand,
@@ -15,7 +16,7 @@ export function createMainCommand(
   return defineCommand({
     meta: {
       name: "filerouter",
-      version: "0.1.0",
+      version: FILEROUTER_VERSION,
       description: "Parse and compare documents across providers.",
     },
     subCommands: {

@@ -1,6 +1,6 @@
 {
   "name": "@file_router/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provider-neutral document parsing SDK.",
   "keywords": [
     "documents",
@@ -14,13 +14,15 @@
     "url": "https://github.com/ThinkEx-OSS/filerouter/issues"
   },
   "license": "MIT",
+  "author": "ThinkEx Inc.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ThinkEx-OSS/filerouter.git",
     "directory": "packages/filerouter"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "type": "module",
   "sideEffects": false,

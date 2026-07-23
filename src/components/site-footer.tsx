@@ -37,7 +37,7 @@ const footerColumns = [
   {
     title: "Company",
     links: [
-      { label: "ThinkEx", href: "https://thinkex.app" },
+      { label: "ThinkEx Inc.", href: "https://thinkex.app" },
       { label: "Email", action: "copyEmail" },
       { label: "Community", href: DISCORD_URL },
     ],
