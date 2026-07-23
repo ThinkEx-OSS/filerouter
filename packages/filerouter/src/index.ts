@@ -17,6 +17,7 @@ export {
   type HostedDocumentDeleteOptions,
   type HostedDocumentGetOptions,
   type HostedExecutionResultOptions,
+  type HostedExecutionWaitOptions,
   type HostedJobCreateInput,
   type HostedJobCreateOptions,
   type HostedJobGetOptions,
@@ -45,13 +46,19 @@ export {
   hostedExecutionStatuses,
   hostedJobStatuses,
   type HostedDocument,
+  type HostedCompareResources,
+  type HostedCompareResult,
   type HostedDocumentStatus,
   type HostedExecution,
+  type HostedExecutionReference,
   type HostedExecutionStatus,
   type HostedJob,
   type HostedJobAccepted,
   type HostedJobStatus,
+  type HostedParseResources,
+  type HostedParseResult,
   type HostedProvider,
+  type HostedProviderOptions,
   type HostedProviderTarget,
 } from "./hosted"
 export {
@@ -83,6 +90,7 @@ export type {
   ProviderJobState,
   ProviderJobs,
   ProviderMap,
+  ProviderOptionsById,
   ProviderParseOptions,
 } from "./types"
 export { DEFAULT_PARSE_OUTPUT, parseOutputIds } from "./types"

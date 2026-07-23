@@ -37,4 +37,22 @@ describe("document input", () => {
       "application/pdf"
     )
   })
+
+  test("preserves metadata when direct mode resolves a named stream", async () => {
+    const resolved = await resolveParseInput({
+      data: new Blob(["document"]).stream(),
+      kind: "stream",
+      mimeType: "application/pdf",
+      name: "report.pdf",
+    })
+
+    expect(resolved).toMatchObject({
+      kind: "bytes",
+      mimeType: "application/pdf",
+      name: "report.pdf",
+    })
+    expect(resolved.kind === "bytes" && resolved.data.type).toBe(
+      "application/pdf"
+    )
+  })
 })

@@ -35,8 +35,35 @@ Processes a document with one provider and returns a `ParseResult`.
 Processes the same stored document across several providers concurrently. The returned `CompareResult` retains a status and duration for every provider, including failures and unsupported output combinations.
 
 For longer application workflows, use `documents.create`, `jobs.create`,
-`jobs.wait`, and `executions.result` directly. Those IDs are the stable boundary;
-`parse` and `compare` are concise wrappers over the same resources.
+`jobs.wait`, `jobs.waitForExecution`, and `executions.result` directly. Those IDs
+are the stable boundary; `parse` and `compare` are concise wrappers over the same
+resources.
+
+```ts
+const document = await router.documents.create(stream, {
+  fileName: "report.pdf",
+  mimeType: "application/pdf",
+})
+
+try {
+  const job = await router.jobs.create({
+    documentId: document.id,
+    outputs: ["markdown", "pages"],
+    providers: [
+      { provider: "liteparse", options: { ocr: "auto" } },
+      { provider: "llamaparse", options: { tier: "agentic" } },
+    ],
+  })
+
+  const execution = await router.jobs.waitForExecution(job, "liteparse")
+  const result = await router.executions.result(execution.id)
+} finally {
+  await router.documents.delete(document.id)
+}
+```
+
+`waitForExecution` lets an application consume one provider as soon as it
+finishes without waiting for the other executions in the job.
 
 ## Built-in providers
 

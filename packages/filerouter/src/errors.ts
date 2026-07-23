@@ -16,6 +16,7 @@ export interface FileRouterErrorOptions {
   cause?: unknown
   code: FileRouterErrorCode
   providerId?: string
+  requestId?: string
   retryable?: boolean
   retryAfterMs?: number
   statusCode?: number
@@ -24,6 +25,7 @@ export interface FileRouterErrorOptions {
 export class FileRouterError extends Error {
   readonly code: FileRouterErrorCode
   readonly providerId: string | undefined
+  readonly requestId: string | undefined
   readonly retryable: boolean
   readonly retryAfterMs: number | undefined
   readonly statusCode: number | undefined
@@ -34,6 +36,7 @@ export class FileRouterError extends Error {
     this.name = "FileRouterError"
     this.code = opts.code
     this.providerId = opts.providerId
+    this.requestId = opts.requestId
     this.retryable = opts.retryable ?? isRetryableCode(opts.code)
     this.retryAfterMs = opts.retryAfterMs
     this.statusCode = opts.statusCode

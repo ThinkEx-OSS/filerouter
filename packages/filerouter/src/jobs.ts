@@ -5,10 +5,12 @@ import {
   MAX_HOSTED_METADATA_ENTRIES,
 } from "./hosted"
 import type {
+  HostedExecution,
   HostedJob,
   HostedJobAccepted,
   HostedProviderTarget,
 } from "./hosted"
+import type { ProviderId } from "./catalog"
 import type { HostedTransport } from "./internal/hosted-transport"
 import { abortableSleep } from "./internal/sleep"
 import { withTimeout } from "./internal/timeout"
@@ -39,6 +41,11 @@ export interface HostedJobWaitOptions extends HostedJobGetOptions {
   timeoutMs?: number
 }
 
+export interface HostedExecutionWaitOptions extends HostedJobGetOptions {
+  onStatus?: (execution: HostedExecution) => void
+  timeoutMs?: number
+}
+
 export interface FileRouterJobs {
   create(
     input: HostedJobCreateInput,
@@ -49,6 +56,11 @@ export interface FileRouterJobs {
     job: HostedJobAccepted | string,
     options?: HostedJobWaitOptions
   ): Promise<HostedJob>
+  waitForExecution(
+    job: HostedJobAccepted | string,
+    provider: ProviderId,
+    options?: HostedExecutionWaitOptions
+  ): Promise<HostedExecution>
 }
 
 interface HostedJobsOptions {
@@ -95,12 +107,20 @@ export class HostedJobs implements FileRouterJobs {
     return withTimeout(
       options.timeoutMs ?? DEFAULT_HOSTED_JOB_TIMEOUT_MS,
       options.signal,
+      (signal) => this.#wait(jobId(job), signal, options.onStatus)
+    )
+  }
+
+  waitForExecution(
+    job: HostedJobAccepted | string,
+    provider: ProviderId,
+    options: HostedExecutionWaitOptions = {}
+  ): Promise<HostedExecution> {
+    return withTimeout(
+      options.timeoutMs ?? DEFAULT_HOSTED_JOB_TIMEOUT_MS,
+      options.signal,
       (signal) =>
-        this.#wait(
-          typeof job === "string" ? job : job.id,
-          signal,
-          options.onStatus
-        )
+        this.#waitForExecution(jobId(job), provider, signal, options.onStatus)
     )
   }
 
@@ -110,8 +130,7 @@ export class HostedJobs implements FileRouterJobs {
     onStatus?: (job: HostedJob) => void
   ): Promise<HostedJob> {
     let previousStatus: HostedJob["status"] | undefined
-    while (true) {
-      const job = await this.get(id, { signal })
+    for await (const job of this.#pollJobs(id, signal)) {
       if (job.status !== previousStatus) {
         onStatus?.(job)
         previousStatus = job.status
@@ -119,9 +138,61 @@ export class HostedJobs implements FileRouterJobs {
       if (job.status === "complete" || job.status === "failed") {
         return job
       }
+    }
+    throw new FileRouterError("Hosted job polling ended unexpectedly.", {
+      code: "Unknown",
+    })
+  }
+
+  async #waitForExecution(
+    id: string,
+    provider: ProviderId,
+    signal: AbortSignal,
+    onStatus?: (execution: HostedExecution) => void
+  ): Promise<HostedExecution> {
+    let previousStatus: HostedExecution["status"] | undefined
+    for await (const job of this.#pollJobs(id, signal)) {
+      const execution = job.executions.find(
+        (candidate) => candidate.provider === provider
+      )
+      if (!execution) {
+        if (job.status === "complete" || job.status === "failed") {
+          throw new FileRouterError(
+            `Hosted job ${id} does not include provider ${provider}.`,
+            { code: "InvalidInput" }
+          )
+        }
+        continue
+      }
+      if (execution.status !== previousStatus) {
+        onStatus?.(execution)
+        previousStatus = execution.status
+      }
+      if (execution.status === "complete" || execution.status === "failed") {
+        return execution
+      }
+      if (job.status === "complete" || job.status === "failed") {
+        throw new FileRouterError(
+          `Hosted job ${id} ended before ${provider} reached a terminal status.`,
+          { code: "ParseFailed", providerId: provider }
+        )
+      }
+    }
+    throw new FileRouterError("Hosted execution polling ended unexpectedly.", {
+      code: "Unknown",
+    })
+  }
+
+  async *#pollJobs(id: string, signal: AbortSignal): AsyncGenerator<HostedJob> {
+    while (true) {
+      yield await this.get(id, { signal })
       await abortableSleep(this.#pollingIntervalMs, signal)
     }
   }
+}
+
+function jobId(job: HostedJobAccepted | string): string {
+  return typeof job === "string" ? job : job.id
 }
 
 export function assertHostedJobDraft(input: HostedJobCreateDraft): void {

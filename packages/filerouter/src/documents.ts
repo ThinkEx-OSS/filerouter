@@ -4,6 +4,7 @@ import type { HostedDocument } from "./hosted"
 import type { HostedTransport } from "./internal/hosted-transport"
 import {
   isReadableStream,
+  isStreamInput,
   normalizeDocumentFileName,
   resolveDocumentMimeType,
   resolveParseInput,
@@ -114,6 +115,18 @@ async function resolveUpload(
       data: input,
       fileName,
       mimeType: resolveDocumentMimeType(fileName, options.mimeType),
+    }
+  }
+
+  if (isStreamInput(input)) {
+    const fileName = normalizeDocumentFileName(options.fileName ?? input.name)
+    return {
+      data: input.data,
+      fileName,
+      mimeType: resolveDocumentMimeType(
+        fileName,
+        options.mimeType ?? input.mimeType
+      ),
     }
   }
 

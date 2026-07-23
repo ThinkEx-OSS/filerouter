@@ -25,7 +25,7 @@ Each provider reads only its own namespace:
 - `providerOptions.liteparse`
 - `providerOptions["pdf-inspector"]`
 
-This keeps native settings available without flattening incompatible provider APIs into one shared object.
+This keeps native settings available without flattening incompatible provider APIs into one shared object. Hosted provider options are typed by provider, so unsupported fields fail TypeScript checks before a request is sent. Direct mode remains open to custom provider IDs and their own option shapes.
 
 <Note>
   Provider-native fields can change upstream. FileRouter protects

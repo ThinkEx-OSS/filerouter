@@ -57,6 +57,12 @@ export type ParseInput =
       name?: string
     }
   | { kind: "file"; path: string }
+  | {
+      data: ReadableStream<Uint8Array>
+      kind: "stream"
+      mimeType?: string
+      name: string
+    }
   | { kind: "url"; url: string | URL }
 
 /** Canonical, replayable input passed from FileRouter to provider adapters. */
@@ -64,12 +70,20 @@ export type ProviderInput =
   | { data: Blob; kind: "bytes"; mimeType: string; name: string }
   | { kind: "url"; url: string }
 
+export interface ProviderOptionsById {
+  datalab: DatalabParseOptions
+  llamaparse: LlamaParseParseOptions
+  liteparse: LiteParseParseOptions
+  "mistral-ocr": MistralOcrParseOptions
+  "pdf-inspector": PdfInspectorParseOptions
+}
+
 export interface ProviderParseOptions {
-  datalab?: DatalabParseOptions
-  llamaparse?: LlamaParseParseOptions
-  liteparse?: LiteParseParseOptions
-  "mistral-ocr"?: MistralOcrParseOptions
-  "pdf-inspector"?: PdfInspectorParseOptions
+  datalab?: ProviderOptionsById["datalab"]
+  llamaparse?: ProviderOptionsById["llamaparse"]
+  liteparse?: ProviderOptionsById["liteparse"]
+  "mistral-ocr"?: ProviderOptionsById["mistral-ocr"]
+  "pdf-inspector"?: ProviderOptionsById["pdf-inspector"]
   [providerId: string]: unknown
 }
 
@@ -175,6 +189,7 @@ export interface CompareProviderResult {
   error?: {
     code?: string
     message: string
+    requestId?: string
   }
   provider: string
   result?: ParseResult
