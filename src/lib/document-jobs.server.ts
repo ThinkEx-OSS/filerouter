@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, gt, isNotNull } from "drizzle-orm"
 import { assertProviderOutputs } from "@file_router/sdk"
 import type { HostedJobCreateInput, ParseOutput } from "@file_router/sdk"
 import type { ProviderId } from "@file_router/sdk/catalog"
@@ -80,6 +80,26 @@ export async function createDocumentJob(
   await requireHostedCreditForUser(env, userId)
 
   const now = new Date()
+  const reservedDocument = await db
+    .update(document)
+    .set({ updatedAt: now })
+    .where(
+      and(
+        eq(document.id, input.documentId),
+        eq(document.userId, userId),
+        eq(document.status, "ready"),
+        isNotNull(document.objectKey),
+        gt(document.expiresAt, now)
+      )
+    )
+    .returning()
+    .get()
+  if (!reservedDocument) {
+    throw new HttpError(410, "Document has expired.", {
+      code: "document_expired",
+    })
+  }
+
   try {
     await db.batch([
       db.insert(documentJob).values({
@@ -119,8 +139,8 @@ export async function createDocumentJob(
 
   const params: DocumentWorkflowParams = {
     document: {
-      fileName: storedDocument.fileName,
-      id: storedDocument.id,
+      fileName: reservedDocument.fileName,
+      id: reservedDocument.id,
     },
     jobId,
     requestId,

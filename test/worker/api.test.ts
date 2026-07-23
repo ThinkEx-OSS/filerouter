@@ -271,6 +271,31 @@ describe("FileRouter Worker", () => {
     await cleanupUser(userId)
   })
 
+  test("rejects oversized JSON document requests at the HTTP boundary", async () => {
+    const userId = "user-document-size"
+    const apiKey = await createApiKey(userId)
+    const response = await api.fetch(
+      new Request("https://filerouter.test/api/v1/documents", {
+        body: JSON.stringify({
+          url: `https://example.com/${"x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES)}`,
+        }),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": "document-size-limit-1",
+        },
+        method: "POST",
+      }),
+      env
+    )
+
+    expect(response.status).toBe(413)
+    await expect(response.json()).resolves.toMatchObject({
+      code: "document_request_too_large",
+    })
+    await cleanupUser(userId)
+  })
+
   test("streams scoped provider source URLs", async () => {
     const documentId = "550e8400-e29b-41d4-a716-446655440000"
     const key = `documents/${documentId}/source`

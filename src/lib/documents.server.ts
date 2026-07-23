@@ -185,6 +185,9 @@ async function storeUploadedDocument(
     })
   }
   const contentLength = source.contentLength
+  if (contentLength === 0) {
+    throw emptyDocument()
+  }
   if (contentLength !== undefined && contentLength > MAX_HOSTED_UPLOAD_BYTES) {
     throw uploadTooLarge()
   }
@@ -208,7 +211,7 @@ async function storeUploadedDocument(
     throw error
   }
   if (object.size === 0) {
-    throw new HttpError(400, "Document is empty.", { code: "empty_document" })
+    throw emptyDocument()
   }
   if (object.size > MAX_HOSTED_UPLOAD_BYTES) {
     await bucket.delete(objectKey)
@@ -220,6 +223,10 @@ async function storeUploadedDocument(
     fileName: source.fileName,
     size: object.size,
   }
+}
+
+function emptyDocument(): HttpError {
+  return new HttpError(400, "Document is empty.", { code: "empty_document" })
 }
 
 async function storeUrlDocument(

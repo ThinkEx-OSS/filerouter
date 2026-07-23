@@ -266,6 +266,7 @@ export const createJobRoute = createRoute({
     402: problem,
     404: problem,
     409: problem,
+    410: problem,
     413: problem,
     429: problem,
     500: problem,

@@ -22,15 +22,18 @@ describe("document retention", () => {
     const expiredDocumentId = crypto.randomUUID()
     const oldDocumentId = crypto.randomUUID()
     const currentDocumentId = crypto.randomUUID()
+    const reservedDocumentId = crypto.randomUUID()
     const expiredSourceKey = `documents/${expiredDocumentId}/source`
     const expiredResultKey = "executions/expired/result.json"
     const oldResultKey = "executions/old/result.json"
     const currentResultKey = "executions/current/result.json"
+    const reservedSourceKey = `documents/${reservedDocumentId}/source`
     await Promise.all([
       env.FILEROUTER_FILES.put(expiredSourceKey, "source"),
       env.FILEROUTER_FILES.put(expiredResultKey, "expired"),
       env.FILEROUTER_FILES.put(oldResultKey, "old"),
       env.FILEROUTER_FILES.put(currentResultKey, "current"),
+      env.FILEROUTER_FILES.put(reservedSourceKey, "reserved"),
     ])
 
     await db.insert(document).values([
@@ -39,6 +42,14 @@ describe("document retention", () => {
         expiresAt: new Date("2026-07-18T12:00:00.000Z"),
         id: expiredDocumentId,
         objectKey: expiredSourceKey,
+        userId,
+      }),
+      storedDocument({
+        createdAt: new Date("2026-07-10T12:00:00.000Z"),
+        expiresAt: new Date("2026-07-19T11:00:00.000Z"),
+        id: reservedDocumentId,
+        objectKey: reservedSourceKey,
+        updatedAt: new Date("2026-07-19T11:50:00.000Z"),
         userId,
       }),
       storedDocument({
@@ -112,6 +123,7 @@ describe("document retention", () => {
     expect(await env.FILEROUTER_FILES.head(expiredResultKey)).toBeNull()
     expect(await env.FILEROUTER_FILES.head(oldResultKey)).toBeNull()
     expect(await env.FILEROUTER_FILES.head(currentResultKey)).not.toBeNull()
+    expect(await env.FILEROUTER_FILES.head(reservedSourceKey)).not.toBeNull()
 
     await expect(
       db
@@ -143,7 +155,7 @@ describe("document retention", () => {
         .get()
     ).resolves.toBeUndefined()
 
-    await env.FILEROUTER_FILES.delete(currentResultKey)
+    await env.FILEROUTER_FILES.delete([currentResultKey, reservedSourceKey])
     await db.delete(user).where(eq(user.id, userId))
   })
 })
@@ -154,6 +166,7 @@ function storedDocument(input: {
   id: string
   objectKey: string | null
   status?: "expired" | "ready"
+  updatedAt?: Date
   userId: string
 }) {
   return {
@@ -168,7 +181,7 @@ function storedDocument(input: {
     requestHash: `request-${input.id}`,
     size: 10,
     status: input.status ?? "ready",
-    updatedAt: input.createdAt,
+    updatedAt: input.updatedAt ?? input.createdAt,
     userId: input.userId,
   }
 }

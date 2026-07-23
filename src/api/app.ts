@@ -188,7 +188,25 @@ api.notFound((context) => {
   )
 })
 
-api.use(HOSTED_DOCUMENTS_PATH, requireApiKey("create"))
+const limitDocumentJsonBody = bodyLimit({
+  maxSize: MAX_HOSTED_JOB_REQUEST_BYTES,
+  onError: () => {
+    throw new HttpError(413, "Document request is too large.", {
+      code: "document_request_too_large",
+    })
+  },
+})
+
+api.use(
+  HOSTED_DOCUMENTS_PATH,
+  requireApiKey("create"),
+  async (context, next) => {
+    if (context.req.header("content-type")?.includes("application/json")) {
+      return limitDocumentJsonBody(context, next)
+    }
+    await next()
+  }
+)
 api.use(`${HOSTED_DOCUMENTS_PATH}/:documentId`, requireApiKey("read"))
 api.use(
   HOSTED_JOBS_PATH,

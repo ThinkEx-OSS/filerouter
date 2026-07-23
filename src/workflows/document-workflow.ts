@@ -431,15 +431,19 @@ function emitCompletionTelemetry(
     request_id: params.requestId,
     successful_provider_count: parsedProviders.length,
   }
-  emitWideEvent(env, failure ? "error" : "info", {
-    ...completionProperties,
-    event: "document_job_completed",
-    metering,
-    provider_outcomes: providerResults.map(providerLogFields),
-    service: "filerouter-workflow",
-    user_id: params.userId,
-    ...(failure ? serializeError(failure) : {}),
-  })
+  emitWideEvent(
+    env,
+    failure || parsedProviders.length === 0 ? "error" : "info",
+    {
+      ...completionProperties,
+      event: "document_job_completed",
+      metering,
+      provider_outcomes: providerResults.map(providerLogFields),
+      service: "filerouter-workflow",
+      user_id: params.userId,
+      ...(failure ? serializeError(failure) : {}),
+    }
+  )
   context.waitUntil(
     captureServerTelemetry(env, {
       distinctId: params.userId,

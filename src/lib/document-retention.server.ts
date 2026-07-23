@@ -6,6 +6,7 @@ import { jobsCreatedBefore } from "@/lib/document-retention"
 import { deleteR2Objects } from "@/lib/r2-objects.server"
 
 const CLEANUP_BATCH_SIZE = 100
+const JOB_START_GRACE_MS = 20 * 60 * 1000
 
 export interface DocumentRetentionCleanupResult {
   deletedDocuments: number
@@ -47,40 +48,67 @@ export async function runDocumentRetentionCleanup(
       )
   }
 
-  const expiredDocuments = await db
+  const pendingDocumentDeletes = await db
     .select({ id: document.id, key: document.objectKey })
     .from(document)
-    .where(
-      and(
-        eq(document.status, "ready"),
-        isNotNull(document.objectKey),
-        lte(document.expiresAt, now),
-        notExists(
-          db
-            .select({ id: documentJob.id })
-            .from(documentJob)
-            .where(
-              and(
-                eq(documentJob.documentId, document.id),
-                inArray(documentJob.status, ["queued", "running"])
-              )
-            )
-        )
-      )
-    )
+    .where(and(eq(document.status, "expired"), isNotNull(document.objectKey)))
     .limit(CLEANUP_BATCH_SIZE)
+  const availableDocumentSlots =
+    CLEANUP_BATCH_SIZE - pendingDocumentDeletes.length
+  const expiredDocuments =
+    availableDocumentSlots === 0
+      ? []
+      : await db
+          .update(document)
+          .set({ status: "expired", updatedAt: now })
+          .where(
+            inArray(
+              document.id,
+              db
+                .select({ id: document.id })
+                .from(document)
+                .where(
+                  and(
+                    eq(document.status, "ready"),
+                    isNotNull(document.objectKey),
+                    lte(document.expiresAt, now),
+                    lte(
+                      document.updatedAt,
+                      new Date(now.getTime() - JOB_START_GRACE_MS)
+                    ),
+                    notExists(
+                      db
+                        .select({ id: documentJob.id })
+                        .from(documentJob)
+                        .where(
+                          and(
+                            eq(documentJob.documentId, document.id),
+                            inArray(documentJob.status, ["queued", "running"])
+                          )
+                        )
+                    )
+                  )
+                )
+                .limit(availableDocumentSlots)
+            )
+          )
+          .returning({ id: document.id, key: document.objectKey })
+  const documentsToDelete = [...pendingDocumentDeletes, ...expiredDocuments]
   await deleteR2Objects(
     env.FILEROUTER_FILES,
-    expiredDocuments.map((stored) => stored.key)
+    documentsToDelete.map((stored) => stored.key)
   )
-  if (expiredDocuments.length > 0) {
+  if (documentsToDelete.length > 0) {
     await db
       .update(document)
-      .set({ objectKey: null, status: "expired", updatedAt: now })
+      .set({ objectKey: null, updatedAt: now })
       .where(
-        inArray(
-          document.id,
-          expiredDocuments.map((stored) => stored.id)
+        and(
+          eq(document.status, "expired"),
+          inArray(
+            document.id,
+            documentsToDelete.map((stored) => stored.id)
+          )
         )
       )
   }
@@ -90,7 +118,7 @@ export async function runDocumentRetentionCleanup(
     .from(documentJob)
     .where(lte(documentJob.createdAt, jobsCreatedBefore(now)))
     .limit(CLEANUP_BATCH_SIZE)
-  let oldJobResultKeys: Array<string | null> = []
+  let oldJobResultKeys: Array<string> = []
   if (oldJobs.length > 0) {
     const ids = oldJobs.map((job) => job.id)
     oldJobResultKeys = (
@@ -99,7 +127,9 @@ export async function runDocumentRetentionCleanup(
         .from(documentExecution)
         .where(inArray(documentExecution.jobId, ids))
         .all()
-    ).map((execution) => execution.key)
+    )
+      .map((execution) => execution.key)
+      .filter((key): key is string => !!key)
     await deleteR2Objects(env.FILEROUTER_FILES, oldJobResultKeys)
     await db.delete(documentJob).where(inArray(documentJob.id, ids))
   }
