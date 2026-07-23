@@ -1,9 +1,10 @@
-import { and, eq, gt, isNotNull } from "drizzle-orm"
+import { and, eq, gt, isNotNull, sql } from "drizzle-orm"
 import { assertProviderOutputs } from "@file_router/sdk"
 import type { HostedJobCreateInput, ParseOutput } from "@file_router/sdk"
 import type { ProviderId } from "@file_router/sdk/catalog"
 import type {
   HostedExecution,
+  HostedDocumentStatus,
   HostedJob,
   HostedJobAccepted,
 } from "@file_router/sdk/hosted"
@@ -70,7 +71,8 @@ export async function createDocumentJob(
       code: "document_not_found",
     })
   }
-  if (storedDocument.status !== "ready" || !storedDocument.objectKey) {
+  const now = new Date()
+  if (!documentIsAvailable(storedDocument, now)) {
     throw new HttpError(410, "Document has expired.", {
       code: "document_expired",
     })
@@ -79,40 +81,38 @@ export async function createDocumentJob(
   validateTargets(targets, env, jobId, requestId)
   await requireHostedCreditForUser(env, userId)
 
-  const now = new Date()
-  const reservedDocument = await db
-    .update(document)
-    .set({ updatedAt: now })
-    .where(
-      and(
-        eq(document.id, input.documentId),
-        eq(document.userId, userId),
-        eq(document.status, "ready"),
-        isNotNull(document.objectKey),
-        gt(document.expiresAt, now)
-      )
-    )
-    .returning()
-    .get()
-  if (!reservedDocument) {
-    throw new HttpError(410, "Document has expired.", {
-      code: "document_expired",
-    })
-  }
-
   try {
     await db.batch([
-      db.insert(documentJob).values({
-        createdAt: now,
-        documentId: input.documentId,
-        id: jobId,
-        idempotencyKeyHash,
-        metadata: input.metadata,
-        requestHash,
-        status: "queued",
-        updatedAt: now,
-        userId,
-      }),
+      db.insert(documentJob).select(
+        db
+          .select({
+            id: sql<string>`${jobId}`.as("id"),
+            userId: sql<string>`${userId}`.as("user_id"),
+            documentId: document.id,
+            status: sql<"queued">`${"queued"}`.as("status"),
+            idempotencyKeyHash: sql<string>`${idempotencyKeyHash}`.as(
+              "idempotency_key_hash"
+            ),
+            requestHash: sql<string>`${requestHash}`.as("request_hash"),
+            metadata: sql<Record<string, string> | null>`${
+              input.metadata ? JSON.stringify(input.metadata) : null
+            }`.as("metadata"),
+            meteringStatus: sql<"pending">`${"pending"}`.as("metering_status"),
+            error: sql<string | null>`null`.as("error"),
+            createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
+            updatedAt: sql<Date>`${now.getTime()}`.as("updated_at"),
+          })
+          .from(document)
+          .where(
+            and(
+              eq(document.id, input.documentId),
+              eq(document.userId, userId),
+              eq(document.status, "ready"),
+              isNotNull(document.objectKey),
+              gt(document.expiresAt, now)
+            )
+          )
+      ),
       ...targets.map((target) =>
         db.insert(documentExecution).values({
           createdAt: now,
@@ -134,13 +134,29 @@ export async function createDocumentJob(
     if (raced) {
       return raced
     }
+    const availableDocument = await db
+      .select({
+        expiresAt: document.expiresAt,
+        objectKey: document.objectKey,
+        status: document.status,
+      })
+      .from(document)
+      .where(
+        and(eq(document.id, input.documentId), eq(document.userId, userId))
+      )
+      .get()
+    if (!documentIsAvailable(availableDocument, now)) {
+      throw new HttpError(410, "Document has expired.", {
+        code: "document_expired",
+      })
+    }
     throw error
   }
 
   const params: DocumentWorkflowParams = {
     document: {
-      fileName: reservedDocument.fileName,
-      id: reservedDocument.id,
+      fileName: storedDocument.fileName,
+      id: storedDocument.id,
     },
     jobId,
     requestId,
@@ -155,6 +171,24 @@ export async function createDocumentJob(
   }
 
   return { job: { id: jobId, status: "queued" }, replayed: false }
+}
+
+function documentIsAvailable(
+  stored:
+    | {
+        expiresAt: Date
+        objectKey: string | null
+        status: HostedDocumentStatus
+      }
+    | undefined,
+  now: Date
+): boolean {
+  return !!(
+    stored &&
+    stored.status === "ready" &&
+    stored.objectKey &&
+    stored.expiresAt > now
+  )
 }
 
 export async function getDocumentJob(

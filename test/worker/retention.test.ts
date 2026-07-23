@@ -49,7 +49,6 @@ describe("document retention", () => {
         expiresAt: new Date("2026-07-19T11:00:00.000Z"),
         id: reservedDocumentId,
         objectKey: reservedSourceKey,
-        updatedAt: new Date("2026-07-19T11:50:00.000Z"),
         userId,
       }),
       storedDocument({
@@ -72,11 +71,19 @@ describe("document retention", () => {
     const expiredJobId = crypto.randomUUID()
     const oldJobId = crypto.randomUUID()
     const currentJobId = crypto.randomUUID()
+    const reservedJobId = crypto.randomUUID()
     await db.insert(documentJob).values([
       storedJob({
         createdAt: new Date("2026-07-10T12:00:00.000Z"),
         documentId: expiredDocumentId,
         id: expiredJobId,
+        userId,
+      }),
+      storedJob({
+        createdAt: new Date("2026-07-19T11:50:00.000Z"),
+        documentId: reservedDocumentId,
+        id: reservedJobId,
+        status: "queued",
         userId,
       }),
       storedJob({
@@ -190,6 +197,7 @@ function storedJob(input: {
   createdAt: Date
   documentId: string
   id: string
+  status?: "complete" | "queued"
   userId: string
 }) {
   return {
@@ -198,7 +206,7 @@ function storedJob(input: {
     id: input.id,
     idempotencyKeyHash: `key-${input.id}`,
     requestHash: `request-${input.id}`,
-    status: "complete" as const,
+    status: input.status ?? ("complete" as const),
     updatedAt: input.createdAt,
     userId: input.userId,
   }

@@ -6,7 +6,6 @@ import { jobsCreatedBefore } from "@/lib/document-retention"
 import { deleteR2Objects } from "@/lib/r2-objects.server"
 
 const CLEANUP_BATCH_SIZE = 100
-const JOB_START_GRACE_MS = 20 * 60 * 1000
 
 export interface DocumentRetentionCleanupResult {
   deletedDocuments: number
@@ -72,10 +71,6 @@ export async function runDocumentRetentionCleanup(
                     eq(document.status, "ready"),
                     isNotNull(document.objectKey),
                     lte(document.expiresAt, now),
-                    lte(
-                      document.updatedAt,
-                      new Date(now.getTime() - JOB_START_GRACE_MS)
-                    ),
                     notExists(
                       db
                         .select({ id: documentJob.id })

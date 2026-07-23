@@ -63,6 +63,8 @@ type ApiBindings = {
   Variables: { principal: ApiPrincipal; requestEvent: ApiRequestEvent }
 }
 
+type ApiPermission = "create" | "read"
+
 function scheduleBackgroundTask(
   context: { executionCtx: { waitUntil(task: Promise<unknown>): void } },
   task: Promise<void>
@@ -75,9 +77,18 @@ function scheduleBackgroundTask(
   }
 }
 
-function requireApiKey(permission: "create" | "read") {
+function requireApiKey(
+  permission: ApiPermission | ((method: string) => ApiPermission)
+) {
   return createMiddleware<ApiBindings>(async (context, next) => {
-    const principal = await requireApiPrincipal(context.req.raw, permission)
+    const requiredPermission =
+      typeof permission === "function"
+        ? permission(context.req.method)
+        : permission
+    const principal = await requireApiPrincipal(
+      context.req.raw,
+      requiredPermission
+    )
     context.set("principal", principal)
     Object.assign(context.get("requestEvent"), {
       credential_id: principal.credentialId,
@@ -85,6 +96,16 @@ function requireApiKey(permission: "create" | "read") {
     })
     await next()
   })
+}
+
+function isJsonRequest(request: Request): boolean {
+  return (
+    request.headers
+      .get("content-type")
+      ?.split(";", 1)[0]
+      ?.trim()
+      .toLowerCase() === "application/json"
+  )
 }
 
 export const api = new OpenAPIHono<ApiBindings>({
@@ -201,13 +222,16 @@ api.use(
   HOSTED_DOCUMENTS_PATH,
   requireApiKey("create"),
   async (context, next) => {
-    if (context.req.header("content-type")?.includes("application/json")) {
+    if (isJsonRequest(context.req.raw)) {
       return limitDocumentJsonBody(context, next)
     }
     await next()
   }
 )
-api.use(`${HOSTED_DOCUMENTS_PATH}/:documentId`, requireApiKey("read"))
+api.use(
+  `${HOSTED_DOCUMENTS_PATH}/:documentId`,
+  requireApiKey((method) => (method === "DELETE" ? "create" : "read"))
+)
 api.use(
   HOSTED_JOBS_PATH,
   requireApiKey("create"),
@@ -239,9 +263,7 @@ api.post(HOSTED_DOCUMENTS_PATH, async (context) => {
       code: "invalid_idempotency_key",
     })
   }
-  const isJson = context.req
-    .header("content-type")
-    ?.includes("application/json")
+  const isJson = isJsonRequest(context.req.raw)
   let jsonBody: unknown
   if (isJson) {
     try {

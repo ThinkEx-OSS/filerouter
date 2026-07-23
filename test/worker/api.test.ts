@@ -141,6 +141,24 @@ describe("FileRouter Worker", () => {
       status: "queued",
     })
 
+    const readOnlyKey = await withAuth((auth) =>
+      auth.api.createApiKey({
+        body: {
+          name: "Read only",
+          permissions: { jobs: ["read"] },
+          userId,
+        },
+      })
+    )
+    const deniedDelete = await api.fetch(
+      new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
+        headers: { Authorization: `Bearer ${readOnlyKey.key}` },
+        method: "DELETE",
+      }),
+      testEnv
+    )
+    expect(deniedDelete.status).toBe(401)
+
     const deleted = await api.fetch(
       new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
         headers: { Authorization: `Bearer ${apiKey}` },
@@ -149,6 +167,20 @@ describe("FileRouter Worker", () => {
       testEnv
     )
     expect(deleted.status).toBe(204)
+    expect(
+      (
+        await api.fetch(
+          new Request(
+            `https://filerouter.test/api/v1/documents/${document.id}`,
+            {
+              headers: { Authorization: `Bearer ${apiKey}` },
+              method: "DELETE",
+            }
+          ),
+          testEnv
+        )
+      ).status
+    ).toBe(204)
     expect(get).toHaveBeenCalledWith(accepted.id)
     expect(terminate).toHaveBeenCalledOnce()
     expect(
@@ -281,7 +313,7 @@ describe("FileRouter Worker", () => {
         }),
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+          "Content-Type": "Application/JSON; Charset=UTF-8",
           "Idempotency-Key": "document-size-limit-1",
         },
         method: "POST",

@@ -4,7 +4,7 @@ import type {
   WorkflowStep,
   WorkflowStepConfig,
 } from "cloudflare:workers"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, exists, inArray } from "drizzle-orm"
 import { FileRouterError, serializeProviderError } from "@file_router/sdk"
 import type {
   FileRouterProvider,
@@ -14,7 +14,7 @@ import type {
 } from "@file_router/sdk"
 import type { ProviderId } from "@file_router/sdk/catalog"
 
-import { documentExecution, documentJob } from "@/db/schema"
+import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
 import { trackManagedExecutionUsage } from "@/integrations/autumn/managed-execution"
 import { captureServerTelemetry } from "@/integrations/posthog/server"
@@ -144,16 +144,34 @@ async function markRunning(
   await step.do("mark job running", async () => {
     const now = new Date()
     const db = createDb(database)
-    await db.batch([
-      db
-        .update(documentJob)
-        .set({ status: "running", updatedAt: now })
-        .where(eq(documentJob.id, params.jobId)),
-      db
-        .update(documentExecution)
-        .set({ status: "running", updatedAt: now })
-        .where(eq(documentExecution.jobId, params.jobId)),
-    ])
+    const runningJob = await db
+      .update(documentJob)
+      .set({ status: "running", updatedAt: now })
+      .where(
+        and(
+          eq(documentJob.id, params.jobId),
+          exists(
+            db
+              .select({ id: document.id })
+              .from(document)
+              .where(
+                and(
+                  eq(document.id, documentJob.documentId),
+                  eq(document.status, "ready")
+                )
+              )
+          )
+        )
+      )
+      .returning({ id: documentJob.id })
+      .get()
+    if (!runningJob) {
+      throw new Error("Document job is no longer active.")
+    }
+    await db
+      .update(documentExecution)
+      .set({ status: "running", updatedAt: now })
+      .where(eq(documentExecution.jobId, params.jobId))
   })
 }
 

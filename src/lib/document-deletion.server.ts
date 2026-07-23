@@ -2,7 +2,6 @@ import { and, eq, inArray } from "drizzle-orm"
 
 import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
-import { HttpError } from "@/lib/http.server"
 import { deleteR2Objects } from "@/lib/r2-objects.server"
 
 export async function deleteDocument(
@@ -11,15 +10,15 @@ export async function deleteDocument(
   env: Cloudflare.Env
 ): Promise<void> {
   const db = createDb(env.DB)
+  const now = new Date()
   const stored = await db
-    .select({ objectKey: document.objectKey })
-    .from(document)
+    .update(document)
+    .set({ status: "expired", updatedAt: now })
     .where(and(eq(document.id, id), eq(document.userId, userId)))
+    .returning({ objectKey: document.objectKey })
     .get()
   if (!stored) {
-    throw new HttpError(404, "Document not found.", {
-      code: "document_not_found",
-    })
+    return
   }
 
   const jobs = await db
@@ -27,6 +26,12 @@ export async function deleteDocument(
     .from(documentJob)
     .where(eq(documentJob.documentId, id))
     .all()
+
+  await Promise.all(
+    jobs
+      .filter((job) => job.status === "queued" || job.status === "running")
+      .map((job) => terminateWorkflow(env.DOCUMENT_WORKFLOW, job.id))
+  )
   const jobIds = jobs.map((job) => job.id)
   const resultKeys =
     jobIds.length === 0
@@ -38,14 +43,10 @@ export async function deleteDocument(
             .where(inArray(documentExecution.jobId, jobIds))
             .all()
         ).map((execution) => execution.key)
-
-  await Promise.all(
-    jobs
-      .filter((job) => job.status === "queued" || job.status === "running")
-      .map((job) => terminateWorkflow(env.DOCUMENT_WORKFLOW, job.id))
-  )
   await deleteR2Objects(env.FILEROUTER_FILES, [stored.objectKey, ...resultKeys])
-  await db.delete(document).where(eq(document.id, id))
+  await db
+    .delete(document)
+    .where(and(eq(document.id, id), eq(document.userId, userId)))
 }
 
 async function terminateWorkflow(

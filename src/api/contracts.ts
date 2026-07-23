@@ -231,7 +231,6 @@ export const deleteDocumentRoute = createRoute({
     204: { description: "Document deleted" },
     400: problem,
     401: problem,
-    404: problem,
     429: problem,
     500: problem,
   },
