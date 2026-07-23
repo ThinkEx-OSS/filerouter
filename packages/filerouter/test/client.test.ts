@@ -1,293 +1,293 @@
 import { describe, expect, test, vi } from "vite-plus/test"
 
-import { FileRouterClient } from "../src/client"
-import { FileRouterError } from "../src/errors"
-import { MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES } from "../src/hosted"
+import { FileRouter } from "../src/client"
+import { MAX_HOSTED_JOB_REQUEST_BYTES } from "../src/hosted"
 
-describe("FileRouterClient", () => {
-  test("creates and waits for hosted parse jobs", async () => {
+describe("FileRouter", () => {
+  test("stores a document, runs one provider, and retrieves its result", async () => {
+    const result = parseResult("llamaparse", "# Hosted result")
     const fetchMock = vi
       .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-1")))
       .mockResolvedValueOnce(Response.json({ id: "job-1", status: "queued" }))
-      .mockResolvedValueOnce(Response.json({ id: "job-1", status: "running" }))
       .mockResolvedValueOnce(
-        Response.json({
-          id: "job-1",
-          result: {
-            id: "provider-job-1",
-            outputs: { markdown: "# Hosted result" },
-            pageCount: 1,
-            provider: "llamaparse",
-            timing: {
-              completedAt: "2026-07-18T00:00:01.000Z",
-              durationMs: 1000,
-              startedAt: "2026-07-18T00:00:00.000Z",
-            },
-            warnings: [],
-          },
-          status: "complete",
-        })
+        Response.json(job("job-1", "document-1", [execution("execution-1")]))
       )
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-      pollingIntervalMs: 0,
-    })
-
-    const result = await client.parse("https://example.com/report.pdf")
-
-    expect(result.outputs.markdown).toBe("# Hosted result")
-    expect(fetchMock.mock.calls.map(([url]) => requestUrl(url))).toEqual([
-      "https://example.com/api/v1/jobs",
-      "https://example.com/api/v1/jobs/job-1",
-      "https://example.com/api/v1/jobs/job-1",
-    ])
-    const requestBody = fetchMock.mock.calls[0]?.[1]?.body
-    if (typeof requestBody !== "string") {
-      throw new Error("Expected a JSON request body")
-    }
-    expect(JSON.parse(requestBody)).toEqual({
-      operation: "parse",
-      outputs: ["markdown"],
-      source: { url: "https://example.com/report.pdf" },
-    })
-  })
-
-  test("streams binary inputs directly in the request body", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(Response.json({ id: "job-2", status: "queued" }))
-      .mockResolvedValueOnce(
-        Response.json({
-          id: "job-2",
-          result: {
-            id: "provider-job-2",
-            outputs: {},
-            pageCount: 0,
-            provider: "llamaparse",
-            timing: {
-              completedAt: "2026-07-18T00:00:00.000Z",
-              durationMs: 0,
-              startedAt: "2026-07-18T00:00:00.000Z",
-            },
-            warnings: [],
-          },
-          status: "complete",
-        })
-      )
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-    })
-
-    await client.parse(
-      {
-        data: new Blob(["document"], { type: "application/pdf" }),
-        kind: "bytes",
-        name: "report.pdf",
-      },
-      {
-        pages: [1, 3],
-        providerOptions: { llamaparse: { tier: "agentic" } },
-      }
-    )
-
-    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
-    expect(headers.get("content-type")).toBe("application/octet-stream")
-    expect(headers.get("x-filerouter-content-type")).toBe("application/pdf")
-    expect(headers.get("idempotency-key")).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f-]{27}$/
-    )
-    expect(headers.get("x-filerouter-filename")).toBe("report.pdf")
-    expect(headers.get("x-filerouter-pages")).toBe("1,3")
-    expect(
-      JSON.parse(
-        decodeURIComponent(headers.get("x-filerouter-provider-options") ?? "")
-      )
-    ).toEqual({ llamaparse: { tier: "agentic" } })
-    expect(fetchMock.mock.calls[0]?.[1]?.body).toBeInstanceOf(Blob)
-  })
-
-  test("reuses a caller-provided idempotency key", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({
-          id: "job-3",
-          status: "running",
-        })
-      )
-      .mockResolvedValueOnce(
-        Response.json({
-          id: "job-3",
-          result: {
-            id: "provider-job-3",
-            outputs: {},
-            pageCount: 0,
-            provider: "llamaparse",
-            timing: {
-              completedAt: "2026-07-18T00:00:00.000Z",
-              durationMs: 0,
-              startedAt: "2026-07-18T00:00:00.000Z",
-            },
-            warnings: [],
-          },
-          status: "complete",
-        })
-      )
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-      pollingIntervalMs: 0,
-    })
-
-    await client.parse("https://example.com/report.pdf", {
-      idempotencyKey: "retry-job-3",
-    })
-
-    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
-    expect(headers.get("idempotency-key")).toBe("retry-job-3")
-  })
-
-  test("applies the timeout before creating a hosted job", async () => {
-    const fetchMock = vi.fn<typeof fetch>()
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-    })
+      .mockResolvedValueOnce(Response.json(result))
+    const client = createClient(fetchMock)
 
     await expect(
-      client.parse("https://example.com/report.pdf", { timeoutMs: 0 })
+      client.parse("https://example.com/report.pdf")
+    ).resolves.toEqual(result)
+    expect(fetchMock.mock.calls.map(([url]) => requestUrl(url))).toEqual([
+      "https://example.com/api/v1/documents",
+      "https://example.com/api/v1/jobs",
+      "https://example.com/api/v1/jobs/job-1",
+      "https://example.com/api/v1/executions/execution-1/result",
+    ])
+    expect(readJsonBody(fetchMock, 0)).toEqual({
+      url: "https://example.com/report.pdf",
+    })
+    expect(readJsonBody(fetchMock, 1)).toEqual({
+      documentId: "document-1",
+      outputs: ["markdown"],
+      providers: [{ provider: "llamaparse" }],
+    })
+  })
+
+  test("streams a readable upload without buffering it into a Blob", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("document"))
+        controller.close()
+      },
+    })
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-2")))
+      .mockResolvedValueOnce(Response.json({ id: "job-2", status: "queued" }))
+      .mockResolvedValueOnce(
+        Response.json(job("job-2", "document-2", [execution("execution-2")]))
+      )
+      .mockResolvedValueOnce(Response.json(parseResult("llamaparse", "text")))
+
+    await createClient(fetchMock).parse(stream)
+
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(stream)
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
+    expect(headers.get("content-type")).toBe("application/octet-stream")
+    expect(headers.get("x-filerouter-content-type")).toBe(
+      "application/octet-stream"
+    )
+    expect(headers.get("x-filerouter-filename")).toBe("document")
+  })
+
+  test("recognizes URL strings with uppercase schemes", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-url")))
+
+    await createClient(fetchMock).documents.create(
+      "HTTPS://example.com/report.pdf"
+    )
+
+    expect(readJsonBody(fetchMock, 0)).toEqual({
+      url: "HTTPS://example.com/report.pdf",
+    })
+  })
+
+  test("maps provider options onto explicit execution targets", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-3")))
+      .mockResolvedValueOnce(Response.json({ id: "job-3", status: "queued" }))
+      .mockResolvedValueOnce(
+        Response.json(job("job-3", "document-3", [execution("execution-3")]))
+      )
+      .mockResolvedValueOnce(Response.json(parseResult("llamaparse", "text")))
+
+    await createClient(fetchMock).parse(new Blob(["document"]), {
+      idempotencyKey: "parse-report-3",
+      pages: [1, 3],
+      providerOptions: { llamaparse: { tier: "agentic" } },
+    })
+
+    expect(
+      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("idempotency-key")
+    ).toBe("parse-report-3:document")
+    expect(
+      new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("idempotency-key")
+    ).toBe("parse-report-3")
+    expect(readJsonBody(fetchMock, 1)).toMatchObject({
+      providers: [
+        {
+          options: { tier: "agentic" },
+          pages: [1, 3],
+          provider: "llamaparse",
+        },
+      ],
+    })
+  })
+
+  test("assembles comparisons from per-execution results", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-4")))
+      .mockResolvedValueOnce(Response.json({ id: "job-4", status: "queued" }))
+      .mockResolvedValueOnce(
+        Response.json(
+          job("job-4", "document-4", [
+            execution("execution-4a", "llamaparse"),
+            execution("execution-4b", "liteparse"),
+          ])
+        )
+      )
+      .mockResolvedValueOnce(Response.json(parseResult("llamaparse", "a")))
+      .mockResolvedValueOnce(Response.json(parseResult("liteparse", "b")))
+
+    const comparison = await createClient(fetchMock).compare(
+      "https://example.com/report.pdf",
+      { providers: ["llamaparse", "liteparse"] }
+    )
+
+    expect(comparison.providers).toMatchObject([
+      { provider: "llamaparse", status: "parsed" },
+      { provider: "liteparse", status: "parsed" },
+    ])
+  })
+
+  test("keeps comparison outcomes when one result cannot be retrieved", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-results")))
+      .mockResolvedValueOnce(
+        Response.json({ id: "job-results", status: "queued" })
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          job("job-results", "document-results", [
+            execution("execution-expired", "llamaparse"),
+            execution("execution-current", "liteparse"),
+          ])
+        )
+      )
+      .mockResolvedValueOnce(
+        Response.json({ detail: "result expired" }, { status: 410 })
+      )
+      .mockResolvedValueOnce(Response.json(parseResult("liteparse", "text")))
+
+    const comparison = await createClient(fetchMock).compare(
+      "https://example.com/report.pdf",
+      { providers: ["llamaparse", "liteparse"] }
+    )
+
+    expect(comparison.providers).toMatchObject([
+      { provider: "llamaparse", status: "failed" },
+      { provider: "liteparse", status: "parsed" },
+    ])
+  })
+
+  test("applies the timeout before starting work", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    await expect(
+      createClient(fetchMock).parse("https://example.com/report.pdf", {
+        timeoutMs: 0,
+      })
     ).rejects.toMatchObject({ code: "Timeout" })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  test("rejects timeouts beyond the platform timer limit", async () => {
-    const fetchMock = vi.fn<typeof fetch>()
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-    })
-
-    await expect(
-      client.parse("https://example.com/report.pdf", {
-        timeoutMs: 2_147_483_648,
-      })
-    ).rejects.toMatchObject({ code: "InvalidInput" })
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  test("exposes retry details from hosted API errors", async () => {
+  test("rejects non-object provider options before job submission", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(
-        Response.json(
-          { detail: "Try again later." },
-          { headers: { "Retry-After": "3" }, status: 429 }
-        )
-      )
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-    })
-
-    const request = client.jobs.get("job-rate-limited")
-
-    await expect(request).rejects.toMatchObject({
-      code: "RateLimit",
-      providerId: "filerouter",
-      retryable: true,
-      retryAfterMs: 3000,
-      statusCode: 429,
-    })
-    await request.catch((error: unknown) => {
-      expect(FileRouterError.isInstance(error)).toBe(true)
-    })
-  })
-
-  test("identifies an empty hosted credit balance", async () => {
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(
-          Response.json({ detail: "You're out of credits." }, { status: 402 })
-        ),
-    })
-
-    await expect(client.jobs.get("job-payment-required")).rejects.toMatchObject(
-      {
-        code: "PaymentRequired",
-        providerId: "filerouter",
-        retryable: false,
-        statusCode: 402,
-      }
-    )
-  })
-
-  test("normalizes hosted network failures", async () => {
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: vi
-        .fn<typeof fetch>()
-        .mockRejectedValue(new TypeError("fetch failed")),
-    })
-
-    await expect(
-      client.parse("https://example.com/report.pdf")
-    ).rejects.toMatchObject({
-      code: "ProviderUnavailable",
-      providerId: "filerouter",
-      retryable: true,
-    })
-  })
-
-  test("rejects provider options that cannot be sent as JSON", async () => {
-    const fetchMock = vi.fn<typeof fetch>()
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-    })
-    const circular: Record<string, unknown> = {}
-    circular.self = circular
+      .mockResolvedValueOnce(Response.json(document("document-5")))
+    const client = createClient(fetchMock)
 
     await expect(
       client.parse("https://example.com/report.pdf", {
-        providerOptions: { custom: circular },
+        providerOptions: { llamaparse: "invalid" as never },
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  test("bounds provider options carried in upload headers", async () => {
+  test("rejects oversized jobs before storing the document", async () => {
     const fetchMock = vi.fn<typeof fetch>()
-    const client = new FileRouterClient({
-      apiKey: "fr_test_key",
-      baseURL: "https://example.com",
-      fetch: fetchMock,
-    })
 
     await expect(
-      client.parse(new Blob(["document"], { type: "application/pdf" }), {
-        providerOptions: {
-          custom: {
-            value: "x".repeat(MAX_HOSTED_PROVIDER_OPTIONS_HEADER_BYTES),
-          },
-        },
+      createClient(fetchMock).parse("https://example.com/report.pdf", {
+        metadata: { note: "x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES) },
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  test("deletes a stored document", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await expect(
+      createClient(fetchMock).documents.delete("document-6")
+    ).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.com/api/v1/documents/document-6",
+      expect.objectContaining({ method: "DELETE" })
+    )
+  })
 })
+
+function createClient(fetchMock: typeof fetch): FileRouter {
+  return new FileRouter({
+    apiKey: "fr_test_key",
+    baseURL: "https://example.com",
+    fetch: fetchMock,
+    pollingIntervalMs: 0,
+  })
+}
+
+function document(id: string) {
+  return {
+    contentType: "application/pdf",
+    createdAt: "2026-07-18T00:00:00.000Z",
+    etag: "etag",
+    expiresAt: "2026-07-25T00:00:00.000Z",
+    id,
+    name: "report.pdf",
+    size: 10,
+    status: "ready",
+  }
+}
+
+function execution(
+  id: string,
+  provider: "liteparse" | "llamaparse" = "llamaparse"
+) {
+  return {
+    createdAt: "2026-07-18T00:00:00.000Z",
+    durationMs: 10,
+    id,
+    jobId: "job",
+    outputs: ["markdown"],
+    provider,
+    resultAvailable: true,
+    status: "complete",
+  }
+}
+
+function job(id: string, documentId: string, executions: Array<object>) {
+  return {
+    createdAt: "2026-07-18T00:00:00.000Z",
+    documentId,
+    executions,
+    id,
+    status: "complete",
+    updatedAt: "2026-07-18T00:00:01.000Z",
+  }
+}
+
+function parseResult(provider: string, markdown: string) {
+  return {
+    id: `result-${provider}`,
+    outputs: { markdown },
+    pageCount: 1,
+    provider,
+    timing: {
+      completedAt: "2026-07-18T00:00:01.000Z",
+      durationMs: 1000,
+      startedAt: "2026-07-18T00:00:00.000Z",
+    },
+    warnings: [],
+  }
+}
+
+function readJsonBody(fetchMock: ReturnType<typeof vi.fn>, index: number) {
+  const body = fetchMock.mock.calls[index]?.[1]?.body
+  if (typeof body !== "string") {
+    throw new Error("Expected a JSON request body.")
+  }
+  return JSON.parse(body) as unknown
+}
 
 function requestUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") {

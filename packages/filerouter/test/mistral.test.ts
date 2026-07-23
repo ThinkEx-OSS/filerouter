@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vite-plus/test"
 
-import { FileRouter } from "../src"
+import { DirectFileRouter } from "../src"
 import { mistralOcr } from "../src/mistral"
 
 describe("Mistral OCR provider", () => {
@@ -13,7 +13,7 @@ describe("Mistral OCR provider", () => {
       ],
       usageInfo: { docSizeBytes: 10, pagesProcessed: 2 },
     })
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         mistral: mistralOcr({
           client: {

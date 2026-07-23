@@ -28,13 +28,13 @@ yarn add @file_router/sdk
 ## Parse a document
 
 ```ts
-import { FileRouterClient } from "@file_router/sdk"
+import { FileRouter } from "@file_router/sdk"
 
-const client = new FileRouterClient({
+const router = new FileRouter({
   apiKey: process.env.FILEROUTER_API_KEY,
 })
 
-const result = await client.parse("https://example.com/report.pdf", {
+const result = await router.parse("https://example.com/report.pdf", {
   provider: "llamaparse",
   outputs: ["markdown"],
 })
@@ -42,7 +42,7 @@ const result = await client.parse("https://example.com/report.pdf", {
 console.log(result.outputs.markdown)
 ```
 
-`FileRouterClient` creates a hosted job, waits for it to finish, and returns the normalized result. Its default timeout is ten minutes.
+`FileRouter` stores the document, creates a durable hosted job, waits for it to finish, and returns the normalized result. Its default timeout is ten minutes.
 
 ## Use an environment variable
 
@@ -53,7 +53,7 @@ export FILEROUTER_API_KEY="fr_..."
 ```
 
 ```ts
-const client = new FileRouterClient()
+const router = new FileRouter()
 ```
 
 <Tip>

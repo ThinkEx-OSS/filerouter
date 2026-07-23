@@ -4,47 +4,43 @@ import type {
   WorkflowStep,
   WorkflowStepConfig,
 } from "cloudflare:workers"
-import { eq } from "drizzle-orm"
-import {
-  FileRouterError,
-  assertProviderOutputs,
-  serializeProviderError,
-} from "@file_router/sdk"
-import type { ProviderId } from "@file_router/sdk/catalog"
+import { and, eq, exists, inArray } from "drizzle-orm"
+import { FileRouterError, serializeProviderError } from "@file_router/sdk"
 import type {
   FileRouterProvider,
   ParseOutput,
   ProviderInput,
   ProviderParseOptions,
 } from "@file_router/sdk"
+import type { ProviderId } from "@file_router/sdk/catalog"
 
-import { documentJob } from "@/db/schema"
+import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
 import { trackManagedExecutionUsage } from "@/integrations/autumn/managed-execution"
 import { captureServerTelemetry } from "@/integrations/posthog/server"
-import { failDocumentJob } from "@/lib/document-jobs.server"
 import { createProviderSourceUrl } from "@/lib/document-source.server"
 import { resultExpiresAt } from "@/lib/document-retention"
 import { createHostedProviders } from "@/lib/hosted-providers.server"
-import {
-  storeComparisonResult,
-  storeProviderResult,
-} from "@/workflows/document-results"
-import type { ProviderOutcome } from "@/workflows/document-results"
-import { materializeDocumentSource } from "@/workflows/document-source"
 import { emitWideEvent, serializeError } from "@/observability/log"
+import {
+  storeProviderResult,
+  type ProviderOutcome,
+} from "@/workflows/document-results"
 
-export interface DocumentWorkflowParams {
-  fileName: string
+export interface DocumentWorkflowTarget {
+  executionId: string
   includeRaw: boolean
-  jobId: string
-  operation: "compare" | "parse"
+  options?: Record<string, unknown>
   outputs: Array<ParseOutput>
   pages?: Array<number>
-  providers: Array<ProviderId>
-  providerOptions?: ProviderParseOptions
+  provider: ProviderId
+}
+
+export interface DocumentWorkflowParams {
+  document: { fileName: string; id: string }
+  jobId: string
   requestId: string
-  source: { key: string; url?: string }
+  targets: Array<DocumentWorkflowTarget>
   userId: string
 }
 
@@ -53,31 +49,13 @@ const PROVIDER_EXECUTION_STEP = {
   timeout: "15 minutes",
 } as const satisfies WorkflowStepConfig
 
-const STORAGE_STEP = {
-  retries: { backoff: "exponential", delay: "2 seconds", limit: 3 },
-  timeout: "15 minutes",
-} as const satisfies WorkflowStepConfig
-
-const CLEANUP_STEP = {
-  retries: { backoff: "exponential", delay: "2 seconds", limit: 3 },
-  timeout: "1 minute",
-} as const satisfies WorkflowStepConfig
-
 const PROVIDER_STATUS_STEP = {
-  retries: {
-    backoff: "exponential",
-    delay: "10 seconds",
-    limit: 3,
-  },
+  retries: { backoff: "exponential", delay: "10 seconds", limit: 3 },
   timeout: "1 minute",
 } as const satisfies WorkflowStepConfig
 
 const METERING_STEP = {
-  retries: {
-    backoff: "exponential",
-    delay: "5 seconds",
-    limit: 5,
-  },
+  retries: { backoff: "exponential", delay: "5 seconds", limit: 5 },
   timeout: "1 minute",
 } as const satisfies WorkflowStepConfig
 
@@ -86,14 +64,10 @@ type ProviderStepStatus =
   | { error: string; status: "failed" }
   | Extract<ProviderOutcome, { status: "parsed" }>
 
-type CleanupOutcome =
-  | { status: "not_run" | "skipped" }
-  | { object_count: number; status: "deleted" }
-  | ({ status: "failed" } & ReturnType<typeof serializeError>)
-
 type MeteringOutcome =
-  | { status: "not_run" | "skipped" }
-  | { status: "tracked"; tracked_providers: number }
+  | { status: "failed"; error: string }
+  | { status: "skipped" }
+  | { status: "tracked"; trackedProviders: number }
 
 export class DocumentWorkflow extends WorkflowEntrypoint<
   Cloudflare.Env,
@@ -107,29 +81,11 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
     assertParams(params)
     const observedStartedAt = Date.now()
     let providerResults: Array<ProviderOutcome> = []
-    let resultCleanup: CleanupOutcome = { status: "not_run" }
-    let sourceCleanup: CleanupOutcome = { status: "not_run" }
-    let metering: MeteringOutcome = { status: "not_run" }
-    let pageCount: number | undefined
-    let outcome: "complete" | "failed" = "failed"
+    let metering: MeteringOutcome = { status: "skipped" }
     let failure: unknown
 
     try {
-      const startedAt = await step.do("mark job running", async () => {
-        const timestamp = new Date()
-        await createDb(this.env.DB)
-          .update(documentJob)
-          .set({ status: "running", updatedAt: timestamp })
-          .where(eq(documentJob.id, params.jobId))
-        return timestamp.toISOString()
-      })
-      await step.do("materialize document source", STORAGE_STEP, () =>
-        materializeDocumentSource(
-          this.env.FILEROUTER_FILES,
-          params.source,
-          params.fileName
-        )
-      )
+      await markRunning(step, this.env.DB, params)
       const configured = createHostedProviders(this.env, {
         jobId: params.jobId,
         requestId: params.requestId,
@@ -138,259 +94,156 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
         kind: "url",
         url: await createProviderSourceUrl(
           this.env,
-          params.jobId,
-          params.fileName
+          params.document.id,
+          params.document.fileName
         ),
       }
       providerResults = await Promise.all(
-        params.providers.map((providerId) =>
-          processProvider(step, configured[providerId], input, params, this.env)
+        params.targets.map((target) =>
+          processExecution(
+            step,
+            configured[target.provider],
+            target,
+            input,
+            this.env
+          )
         )
       )
-      const stored = await persistResult(
+      const status = await finalizeJob(
         step,
-        this.env.FILEROUTER_FILES,
+        this.env.DB,
         params,
-        providerResults,
-        startedAt
+        providerResults
       )
-      pageCount = stored.pageCount
-      if (params.operation === "compare") {
-        resultCleanup = await deleteResultObjects(
-          step,
-          this.env.FILEROUTER_FILES,
-          providerResultKeys(providerResults),
-          "delete comparison parts"
-        )
-      } else {
-        resultCleanup = { status: "skipped" }
-      }
-      sourceCleanup = await deleteResultObjects(
-        step,
-        this.env.FILEROUTER_FILES,
-        [params.source.key],
-        "delete document source"
-      )
-
       metering = await trackUsage(step, this.env, params, providerResults)
 
-      await step.do("mark job complete", async () => {
-        const completedAt = new Date()
-        await createDb(this.env.DB)
-          .update(documentJob)
-          .set({
-            pageCount: stored.pageCount,
-            resultKey: stored.resultKey,
-            resultExpiresAt: resultExpiresAt(completedAt),
-            ...(sourceCleanup.status === "deleted" && { sourceKey: null }),
-            status: "complete",
-            updatedAt: completedAt,
-          })
-          .where(eq(documentJob.id, params.jobId))
-        return { status: "complete" }
-      })
-
-      outcome = "complete"
-      return { status: "complete" as const }
+      return { status }
     } catch (error) {
       failure = error
-      const message = errorMessage(error)
-      resultCleanup = await deleteResultObjects(
-        step,
-        this.env.FILEROUTER_FILES,
-        [
-          ...providerResultKeys(providerResults),
-          `jobs/${params.jobId}/result.json`,
-        ],
-        "delete failed results"
-      )
-      sourceCleanup = await deleteResultObjects(
-        step,
-        this.env.FILEROUTER_FILES,
-        [params.source.key],
-        "delete failed document source"
-      )
-      await step.do("mark job failed", async () => {
-        await failDocumentJob(this.env.DB, {
-          clearSource: sourceCleanup.status === "deleted",
-          error: message,
-          jobId: params.jobId,
-        })
-        return { error: message, status: "failed" }
-      })
+      await markWorkflowFailure(step, this.env.DB, params.jobId, error)
       throw error
     } finally {
-      const durationMs = Date.now() - observedStartedAt
-      const providerOutcomes = providerResults.map(providerLogFields)
-      const parsedProviders = providerResults.filter(
-        (provider) => provider.status === "parsed"
-      )
-      const failedProviders = providerResults.length - parsedProviders.length
-      const completionProperties = {
-        duration_ms: durationMs,
-        failed_provider_count: failedProviders,
-        job_id: params.jobId,
-        metering_status: metering.status,
-        operation: params.operation,
-        outcome,
-        page_count: pageCount,
-        provider_count: providerResults.length,
-        providers: providerResults.map((provider) => provider.provider),
-        request_id: params.requestId,
-        successful_provider_count: parsedProviders.length,
-      }
-      emitWideEvent(this.env, outcome === "failed" ? "error" : "info", {
-        ...completionProperties,
-        event: "document_job_completed",
+      emitCompletionTelemetry(
+        this.env,
+        this.ctx,
+        params,
+        providerResults,
         metering,
-        provider_outcomes: providerOutcomes,
-        result_cleanup: resultCleanup,
-        service: "filerouter-workflow",
-        source_cleanup: sourceCleanup,
-        user_id: params.userId,
-        ...(failure ? serializeError(failure) : {}),
-      })
-
-      this.ctx.waitUntil(
-        captureServerTelemetry(this.env, {
-          distinctId: params.userId,
-          event: "document_job_completed",
-          ...(failure ? { exception: failure } : {}),
-          properties: completionProperties,
-        })
+        observedStartedAt,
+        failure
       )
     }
   }
 }
 
-async function trackUsage(
+async function markRunning(
   step: WorkflowStep,
-  env: Cloudflare.Env,
-  params: DocumentWorkflowParams,
-  providers: Array<ProviderOutcome>
-): Promise<MeteringOutcome> {
-  const result = await step.do("track managed execution", METERING_STEP, () =>
-    trackManagedExecutionUsage(env, {
-      jobId: params.jobId,
-      operation: params.operation,
-      providers,
-      userId: params.userId,
-    })
-  )
-  if ("skipped" in result) {
-    return { status: "skipped" }
-  }
-  if (result.unpricedProviders.length > 0) {
-    throw new Error(
-      `Cannot bill unpriced hosted providers: ${result.unpricedProviders.join(", ")}.`
-    )
-  }
-  return {
-    status: "tracked",
-    tracked_providers: result.trackedProviders,
-  }
+  database: D1Database,
+  params: DocumentWorkflowParams
+): Promise<void> {
+  await step.do("mark job running", async () => {
+    const now = new Date()
+    const db = createDb(database)
+    const runningJob = await db
+      .update(documentJob)
+      .set({ status: "running", updatedAt: now })
+      .where(
+        and(
+          eq(documentJob.id, params.jobId),
+          exists(
+            db
+              .select({ id: document.id })
+              .from(document)
+              .where(
+                and(
+                  eq(document.id, documentJob.documentId),
+                  eq(document.status, "ready")
+                )
+              )
+          )
+        )
+      )
+      .returning({ id: documentJob.id })
+      .get()
+    if (!runningJob) {
+      throw new Error("Document job is no longer active.")
+    }
+    await db
+      .update(documentExecution)
+      .set({ status: "running", updatedAt: now })
+      .where(eq(documentExecution.jobId, params.jobId))
+  })
 }
 
-function providerResultKeys(results: Array<ProviderOutcome>): Array<string> {
-  return results.flatMap((result) =>
-    result.status === "parsed" ? [result.resultKey] : []
-  )
-}
-
-async function deleteResultObjects(
-  step: WorkflowStep,
-  bucket: R2Bucket,
-  keys: Array<string>,
-  stepName: string
-): Promise<CleanupOutcome> {
-  if (keys.length === 0) {
-    return { status: "skipped" }
-  }
-  try {
-    await step.do(stepName, CLEANUP_STEP, async () => {
-      await bucket.delete(keys)
-      return true
-    })
-    return { object_count: keys.length, status: "deleted" }
-  } catch (error) {
-    return { status: "failed", ...serializeError(error) }
-  }
-}
-
-async function processProvider(
+async function processExecution(
   step: WorkflowStep,
   provider: FileRouterProvider,
+  target: DocumentWorkflowTarget,
   input: ProviderInput,
-  params: DocumentWorkflowParams,
   env: Cloudflare.Env
 ): Promise<ProviderOutcome> {
   const startedAt = Date.now()
+  let outcome: ProviderOutcome
 
   try {
-    assertProviderOutputs(provider, params.outputs)
-  } catch (error) {
-    return {
-      durationMs: Date.now() - startedAt,
-      error: serializeProviderError(error),
-      provider: provider.id,
-      status: "unsupported",
-    }
-  }
-
-  try {
-    return provider.jobs
-      ? await processAsyncProvider(step, provider, input, params, env)
+    outcome = provider.jobs
+      ? await processAsyncProvider(step, provider, target, input, env)
       : await step.do(
-          `process ${provider.id}`,
+          `process ${target.executionId}`,
           PROVIDER_EXECUTION_STEP,
           async () =>
             storeProviderResult(
               env.FILEROUTER_FILES,
-              params.jobId,
-              await provider.parse(input, parseOptions(params, provider.id))
+              target.executionId,
+              await provider.parse(input, parseOptions(target))
             )
         )
   } catch (error) {
-    return {
+    outcome = {
       durationMs: Date.now() - startedAt,
       error: serializeProviderError(error),
+      executionId: target.executionId,
       provider: provider.id,
       status: "failed",
     }
   }
+
+  await recordExecution(step, env.DB, outcome)
+  return outcome
 }
 
 async function processAsyncProvider(
   step: WorkflowStep,
   provider: FileRouterProvider,
+  target: DocumentWorkflowTarget,
   input: ProviderInput,
-  params: DocumentWorkflowParams,
   env: Cloudflare.Env
 ): Promise<Extract<ProviderOutcome, { status: "parsed" }>> {
   const jobs = provider.jobs
   if (!jobs) {
     throw new Error(`Provider ${provider.id} does not support durable jobs.`)
   }
-
   const job = await step.do(
-    `submit ${provider.id}`,
+    `submit ${target.executionId}`,
     PROVIDER_EXECUTION_STEP,
-    async () => jobs.submit(input, parseOptions(params, provider.id))
+    () => jobs.submit(input, parseOptions(target))
   )
-
   const deadline = new Date(job.submittedAt).getTime() + 14 * 60 * 1000
+  let attempt = 0
+
   while (Date.now() < deadline) {
+    attempt += 1
     const status: ProviderStepStatus = await step.do(
-      `check ${provider.id}`,
+      `check ${target.executionId} ${attempt}`,
       PROVIDER_STATUS_STEP,
       async () => {
-        const current = await jobs.get(job, parseOptions(params, provider.id))
+        const current = await jobs.get(job, parseOptions(target))
         if (current.status !== "complete") {
           return current
         }
         return storeProviderResult(
           env.FILEROUTER_FILES,
-          params.jobId,
+          target.executionId,
           current.result
         )
       }
@@ -404,7 +257,7 @@ async function processAsyncProvider(
         providerId: provider.id,
       })
     }
-    await step.sleep(`wait for ${provider.id}`, "10 seconds")
+    await step.sleep(`wait for ${target.executionId} ${attempt}`, "10 seconds")
   }
 
   throw new FileRouterError(`${provider.id} job timed out.`, {
@@ -413,28 +266,208 @@ async function processAsyncProvider(
   })
 }
 
-async function persistResult(
+async function recordExecution(
   step: WorkflowStep,
-  bucket: R2Bucket,
-  params: DocumentWorkflowParams,
-  providers: Array<ProviderOutcome>,
-  startedAt: string
-): Promise<{ pageCount: number; resultKey: string }> {
-  if (params.operation === "parse") {
-    const result = providers[0]
-    if (!result || result.status !== "parsed") {
-      throw new Error(result?.error.message ?? "Document parsing failed.")
-    }
-    return { pageCount: result.pageCount, resultKey: result.resultKey }
-  }
+  database: D1Database,
+  outcome: ProviderOutcome
+): Promise<void> {
+  await step.do(`record ${outcome.executionId}`, async () => {
+    const completedAt = new Date()
+    await createDb(database)
+      .update(documentExecution)
+      .set(
+        outcome.status === "parsed"
+          ? {
+              completedAt,
+              durationMs: outcome.durationMs,
+              pageCount: outcome.pageCount,
+              resultExpiresAt: resultExpiresAt(completedAt),
+              resultKey: outcome.resultKey,
+              status: "complete",
+              updatedAt: completedAt,
+              usage: outcome.usage,
+            }
+          : {
+              completedAt,
+              durationMs: outcome.durationMs,
+              errorCode: outcome.error.code,
+              errorMessage: outcome.error.message,
+              status: outcome.status,
+              updatedAt: completedAt,
+            }
+      )
+      .where(eq(documentExecution.id, outcome.executionId))
+  })
+}
 
-  return step.do("store comparison", STORAGE_STEP, () =>
-    storeComparisonResult(bucket, {
-      fileName: params.fileName,
-      jobId: params.jobId,
-      outputs: params.outputs,
-      providers,
-      startedAt,
+async function finalizeJob(
+  step: WorkflowStep,
+  database: D1Database,
+  params: DocumentWorkflowParams,
+  outcomes: Array<ProviderOutcome>
+): Promise<"complete" | "failed"> {
+  const successful = outcomes.filter(
+    (outcome): outcome is Extract<ProviderOutcome, { status: "parsed" }> =>
+      outcome.status === "parsed"
+  )
+  const status = successful.length > 0 ? "complete" : "failed"
+  const error = status === "failed" ? "All provider executions failed." : null
+  await step.do("finalize job", async () => {
+    await createDb(database)
+      .update(documentJob)
+      .set({ error, status, updatedAt: new Date() })
+      .where(eq(documentJob.id, params.jobId))
+  })
+  return status
+}
+
+async function trackUsage(
+  step: WorkflowStep,
+  env: Cloudflare.Env,
+  params: DocumentWorkflowParams,
+  providers: Array<ProviderOutcome>
+): Promise<MeteringOutcome> {
+  try {
+    const result = await step.do("track managed execution", METERING_STEP, () =>
+      trackManagedExecutionUsage(env, {
+        jobId: params.jobId,
+        providers,
+        userId: params.userId,
+      })
+    )
+    if ("skipped" in result) {
+      await recordMeteringStatus(step, env.DB, params.jobId, "skipped")
+      return { status: "skipped" }
+    }
+    if (result.unpricedProviders.length > 0) {
+      throw new Error(
+        `Cannot bill unpriced hosted providers: ${result.unpricedProviders.join(", ")}.`
+      )
+    }
+    await recordMeteringStatus(step, env.DB, params.jobId, "tracked")
+    return { status: "tracked", trackedProviders: result.trackedProviders }
+  } catch (error) {
+    await recordMeteringStatus(step, env.DB, params.jobId, "failed")
+    return { status: "failed", error: errorMessage(error) }
+  }
+}
+
+async function recordMeteringStatus(
+  step: WorkflowStep,
+  database: D1Database,
+  jobId: string,
+  status: "failed" | "skipped" | "tracked"
+): Promise<void> {
+  await step.do(`record metering ${status}`, async () => {
+    await createDb(database)
+      .update(documentJob)
+      .set({ meteringStatus: status, updatedAt: new Date() })
+      .where(eq(documentJob.id, jobId))
+  })
+}
+
+async function markWorkflowFailure(
+  step: WorkflowStep,
+  database: D1Database,
+  jobId: string,
+  error: unknown
+): Promise<void> {
+  await step.do("record workflow failure", async () => {
+    const now = new Date()
+    const message = errorMessage(error)
+    const db = createDb(database)
+    await db.batch([
+      db
+        .update(documentExecution)
+        .set({
+          completedAt: now,
+          errorMessage: message,
+          status: "failed",
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(documentExecution.jobId, jobId),
+            inArray(documentExecution.status, ["queued", "running"])
+          )
+        ),
+      db
+        .update(documentJob)
+        .set({ error: message, status: "failed", updatedAt: now })
+        .where(
+          and(
+            eq(documentJob.id, jobId),
+            inArray(documentJob.status, ["queued", "running"])
+          )
+        ),
+    ])
+  })
+}
+
+function parseOptions(target: DocumentWorkflowTarget) {
+  return {
+    includeRaw: target.includeRaw,
+    outputs: target.outputs,
+    ...(target.pages && { pages: target.pages }),
+    provider: target.provider,
+    ...(target.options && {
+      providerOptions: {
+        [target.provider]: target.options,
+      } satisfies ProviderParseOptions,
+    }),
+  }
+}
+
+function emitCompletionTelemetry(
+  env: Cloudflare.Env,
+  context: ExecutionContext,
+  params: DocumentWorkflowParams,
+  providerResults: Array<ProviderOutcome>,
+  metering: MeteringOutcome,
+  observedStartedAt: number,
+  failure: unknown
+): void {
+  const parsedProviders = providerResults.filter(
+    (provider) => provider.status === "parsed"
+  )
+  const completionProperties = {
+    duration_ms: Date.now() - observedStartedAt,
+    failed_provider_count: providerResults.length - parsedProviders.length,
+    job_id: params.jobId,
+    metering_status: metering.status,
+    outcome: failure
+      ? "failed"
+      : parsedProviders.length > 0
+        ? "complete"
+        : "failed",
+    page_count: Math.max(
+      0,
+      ...parsedProviders.map((provider) => provider.pageCount)
+    ),
+    provider_count: providerResults.length,
+    providers: providerResults.map((provider) => provider.provider),
+    request_id: params.requestId,
+    successful_provider_count: parsedProviders.length,
+  }
+  emitWideEvent(
+    env,
+    failure || parsedProviders.length === 0 ? "error" : "info",
+    {
+      ...completionProperties,
+      event: "document_job_completed",
+      metering,
+      provider_outcomes: providerResults.map(providerLogFields),
+      service: "filerouter-workflow",
+      user_id: params.userId,
+      ...(failure ? serializeError(failure) : {}),
+    }
+  )
+  context.waitUntil(
+    captureServerTelemetry(env, {
+      distinctId: params.userId,
+      event: "document_job_completed",
+      ...(failure ? { exception: failure } : {}),
+      properties: completionProperties,
     })
   )
 }
@@ -444,6 +477,7 @@ function providerLogFields(provider: ProviderOutcome) {
     ? {
         duration_ms: provider.durationMs,
         engine: provider.engine,
+        execution_id: provider.executionId,
         page_count: provider.pageCount,
         provider: provider.provider,
         status: provider.status,
@@ -453,21 +487,10 @@ function providerLogFields(provider: ProviderOutcome) {
         duration_ms: provider.durationMs,
         error_code: provider.error.code,
         error_message: provider.error.message,
+        execution_id: provider.executionId,
         provider: provider.provider,
         status: provider.status,
       }
-}
-
-function parseOptions(params: DocumentWorkflowParams, provider: string) {
-  return {
-    includeRaw: params.includeRaw,
-    outputs: params.outputs,
-    ...(params.pages && { pages: params.pages }),
-    provider,
-    ...(params.providerOptions && {
-      providerOptions: params.providerOptions,
-    }),
-  }
 }
 
 function errorMessage(error: unknown): string {
@@ -476,12 +499,11 @@ function errorMessage(error: unknown): string {
 
 function assertParams(params: Readonly<DocumentWorkflowParams>): void {
   if (
+    !params.document.id ||
     !params.jobId ||
     !params.requestId ||
     !params.userId ||
-    params.providers.length === 0 ||
-    params.outputs.length === 0 ||
-    !params.source.key
+    params.targets.length === 0
   ) {
     throw new Error("Invalid document workflow payload.")
   }

@@ -7,20 +7,20 @@ const encoder = new TextEncoder()
 
 export async function createProviderSourceUrl(
   env: Cloudflare.Env,
-  jobId: string,
+  documentId: string,
   fileName: string
 ): Promise<string> {
   const expires = Math.floor(Date.now() / 1000) + SOURCE_URL_TTL_SECONDS
   const normalizedName = normalizeDocumentFileName(fileName)
   const token = await signSourceToken(
     env.BETTER_AUTH_SECRET,
-    jobId,
+    documentId,
     normalizedName,
     expires
   )
   const baseUrl = new URL(env.BETTER_AUTH_URL)
   const url = new URL(
-    `/api/v1/sources/${encodeURIComponent(jobId)}/${encodeURIComponent(normalizedName)}`,
+    `/api/v1/sources/${encodeURIComponent(documentId)}/${encodeURIComponent(normalizedName)}`,
     baseUrl.origin
   )
   url.searchParams.set("expires", String(expires))
@@ -31,7 +31,7 @@ export async function createProviderSourceUrl(
 export async function getProviderSourceResponse(
   request: Request,
   env: Cloudflare.Env,
-  jobId: string,
+  documentId: string,
   fileName: string,
   expiresValue: string | undefined,
   token: string | undefined
@@ -43,7 +43,7 @@ export async function getProviderSourceResponse(
     !expires ||
     !(await verifySourceToken(
       env.BETTER_AUTH_SECRET,
-      jobId,
+      documentId,
       normalizedName,
       expires,
       token
@@ -54,7 +54,7 @@ export async function getProviderSourceResponse(
     })
   }
 
-  const key = `jobs/${jobId}/source`
+  const key = `documents/${documentId}/source`
   let body: ReadableStream | null = null
   let object: R2Object | null
   let responseRange: { length: number; offset: number } | undefined
@@ -155,7 +155,7 @@ function rangeNotSatisfiable(size: number): Response {
 
 async function signSourceToken(
   secret: string,
-  jobId: string,
+  documentId: string,
   fileName: string,
   expires: number
 ): Promise<string> {
@@ -163,14 +163,14 @@ async function signSourceToken(
   const signature = await crypto.subtle.sign(
     "HMAC",
     key,
-    sourceTokenPayload(jobId, fileName, expires).buffer as ArrayBuffer
+    sourceTokenPayload(documentId, fileName, expires).buffer as ArrayBuffer
   )
   return toBase64Url(new Uint8Array(signature))
 }
 
 async function verifySourceToken(
   secret: string,
-  jobId: string,
+  documentId: string,
   fileName: string,
   expires: number,
   token: string
@@ -181,7 +181,7 @@ async function verifySourceToken(
       "HMAC",
       key,
       fromBase64Url(token).buffer as ArrayBuffer,
-      sourceTokenPayload(jobId, fileName, expires).buffer as ArrayBuffer
+      sourceTokenPayload(documentId, fileName, expires).buffer as ArrayBuffer
     )
   } catch {
     return false
@@ -194,7 +194,7 @@ function sourceSigningKey(
 ): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
-    encoder.encode(`filerouter-source-v1:${secret}`),
+    encoder.encode(`filerouter-source-v2:${secret}`),
     { hash: "SHA-256", name: "HMAC" },
     false,
     usages
@@ -202,11 +202,11 @@ function sourceSigningKey(
 }
 
 function sourceTokenPayload(
-  jobId: string,
+  documentId: string,
   fileName: string,
   expires: number
 ): Uint8Array {
-  return encoder.encode(`${jobId}\n${fileName}\n${expires}`)
+  return encoder.encode(`${documentId}\n${fileName}\n${expires}`)
 }
 
 function parseExpiration(value: string | undefined): number | undefined {

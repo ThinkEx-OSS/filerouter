@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vite-plus/test"
 
 import { datalab } from "../src/datalab"
-import { FileRouter } from "../src/index"
+import { DirectFileRouter } from "../src/index"
 
 describe("Datalab provider", () => {
   test("exposes submission separately from retryable result polling", async () => {
@@ -111,7 +111,7 @@ describe("Datalab provider", () => {
           success: true,
         })
       )
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         datalab: datalab({
           apiKey: "test-key",
@@ -144,7 +144,7 @@ describe("Datalab provider", () => {
         success: true,
       })
     )
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         datalab: datalab({ apiKey: "test-key", fetch: fetchMock }),
       },

@@ -1,152 +1,348 @@
-import { and, eq, inArray } from "drizzle-orm"
-import type { HostedJobStatus } from "@file_router/sdk/hosted"
+import { and, eq, gt, isNotNull, sql } from "drizzle-orm"
+import { assertProviderOutputs } from "@file_router/sdk"
+import type { HostedJobCreateInput, ParseOutput } from "@file_router/sdk"
+import type { ProviderId } from "@file_router/sdk/catalog"
+import type {
+  HostedExecution,
+  HostedDocumentStatus,
+  HostedJob,
+  HostedJobAccepted,
+} from "@file_router/sdk/hosted"
 
-import { documentJob } from "@/db/schema"
+import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
-import { readDocumentJobInput } from "@/lib/document-job-input.server"
 import { requireHostedCreditForUser } from "@/integrations/autumn/billing.server"
 import {
-  MAX_HOSTED_UPLOAD_BYTES,
-  MAX_HOSTED_UPLOAD_LABEL,
-} from "@/lib/document-limits"
+  createHostedProviders,
+  validateHostedProviderOptions,
+} from "@/lib/hosted-providers.server"
 import { HttpError } from "@/lib/http.server"
 import { hashToken } from "@/lib/tokens.server"
-import { emitWideEvent, serializeError } from "@/observability/log"
 import type { DocumentWorkflowParams } from "@/workflows/document-workflow"
 
-type CreateDocumentJobResult = {
-  job: {
-    id: string
-    status: HostedJobStatus
-  }
+export interface CreateJobResult {
+  job: HostedJobAccepted
   replayed: boolean
 }
 
+interface NormalizedTarget {
+  executionId: string
+  includeRaw: boolean
+  options?: Record<string, unknown>
+  outputs: Array<ParseOutput>
+  pages?: Array<number>
+  position: number
+  provider: ProviderId
+}
+
 export async function createDocumentJob(
-  request: Request,
+  input: HostedJobCreateInput,
   userId: string,
   env: Cloudflare.Env,
   idempotencyKey: string,
-  requestId: string,
-  validatedJson?: unknown
-): Promise<CreateDocumentJobResult> {
-  const input = await readDocumentJobInput(request, validatedJson)
+  requestId: string
+): Promise<CreateJobResult> {
   const db = createDb(env.DB)
-  const id = crypto.randomUUID()
-  const sourceKey = `jobs/${id}/source`
-  const workflowSource: DocumentWorkflowParams["source"] = {
-    key: sourceKey,
-    ...(input.source.kind === "url" && { url: input.source.url }),
+  const jobId = crypto.randomUUID()
+  const outputs = [...new Set(input.outputs)]
+  const targets = normalizeTargets(input, outputs)
+  const idempotencyKeyHash = await hashToken(idempotencyKey)
+  const requestHash = await hashToken(
+    JSON.stringify({
+      documentId: input.documentId,
+      metadata: input.metadata,
+      providers: targets.map(
+        ({ executionId: _, position: __, ...target }) => target
+      ),
+    })
+  )
+  const replay = await replayJob(userId, idempotencyKeyHash, requestHash, db)
+  if (replay) {
+    return replay
   }
-  let sourceOwnedByJob = false
+
+  const storedDocument = await db
+    .select()
+    .from(document)
+    .where(and(eq(document.id, input.documentId), eq(document.userId, userId)))
+    .get()
+  if (!storedDocument) {
+    throw new HttpError(404, "Document not found.", {
+      code: "document_not_found",
+    })
+  }
+  const now = new Date()
+  if (!documentIsAvailable(storedDocument, now)) {
+    throw new HttpError(410, "Document has expired.", {
+      code: "document_expired",
+    })
+  }
+
+  validateTargets(targets, env, jobId, requestId)
+  await requireHostedCreditForUser(env, userId)
+
+  const nowUnixSeconds = Math.floor(now.getTime() / 1000)
   try {
-    const [idempotencyKeyHash, storedSource] = await Promise.all([
-      hashToken(idempotencyKey),
-      storeUploadedSource(input, sourceKey, env.FILEROUTER_FILES),
-    ])
-    if (storedSource?.size === 0) {
-      throw new HttpError(400, "Document is empty.", {
-        code: "empty_document",
-      })
-    }
-    if (storedSource && storedSource.size > MAX_HOSTED_UPLOAD_BYTES) {
-      throw new HttpError(
-        413,
-        `Hosted uploads are limited to ${MAX_HOSTED_UPLOAD_LABEL}.`,
-        { code: "upload_too_large" }
-      )
-    }
-    const requestHash = await hashToken(
-      JSON.stringify({
-        contentType:
-          input.source.kind === "upload" ? input.source.contentType : undefined,
-        fileName: input.source.fileName,
-        includeRaw: input.includeRaw,
-        operation: input.operation,
-        outputs: input.outputs,
-        pages: input.pages,
-        providerOptions: input.providerOptions,
-        providers: input.providers,
-        sourceChecksum: storedSource?.checksum,
-        sourceKind: input.source.kind,
-        sourceUrl: input.source.kind === "url" ? input.source.url : undefined,
-      })
-    )
-    const replay = await replayDocumentJob(
-      userId,
-      idempotencyKeyHash,
-      requestHash,
-      db
-    )
-    if (replay) {
-      return replay
-    }
-
-    await requireHostedCreditForUser(env, userId)
-
-    try {
-      await db.insert(documentJob).values({
-        createdAt: new Date(),
-        fileName: input.source.fileName,
-        id,
-        idempotencyKeyHash,
-        operation: input.operation,
-        outputs: input.outputs,
-        providers: input.providers,
-        requestHash,
-        sourceKey,
-        sourceUrl: input.source.kind === "url" ? input.source.url : null,
-        status: "queued",
-        updatedAt: new Date(),
-        userId,
-      })
-    } catch (error) {
-      const racedJob = await replayDocumentJob(
-        userId,
-        idempotencyKeyHash,
-        requestHash,
+    await db.batch([
+      db.insert(documentJob).select(
         db
-      )
-      if (racedJob) {
-        return racedJob
-      }
-      throw error
-    }
-
-    const params: DocumentWorkflowParams = {
-      fileName: input.source.fileName,
-      includeRaw: input.includeRaw,
-      jobId: id,
-      operation: input.operation,
-      outputs: input.outputs,
-      ...(input.pages && { pages: input.pages }),
-      providers: input.providers,
-      requestId,
-      source: workflowSource,
-      userId,
-      ...(input.providerOptions && { providerOptions: input.providerOptions }),
-    }
-    try {
-      await startDocumentWorkflow(env.DOCUMENT_WORKFLOW, id, params)
-    } catch (error) {
-      await db.delete(documentJob).where(eq(documentJob.id, id))
-      throw error
-    }
-
-    sourceOwnedByJob = true
-    return { job: { id, status: "queued" }, replayed: false }
-  } finally {
-    if (!sourceOwnedByJob) {
-      await env.FILEROUTER_FILES.delete(sourceKey).catch((error: unknown) => {
-        emitWideEvent(env, "error", {
-          event: "document_source_cleanup_failed",
-          job_id: id,
-          request_id: requestId,
-          service: "filerouter-api",
-          ...serializeError(error),
+          .select({
+            id: sql<string>`${jobId}`.as("id"),
+            userId: sql<string>`${userId}`.as("user_id"),
+            documentId: document.id,
+            status: sql<"queued">`${"queued"}`.as("status"),
+            idempotencyKeyHash: sql<string>`${idempotencyKeyHash}`.as(
+              "idempotency_key_hash"
+            ),
+            requestHash: sql<string>`${requestHash}`.as("request_hash"),
+            metadata: sql<Record<string, string> | null>`${
+              input.metadata ? JSON.stringify(input.metadata) : null
+            }`.as("metadata"),
+            meteringStatus: sql<"pending">`${"pending"}`.as("metering_status"),
+            error: sql<string | null>`null`.as("error"),
+            createdAt: sql<Date>`${nowUnixSeconds}`.as("created_at"),
+            updatedAt: sql<Date>`${nowUnixSeconds}`.as("updated_at"),
+          })
+          .from(document)
+          .where(
+            and(
+              eq(document.id, input.documentId),
+              eq(document.userId, userId),
+              eq(document.status, "ready"),
+              isNotNull(document.objectKey),
+              gt(document.expiresAt, now)
+            )
+          )
+      ),
+      ...targets.map((target) =>
+        db.insert(documentExecution).values({
+          createdAt: now,
+          id: target.executionId,
+          includeRaw: target.includeRaw,
+          jobId,
+          options: target.options,
+          outputs: target.outputs,
+          pages: target.pages,
+          position: target.position,
+          provider: target.provider,
+          status: "queued",
+          updatedAt: now,
         })
+      ),
+    ])
+  } catch (error) {
+    const raced = await replayJob(userId, idempotencyKeyHash, requestHash, db)
+    if (raced) {
+      return raced
+    }
+    const availableDocument = await db
+      .select({
+        expiresAt: document.expiresAt,
+        objectKey: document.objectKey,
+        status: document.status,
+      })
+      .from(document)
+      .where(
+        and(eq(document.id, input.documentId), eq(document.userId, userId))
+      )
+      .get()
+    if (!documentIsAvailable(availableDocument, now)) {
+      throw new HttpError(410, "Document has expired.", {
+        code: "document_expired",
       })
     }
+    throw error
+  }
+
+  const params: DocumentWorkflowParams = {
+    document: {
+      fileName: storedDocument.fileName,
+      id: storedDocument.id,
+    },
+    jobId,
+    requestId,
+    targets: targets.map(({ position: _, ...target }) => target),
+    userId,
+  }
+  try {
+    await startDocumentWorkflow(env.DOCUMENT_WORKFLOW, jobId, params)
+  } catch (error) {
+    await db.delete(documentJob).where(eq(documentJob.id, jobId))
+    throw error
+  }
+
+  return { job: { id: jobId, status: "queued" }, replayed: false }
+}
+
+function documentIsAvailable(
+  stored:
+    | {
+        expiresAt: Date
+        objectKey: string | null
+        status: HostedDocumentStatus
+      }
+    | undefined,
+  now: Date
+): boolean {
+  return !!(
+    stored &&
+    stored.status === "ready" &&
+    stored.objectKey &&
+    stored.expiresAt > now
+  )
+}
+
+export async function getDocumentJob(
+  id: string,
+  userId: string,
+  env: Cloudflare.Env
+): Promise<HostedJob> {
+  const db = createDb(env.DB)
+  const job = await db
+    .select()
+    .from(documentJob)
+    .where(and(eq(documentJob.id, id), eq(documentJob.userId, userId)))
+    .get()
+  if (!job) {
+    throw new HttpError(404, "Document job not found.", {
+      code: "job_not_found",
+    })
+  }
+  const executions = await db
+    .select()
+    .from(documentExecution)
+    .where(eq(documentExecution.jobId, id))
+    .orderBy(documentExecution.position)
+    .all()
+  return {
+    createdAt: job.createdAt.toISOString(),
+    documentId: job.documentId,
+    ...(job.error && { error: job.error }),
+    executions: executions.map(serializeExecution),
+    id: job.id,
+    ...(job.metadata && { metadata: job.metadata }),
+    status: job.status,
+    updatedAt: job.updatedAt.toISOString(),
+  }
+}
+
+export async function getExecutionResult(
+  executionId: string,
+  userId: string,
+  env: Cloudflare.Env
+): Promise<Response> {
+  const row = await createDb(env.DB)
+    .select({ execution: documentExecution, job: documentJob })
+    .from(documentExecution)
+    .innerJoin(documentJob, eq(documentExecution.jobId, documentJob.id))
+    .where(
+      and(eq(documentExecution.id, executionId), eq(documentJob.userId, userId))
+    )
+    .get()
+  if (!row) {
+    throw new HttpError(404, "Execution not found.", {
+      code: "execution_not_found",
+    })
+  }
+  if (
+    row.execution.status === "complete" &&
+    row.execution.resultExpiresAt &&
+    row.execution.resultExpiresAt <= new Date()
+  ) {
+    throw new HttpError(410, "Execution result has expired.", {
+      code: "result_expired",
+    })
+  }
+  if (row.execution.status !== "complete" || !row.execution.resultKey) {
+    throw new HttpError(404, "Execution result is not available.", {
+      code: "result_not_available",
+    })
+  }
+  const object = await env.FILEROUTER_FILES.get(row.execution.resultKey)
+  if (!object) {
+    throw new HttpError(410, "Execution result has expired.", {
+      code: "result_expired",
+    })
+  }
+  return new Response(object.body, {
+    headers: {
+      "Cache-Control": "private, no-store",
+      "Content-Type": "application/json",
+    },
+  })
+}
+
+function normalizeTargets(
+  input: HostedJobCreateInput,
+  defaultOutputs: Array<ParseOutput>
+): Array<NormalizedTarget> {
+  return input.providers.map((target, position) => ({
+    executionId: crypto.randomUUID(),
+    includeRaw: target.includeRaw ?? false,
+    ...(target.options && { options: target.options }),
+    outputs: [...new Set(target.outputs ?? defaultOutputs)],
+    ...(target.pages && { pages: [...new Set(target.pages)] }),
+    position,
+    provider: target.provider,
+  }))
+}
+
+function validateTargets(
+  targets: Array<NormalizedTarget>,
+  env: Cloudflare.Env,
+  jobId: string,
+  requestId: string
+): void {
+  const configured = createHostedProviders(env, { jobId, requestId })
+  for (const target of targets) {
+    const provider = configured[target.provider]
+    try {
+      assertProviderOutputs(provider, target.outputs)
+    } catch (error) {
+      throw new HttpError(
+        400,
+        error instanceof Error ? error.message : "Unsupported provider output.",
+        { code: "unsupported_provider_output" }
+      )
+    }
+    if (target.options) {
+      validateHostedProviderOptions(target.provider, target.options)
+    }
+  }
+}
+
+function serializeExecution(
+  execution: typeof documentExecution.$inferSelect
+): HostedExecution {
+  const resultAvailable =
+    execution.status === "complete" &&
+    !!execution.resultKey &&
+    (!execution.resultExpiresAt || execution.resultExpiresAt > new Date())
+  return {
+    ...(execution.completedAt && {
+      completedAt: execution.completedAt.toISOString(),
+    }),
+    createdAt: execution.createdAt.toISOString(),
+    ...(execution.durationMs !== null && {
+      durationMs: execution.durationMs,
+    }),
+    ...(execution.errorMessage && {
+      error: {
+        ...(execution.errorCode && { code: execution.errorCode }),
+        message: execution.errorMessage,
+      },
+    }),
+    id: execution.id,
+    jobId: execution.jobId,
+    outputs: execution.outputs,
+    ...(execution.pageCount !== null && { pageCount: execution.pageCount }),
+    provider: execution.provider,
+    resultAvailable,
+    ...(execution.resultExpiresAt && {
+      resultExpiresAt: execution.resultExpiresAt.toISOString(),
+    }),
+    status: execution.status,
+    ...(execution.usage && { usage: execution.usage }),
   }
 }
 
@@ -156,16 +352,11 @@ async function startDocumentWorkflow(
   params: DocumentWorkflowParams
 ): Promise<void> {
   try {
-    await workflow.createBatch([
-      {
-        id,
-        params,
-        retention: {
-          errorRetention: "7 days",
-          successRetention: "1 day",
-        },
-      },
-    ])
+    await workflow.create({
+      id,
+      params,
+      retention: { errorRetention: "7 days", successRetention: "1 day" },
+    })
   } catch (error) {
     try {
       await workflow.get(id)
@@ -175,182 +366,13 @@ async function startDocumentWorkflow(
   }
 }
 
-async function storeUploadedSource(
-  input: Awaited<ReturnType<typeof readDocumentJobInput>>,
-  sourceKey: string,
-  bucket: R2Bucket
-): Promise<{ checksum: string; size: number } | undefined> {
-  if (input.source.kind !== "upload") {
-    return undefined
-  }
-
-  const object = await bucket.put(sourceKey, input.source.body, {
-    httpMetadata: { contentType: input.source.contentType },
-    customMetadata: { fileName: input.source.fileName },
-  })
-  return {
-    checksum: object.checksums.md5
-      ? bytesToHex(object.checksums.md5)
-      : object.etag,
-    size: object.size,
-  }
-}
-
-function bytesToHex(value: ArrayBuffer): string {
-  return Array.from(new Uint8Array(value), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("")
-}
-
-export async function getDocumentJobResponse(
-  id: string,
-  userId: string,
-  env: Cloudflare.Env,
-  requestId: string
-) {
-  const job = await createDb(env.DB)
-    .select()
-    .from(documentJob)
-    .where(and(eq(documentJob.id, id), eq(documentJob.userId, userId)))
-    .get()
-
-  if (!job) {
-    throw new HttpError(404, "Document job not found.")
-  }
-  if (job.status === "failed") {
-    return {
-      id,
-      status: "failed" as const,
-      error: job.error ?? "Document job failed.",
-    }
-  }
-  if (job.status !== "complete") {
-    return { id, status: job.status }
-  }
-  if (job.resultExpiresAt && job.resultExpiresAt <= new Date()) {
-    if (job.resultKey) {
-      try {
-        await env.FILEROUTER_FILES.delete(job.resultKey)
-        await createDb(env.DB)
-          .update(documentJob)
-          .set({ resultKey: null })
-          .where(eq(documentJob.id, job.id))
-      } catch (error) {
-        emitWideEvent(env, "error", {
-          event: "document_result_cleanup_failed",
-          job_id: job.id,
-          request_id: requestId,
-          service: "filerouter-api",
-          ...serializeError(error),
-        })
-      }
-    }
-    throw new HttpError(410, "Document job result has expired.", {
-      code: "result_expired",
-    })
-  }
-  if (!job.resultKey) {
-    throw new HttpError(500, "Document job result is unavailable.")
-  }
-
-  const result = await env.FILEROUTER_FILES.get(job.resultKey)
-  if (!result) {
-    throw new HttpError(500, "Document job result is unavailable.")
-  }
-  return streamCompletedJob(id, result)
-}
-
-export async function failDocumentJob(
-  database: D1Database,
-  options: { clearSource: boolean; error: string; jobId: string }
-): Promise<void> {
-  await createDb(database)
-    .update(documentJob)
-    .set({
-      error: options.error,
-      ...(options.clearSource && { sourceKey: null }),
-      status: "failed",
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(documentJob.id, options.jobId),
-        inArray(documentJob.status, ["queued", "running"])
-      )
-    )
-}
-
-function streamCompletedJob(id: string, result: R2ObjectBody): Response {
-  const encoder = new TextEncoder()
-  const prefix = encoder.encode(`{"id":${JSON.stringify(id)},"result":`)
-  const suffix = encoder.encode(',"status":"complete"}')
-  const reader = result.body.getReader()
-  let phase: "body" | "done" | "prefix" = "prefix"
-  let readerReleased = false
-  const releaseReader = () => {
-    if (!readerReleased) {
-      readerReleased = true
-      reader.releaseLock()
-    }
-  }
-
-  return new Response(
-    new ReadableStream<Uint8Array>({
-      async cancel(reason) {
-        phase = "done"
-        try {
-          await reader.cancel(reason)
-        } finally {
-          releaseReader()
-        }
-      },
-      async pull(controller) {
-        if (phase === "prefix") {
-          phase = "body"
-          controller.enqueue(prefix)
-          return
-        }
-        if (readerReleased) {
-          return
-        }
-
-        let chunk: ReadableStreamReadResult<Uint8Array>
-        try {
-          chunk = await reader.read()
-        } catch (error) {
-          phase = "done"
-          releaseReader()
-          throw error
-        }
-        if (phase === "done") {
-          return
-        }
-        if (chunk.done) {
-          phase = "done"
-          controller.enqueue(suffix)
-          controller.close()
-          releaseReader()
-          return
-        }
-        controller.enqueue(chunk.value)
-      },
-    }),
-    {
-      headers: {
-        "Cache-Control": "private, no-store",
-        "Content-Type": "application/json",
-      },
-    }
-  )
-}
-
-async function replayDocumentJob(
+async function replayJob(
   userId: string,
   idempotencyKeyHash: string,
   requestHash: string,
   db: ReturnType<typeof createDb>
-): Promise<CreateDocumentJobResult | undefined> {
-  const job = await db
+): Promise<CreateJobResult | undefined> {
+  const existing = await db
     .select({
       id: documentJob.id,
       requestHash: documentJob.requestHash,
@@ -364,18 +386,18 @@ async function replayDocumentJob(
       )
     )
     .get()
-  if (!job) {
+  if (!existing) {
     return undefined
   }
-  if (job.requestHash !== requestHash) {
+  if (existing.requestHash !== requestHash) {
     throw new HttpError(
       409,
-      "Idempotency key was already used for a different request.",
+      "Idempotency key was already used for a different job.",
       { code: "idempotency_conflict" }
     )
   }
   return {
-    job: { id: job.id, status: job.status },
+    job: { id: existing.id, status: existing.status },
     replayed: true,
   }
 }

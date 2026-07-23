@@ -7,10 +7,11 @@ import { buildPublicMeta, getAbsoluteUrl } from "@/lib/seo"
 const privacyDocument = {
   description:
     "This policy explains how ThinkEx Inc. collects, uses, shares, and retains information when you use FileRouter.",
+  lastUpdated: "July 22, 2026",
   sections: [
     {
       title: "Who we are",
-      body: 'ThinkEx Inc. ("ThinkEx," "we," "us," and "our") operates FileRouter and is responsible for personal information processed through the FileRouter website and hosted service. You can contact us at hello@thinkex.app.',
+      body: 'ThinkEx Inc. ("ThinkEx," "we," "us," and "our") operates FileRouter. We are responsible for personal information used to run the website, accounts, and hosted service. When a customer submits document content for hosted processing, we process that content on the customer\'s instructions to provide the service. You can contact us at hello@thinkex.app.',
     },
     {
       title: "Information we collect",
@@ -41,14 +42,15 @@ const privacyDocument = {
     },
     {
       title: "Service providers and recipients",
-      body: "We use Cloudflare for application hosting, networking, logs, databases, durable workflows, and object storage; PostHog for product analytics, error tracking, and session replay; Autumn for usage metering and billing records; Google for optional sign-in; Cal.com for meeting scheduling; and supported document-processing services such as LlamaParse, Mistral AI, and Datalab when selected for a hosted job. We may add or replace providers as FileRouter evolves. Providers process information under their own terms and privacy notices, and their retention may differ from FileRouter's.",
+      body: "We use Cloudflare for application hosting, networking, logs, databases, durable workflows, and object storage; PostHog for product analytics, error tracking, and session replay; Autumn for usage metering and billing records; Google for optional sign-in; and Cal.com for meeting scheduling. A hosted job may use FileRouter's native LiteParse or PDF Inspector engine, or send content to the external provider you select, including LlamaParse, Mistral AI, or Datalab. We may add or replace providers as FileRouter evolves. External providers process information under their own terms and privacy notices, and their retention may differ from FileRouter's.",
     },
     {
       title: "Retention",
       items: [
-        "Uploaded source documents used for hosted jobs are scheduled for deletion after processing completes or fails. Cleanup may be retried if an immediate deletion attempt does not succeed.",
+        "Hosted source documents are scheduled for deletion seven days after upload. An active job may delay source cleanup until it finishes.",
         "Completed hosted results are scheduled to expire seven days after completion.",
         "Hosted document-job records are scheduled for deletion 30 days after creation.",
+        "You can delete a stored document and its FileRouter job data sooner through the hosted API. FileRouter also maintains a 14-day object-storage lifecycle as a backstop if application cleanup is delayed.",
         "Account, authentication, API-key, security, and support records are kept while needed to provide and secure the service, comply with law, resolve disputes, and enforce agreements.",
         "Third-party providers apply their own retention practices to information sent to them.",
       ],
@@ -65,6 +67,7 @@ const privacyDocument = {
       title: "Your choices and rights",
       items: [
         "You can revoke API keys from the dashboard and can stop using hosted processing by using direct or BYOK mode where supported.",
+        "You can delete a hosted document and its retained FileRouter results and job records through the API.",
         "You can control cookies and browser storage through your browser, although blocking required cookies may prevent sign-in or dashboard access.",
         "Depending on where you live, you may have rights to access, correct, delete, restrict, object to, or receive a copy of personal information. Contact us to make a request.",
         "We may need to verify your identity before completing a request and may retain information where law permits or requires.",

@@ -4,7 +4,7 @@
 
 ## What FileRouter is today
 
-FileRouter is provider-neutral infrastructure for document parsing. An application chooses a provider, submits a file or URL, and receives a normalized result. The built-in providers are LlamaParse, Mistral OCR, and Datalab.
+FileRouter is provider-neutral infrastructure for document parsing. An application chooses a provider, submits a file or URL, and receives a normalized result. Hosted processing currently supports LlamaParse, Mistral OCR, Datalab, LiteParse, and PDF Inspector. Direct or BYOK adapters currently support LlamaParse, Mistral OCR, and Datalab.
 
 The two core operations are:
 
@@ -46,7 +46,7 @@ Hosted mode follows this route:
 
 `document -> FileRouter -> selected provider`
 
-FileRouter receives the document, manages the durable job, and uses hosted provider credentials. Uploaded source documents are scheduled for deletion when processing finishes or fails. Completed results expire after seven days, and hosted job records are scheduled for deletion after 30 days.
+FileRouter receives the document, manages the durable job, and uses hosted provider credentials. Source documents and completed results expire after seven days, and hosted job records are scheduled for deletion after 30 days. Call the document deletion endpoint to remove a source, its results, and job records sooner. Storage during these retention windows does not consume credits.
 
 Direct or BYOK mode follows this route:
 
@@ -73,7 +73,7 @@ The goal is for an application to integrate FileRouter once, start with the best
 
 ### Is FileRouter a document parser?
 
-FileRouter is a routing and execution layer over document parsers. LlamaParse, Mistral OCR, Datalab, and future providers perform the provider-specific parsing. FileRouter standardizes how an application submits work, waits for completion, compares providers, and consumes results.
+FileRouter is a routing and execution layer over document parsers. It runs native engines such as LiteParse and PDF Inspector and integrates external engines such as LlamaParse, Mistral OCR, and Datalab. FileRouter standardizes how an application submits work, waits for completion, compares providers, and consumes results.
 
 ### Does FileRouter automatically choose the cheapest or fastest provider?
 

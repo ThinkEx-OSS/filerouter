@@ -51,13 +51,13 @@ npm install @file_router/sdk
 Parse a document with the hosted API:
 
 ```ts
-import { FileRouterClient } from "@file_router/sdk"
+import { FileRouter } from "@file_router/sdk"
 
-const client = new FileRouterClient({
+const router = new FileRouter({
   apiKey: process.env.FILEROUTER_API_KEY,
 })
 
-const result = await client.parse("https://example.com/report.pdf", {
+const result = await router.parse("https://example.com/report.pdf", {
   provider: "llamaparse",
   outputs: ["markdown"],
 })
@@ -80,7 +80,7 @@ npx @file_router/cli@latest parse report.pdf
 | Authentication        | A FileRouter API key                   | Your provider API keys                 |
 | Document sent through | FileRouter, then the selected provider | The selected provider only             |
 | Billing               | FileRouter credits                     | Provider billing                       |
-| TypeScript            | `FileRouterClient`                     | `FileRouter`                           |
+| TypeScript            | `FileRouter`                           | `DirectFileRouter`                     |
 | CLI                   | Default after `filerouter login`       | Add `--local`                          |
 
 Credits pay for hosted processing. Each account receives 5,000 free credits each month, purchased credits never expire, and direct requests do not use FileRouter credits.
@@ -88,10 +88,10 @@ Credits pay for hosted processing. Each account receives 5,000 free credits each
 Direct TypeScript example:
 
 ```ts
-import { FileRouter } from "@file_router/sdk"
+import { DirectFileRouter } from "@file_router/sdk"
 import { llamaparse } from "@file_router/sdk/llamaparse"
 
-const router = new FileRouter({
+const router = new DirectFileRouter({
   providers: { llamaparse: llamaparse() },
 })
 

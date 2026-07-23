@@ -32,3 +32,12 @@ export class HttpError extends Error {
     this.status = status
   }
 }
+
+export function readContentLength(headers: Headers): number | undefined {
+  const value = headers.get("content-length")
+  if (!value) {
+    return undefined
+  }
+  const length = Number(value)
+  return Number.isSafeInteger(length) && length >= 0 ? length : undefined
+}

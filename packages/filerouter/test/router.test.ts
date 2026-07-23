@@ -1,15 +1,15 @@
 import { describe, expect, test } from "vite-plus/test"
 
 import {
-  FileRouter,
+  DirectFileRouter,
   FileRouterError,
   serializeProviderError,
 } from "../src/index"
 import { fakeProvider } from "../src/testing"
 
-describe("FileRouter", () => {
+describe("DirectFileRouter", () => {
   test("parses with the configured provider", async () => {
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         fake: fakeProvider(),
       },
@@ -25,7 +25,7 @@ describe("FileRouter", () => {
   })
 
   test("selects a provider by id", async () => {
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       defaultProvider: "one",
       providers: {
         one: fakeProvider({ id: "one" }),
@@ -41,7 +41,7 @@ describe("FileRouter", () => {
   })
 
   test("throws when a provider is missing", async () => {
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         fake: fakeProvider(),
       },
@@ -57,7 +57,7 @@ describe("FileRouter", () => {
   })
 
   test("throws when a provider does not support a requested output", async () => {
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         fake: {
           ...fakeProvider(),
@@ -77,14 +77,14 @@ describe("FileRouter", () => {
   })
 
   test("rejects zero-based page indices", async () => {
-    const router = new FileRouter({ providers: { fake: fakeProvider() } })
+    const router = new DirectFileRouter({ providers: { fake: fakeProvider() } })
 
     await expect(router.parse("sample.pdf", { pages: [0] })).rejects.toThrow(
       "Pages must be positive, one-based integers."
     )
   })
 
-  test("serializes FileRouter errors from another package copy", () => {
+  test("serializes DirectFileRouter errors from another package copy", () => {
     const error = Object.assign(new Error("rate limited"), {
       code: "RateLimit",
       [Symbol.for("file_router.error.FileRouterError")]: true,

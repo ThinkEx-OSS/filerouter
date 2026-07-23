@@ -2,32 +2,40 @@ import {
   MAX_HOSTED_UPLOAD_BYTES,
   MAX_HOSTED_UPLOAD_LABEL,
 } from "@/lib/document-limits"
+import { readContentLength } from "@/lib/http.server"
 import { readPublicHttpUrl } from "@/lib/public-url"
+import { putStream } from "@/lib/r2-json.server"
 
 const MAX_REDIRECTS = 5
 
-type WorkflowSource = {
-  key: string
-  url?: string
+export interface StoredPublicDocument {
+  contentType: string
+  etag: string
+  size: number
 }
 
-export async function materializeDocumentSource(
-  bucket: R2Bucket,
-  source: WorkflowSource,
-  fileName: string
-): Promise<void> {
-  const existing = await bucket.head(source.key)
-  if (existing) {
-    assertSourceSize(existing.size)
-    return
+export class DocumentSourceError extends Error {
+  constructor(
+    readonly code: "empty" | "too_large",
+    message: string
+  ) {
+    super(message)
+    this.name = "DocumentSourceError"
   }
-  if (!source.url) {
-    throw new Error("Uploaded document is unavailable.")
-  }
+}
 
-  const response = await fetchPublicDocument(source.url)
+export async function storePublicDocument(
+  bucket: R2Bucket,
+  key: string,
+  sourceUrl: string,
+  fileName: string
+): Promise<StoredPublicDocument> {
+  const response = await fetchPublicDocument(sourceUrl)
   if (!response.body) {
-    throw new Error("Document URL returned an empty response.")
+    throw new DocumentSourceError(
+      "empty",
+      "Document URL returned an empty response."
+    )
   }
   const contentLength = readContentLength(response.headers)
   if (contentLength !== undefined) {
@@ -37,15 +45,28 @@ export async function materializeDocumentSource(
   const contentType =
     response.headers.get("content-type")?.split(";", 1)[0]?.trim() ||
     "application/octet-stream"
-  const object = await bucket.put(
-    source.key,
-    limitStream(response.body, MAX_HOSTED_UPLOAD_BYTES),
-    {
-      httpMetadata: { contentType },
-      customMetadata: { fileName },
-    }
-  )
-  assertSourceSize(object.size)
+  const metadata = {
+    httpMetadata: { contentType },
+    customMetadata: { fileName },
+  }
+  const object =
+    contentLength === undefined
+      ? await putStream(bucket, key, response.body, {
+          ...metadata,
+          maxBytes: MAX_HOSTED_UPLOAD_BYTES,
+        })
+      : await bucket.put(key, response.body, metadata)
+  try {
+    assertSourceSize(object.size)
+  } catch (error) {
+    await bucket.delete(key)
+    throw error
+  }
+  return {
+    contentType: object.httpMetadata?.contentType ?? "application/octet-stream",
+    etag: object.etag,
+    size: object.size,
+  }
 }
 
 async function fetchPublicDocument(value: string): Promise<Response> {
@@ -73,44 +94,13 @@ async function fetchPublicDocument(value: string): Promise<Response> {
   throw new Error("Document URL redirected too many times.")
 }
 
-function readContentLength(headers: Headers): number | undefined {
-  const value = headers.get("content-length")
-  if (!value) {
-    return undefined
-  }
-  const length = Number(value)
-  return Number.isSafeInteger(length) && length >= 0 ? length : undefined
-}
-
-function limitStream(
-  source: ReadableStream<Uint8Array>,
-  maxBytes: number
-): ReadableStream<Uint8Array> {
-  let size = 0
-  return source.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        size += chunk.byteLength
-        if (size > maxBytes) {
-          controller.error(
-            new Error(
-              `Hosted documents are limited to ${MAX_HOSTED_UPLOAD_LABEL}.`
-            )
-          )
-          return
-        }
-        controller.enqueue(chunk)
-      },
-    })
-  )
-}
-
 function assertSourceSize(size: number): void {
   if (size === 0) {
-    throw new Error("Document is empty.")
+    throw new DocumentSourceError("empty", "Document is empty.")
   }
   if (size > MAX_HOSTED_UPLOAD_BYTES) {
-    throw new Error(
+    throw new DocumentSourceError(
+      "too_large",
       `Hosted documents are limited to ${MAX_HOSTED_UPLOAD_LABEL}.`
     )
   }

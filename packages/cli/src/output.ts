@@ -1,5 +1,7 @@
 import { parseOutputIds } from "@file_router/sdk"
 import type { CompareResult, ParseOutput, ParseResult } from "@file_router/sdk"
+import { providerIds } from "@file_router/sdk/catalog"
+import type { ProviderId } from "@file_router/sdk/catalog"
 
 export function formatParseResult(
   result: ParseResult,
@@ -60,7 +62,8 @@ export function parseOutputs(value: string): Array<ParseOutput> {
   return [...new Set(outputs)]
 }
 
-export function parseProviders(value: string): Array<string> {
+export function parseProviders(value: string): Array<ProviderId> {
+  const allowed = new Set<string>(providerIds)
   const providers = value
     .split(",")
     .map((provider) => provider.trim())
@@ -69,7 +72,11 @@ export function parseProviders(value: string): Array<string> {
   if (providers.length === 0) {
     throw new Error("At least one provider is required.")
   }
-  return [...new Set(providers)]
+  const unsupported = providers.filter((provider) => !allowed.has(provider))
+  if (unsupported.length > 0) {
+    throw new Error(`Unsupported provider: ${unsupported.join(", ")}.`)
+  }
+  return [...new Set(providers)] as Array<ProviderId>
 }
 
 function prettyJson(value: unknown): string {

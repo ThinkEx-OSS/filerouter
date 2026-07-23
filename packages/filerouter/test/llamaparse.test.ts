@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vite-plus/test"
 
-import { FileRouter } from "../src/index"
+import { DirectFileRouter } from "../src/index"
 import { llamaparse } from "../src/llamaparse"
 
 describe("llamaparse", () => {
@@ -83,7 +83,7 @@ describe("llamaparse", () => {
       },
       text: { pages: [{ page_number: 1, text: "Page 1" }] },
     })
-    const router = new FileRouter({
+    const router = new DirectFileRouter({
       providers: {
         llamaparse: llamaparse({
           client: { parsing: { create, get } },

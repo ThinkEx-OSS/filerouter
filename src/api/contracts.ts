@@ -1,13 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi"
 import { parseOutputIds } from "@file_router/sdk"
 import {
-  HOSTED_JOB_HEADERS,
+  HOSTED_DOCUMENTS_PATH,
+  HOSTED_EXECUTIONS_PATH,
   HOSTED_JOBS_PATH,
+  HOSTED_PROVIDERS_PATH,
+  hostedDocumentStatuses,
+  hostedExecutionStatuses,
   hostedJobStatuses,
+  MAX_HOSTED_METADATA_ENTRIES,
 } from "@file_router/sdk/hosted"
 import { providerIds } from "@file_router/sdk/catalog"
 
 export const ProviderIdSchema = z.enum(providerIds)
+export type ProviderId = z.infer<typeof ProviderIdSchema>
 
 export const ParseOutputSchema = z.enum(parseOutputIds)
 
@@ -18,77 +24,127 @@ const HttpUrlSchema = z
     { message: "Document URL must use http or https." }
   )
 
-const UrlSourceSchema = z
-  .object({ url: HttpUrlSchema })
+export const CreateDocumentRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255).optional(),
+    url: HttpUrlSchema,
+  })
   .strict()
-  .openapi("DocumentUrlSource")
+  .openapi("CreateDocumentRequest")
 
-const BaseJobSchema = z.object({
-  includeRaw: z.boolean().optional(),
-  outputs: z.array(ParseOutputSchema).min(1),
-  pages: z.array(z.number().int().positive()).optional(),
-  providerOptions: z
-    .record(z.string(), z.record(z.string(), z.unknown()))
-    .optional(),
-  source: UrlSourceSchema,
-})
-
-export const DocumentJobRequestSchema = z
-  .discriminatedUnion("operation", [
-    BaseJobSchema.extend({
-      operation: z.literal("parse"),
-      provider: ProviderIdSchema.optional(),
-    }).strict(),
-    BaseJobSchema.extend({
-      operation: z.literal("compare"),
-      providers: z.array(ProviderIdSchema).min(1).optional(),
-    }).strict(),
-  ])
-  .openapi("CreateDocumentJobRequest")
-
-const IdempotencyKeySchema = z.string().trim().min(8).max(255).openapi({
-  description: "A unique key for safely retrying this job creation request.",
+export const IdempotencyKeySchema = z.string().trim().min(8).max(255).openapi({
+  description: "A unique key for safely retrying this request.",
   example: "01J2Y9QX3MXJQHD2YQ9N7J93M4",
 })
 
-const CreateJobHeadersSchema = z.object({
+const IdempotencyHeadersSchema = z.object({
   "idempotency-key": IdempotencyKeySchema,
-  [HOSTED_JOB_HEADERS.contentType]: z.string().optional(),
-  [HOSTED_JOB_HEADERS.fileName]: z.string().optional(),
-  [HOSTED_JOB_HEADERS.includeRaw]: z.enum(["true", "false"]).optional(),
-  [HOSTED_JOB_HEADERS.operation]: z.enum(["parse", "compare"]).optional(),
-  [HOSTED_JOB_HEADERS.outputs]: z.string().optional(),
-  [HOSTED_JOB_HEADERS.pages]: z.string().optional(),
-  [HOSTED_JOB_HEADERS.provider]: ProviderIdSchema.optional(),
-  [HOSTED_JOB_HEADERS.providerOptions]: z.string().optional(),
-  [HOSTED_JOB_HEADERS.providers]: z.string().optional(),
+  "x-filerouter-content-type": z.string().optional(),
+  "x-filerouter-filename": z.string().optional(),
 })
 
-export const JobIdSchema = z.string().uuid().openapi({
-  example: "550e8400-e29b-41d4-a716-446655440000",
+const ResourceIdSchema = z.string().uuid()
+export const DocumentIdSchema = ResourceIdSchema.openapi("DocumentId")
+export const ExecutionIdSchema = ResourceIdSchema.openapi("ExecutionId")
+export const JobIdSchema = ResourceIdSchema.openapi("JobId")
+
+const DocumentSchema = z
+  .object({
+    contentType: z.string(),
+    createdAt: z.iso.datetime(),
+    etag: z.string(),
+    expiresAt: z.iso.datetime(),
+    id: DocumentIdSchema,
+    name: z.string(),
+    size: z.number().int().nonnegative(),
+    status: z.enum(hostedDocumentStatuses),
+  })
+  .openapi("Document")
+
+const ProviderTargetSchema = z
+  .object({
+    includeRaw: z.boolean().optional(),
+    options: z.record(z.string(), z.unknown()).optional(),
+    outputs: z.array(ParseOutputSchema).min(1).optional(),
+    pages: z.array(z.number().int().positive()).min(1).optional(),
+    provider: ProviderIdSchema,
+  })
+  .strict()
+  .openapi("ProviderTarget")
+
+export const CreateJobRequestSchema = z
+  .object({
+    documentId: DocumentIdSchema,
+    metadata: z
+      .record(z.string().max(64), z.string().max(500))
+      .refine(
+        (value) => Object.keys(value).length <= MAX_HOSTED_METADATA_ENTRIES,
+        {
+          message: `Metadata is limited to ${MAX_HOSTED_METADATA_ENTRIES} entries.`,
+        }
+      )
+      .optional(),
+    outputs: z.array(ParseOutputSchema).min(1),
+    providers: z.array(ProviderTargetSchema).min(1).max(providerIds.length),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const providers = value.providers.map((target) => target.provider)
+    if (new Set(providers).size !== providers.length) {
+      context.addIssue({
+        code: "custom",
+        message: "Each provider may appear only once per job.",
+        path: ["providers"],
+      })
+    }
+  })
+  .openapi("CreateJobRequest")
+
+const ExecutionErrorSchema = z.object({
+  code: z.string().optional(),
+  message: z.string(),
 })
 
-const JobStatusSchema = z.enum(hostedJobStatuses)
+const ExecutionSchema = z
+  .object({
+    completedAt: z.iso.datetime().optional(),
+    createdAt: z.iso.datetime(),
+    durationMs: z.number().int().nonnegative().optional(),
+    error: ExecutionErrorSchema.optional(),
+    id: ExecutionIdSchema,
+    jobId: JobIdSchema,
+    outputs: z.array(ParseOutputSchema),
+    pageCount: z.number().int().nonnegative().optional(),
+    provider: ProviderIdSchema,
+    resultAvailable: z.boolean(),
+    resultExpiresAt: z.iso.datetime().optional(),
+    status: z.enum(hostedExecutionStatuses),
+    usage: z
+      .object({
+        costUsd: z.number().nonnegative().optional(),
+        credits: z.number().nonnegative().optional(),
+        pages: z.number().int().nonnegative().optional(),
+      })
+      .optional(),
+  })
+  .openapi("Execution")
+
+const JobSchema = z
+  .object({
+    createdAt: z.iso.datetime(),
+    documentId: DocumentIdSchema,
+    error: z.string().optional(),
+    executions: z.array(ExecutionSchema),
+    id: JobIdSchema,
+    metadata: z.record(z.string(), z.string()).optional(),
+    status: z.enum(hostedJobStatuses),
+    updatedAt: z.iso.datetime(),
+  })
+  .openapi("Job")
 
 const JobAcceptedSchema = z
-  .object({ id: JobIdSchema, status: JobStatusSchema })
-  .openapi("DocumentJobAccepted")
-
-const JobResponseSchema = z
-  .union([
-    z.object({ id: JobIdSchema, status: z.enum(["queued", "running"]) }),
-    z.object({
-      error: z.string(),
-      id: JobIdSchema,
-      status: z.literal("failed"),
-    }),
-    z.object({
-      id: JobIdSchema,
-      result: z.record(z.string(), z.unknown()),
-      status: z.literal("complete"),
-    }),
-  ])
-  .openapi("DocumentJob")
+  .object({ id: JobIdSchema, status: z.enum(hostedJobStatuses) })
+  .openapi("JobAccepted")
 
 const ProblemSchema = z
   .object({
@@ -107,22 +163,93 @@ const problem = {
   description: "Problem details",
 }
 
+export const createDocumentRoute = createRoute({
+  description:
+    "Stores an immutable document from a binary body or a publicly reachable URL.",
+  method: "post",
+  path: HOSTED_DOCUMENTS_PATH,
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: CreateDocumentRequestSchema },
+        "application/octet-stream": {
+          schema: z.any().openapi({ format: "binary", type: "string" }),
+        },
+      },
+      required: true,
+    },
+    headers: IdempotencyHeadersSchema,
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: DocumentSchema } },
+      description: "Existing document replayed for this idempotency key",
+    },
+    201: {
+      content: { "application/json": { schema: DocumentSchema } },
+      description: "Document stored",
+    },
+    400: problem,
+    401: problem,
+    409: problem,
+    413: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "Create a document",
+  tags: ["Documents"],
+})
+
+export const getDocumentRoute = createRoute({
+  method: "get",
+  path: `${HOSTED_DOCUMENTS_PATH}/{documentId}`,
+  request: { params: z.object({ documentId: DocumentIdSchema }) },
+  responses: {
+    200: {
+      content: { "application/json": { schema: DocumentSchema } },
+      description: "Document metadata",
+    },
+    400: problem,
+    401: problem,
+    404: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "Get a document",
+  tags: ["Documents"],
+})
+
+export const deleteDocumentRoute = createRoute({
+  description:
+    "Permanently deletes a document, its execution records, and retained source and result objects.",
+  method: "delete",
+  path: `${HOSTED_DOCUMENTS_PATH}/{documentId}`,
+  request: { params: z.object({ documentId: DocumentIdSchema }) },
+  responses: {
+    204: { description: "Document deleted" },
+    400: problem,
+    401: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "Delete a document",
+  tags: ["Documents"],
+})
+
 export const createJobRoute = createRoute({
   description:
-    "Creates a hosted parse or comparison job. Send JSON for public URLs or a binary body with X-FileRouter-* headers for uploads.",
+    "Runs one or more provider executions against a stored document.",
   method: "post",
   path: HOSTED_JOBS_PATH,
   request: {
     body: {
-      content: {
-        "application/json": { schema: DocumentJobRequestSchema },
-        "application/octet-stream": {
-          schema: z.string().openapi({ format: "binary" }),
-        },
-      },
-      required: false,
+      content: { "application/json": { schema: CreateJobRequestSchema } },
+      required: true,
     },
-    headers: CreateJobHeadersSchema,
+    headers: IdempotencyHeadersSchema.pick({ "idempotency-key": true }),
   },
   responses: {
     200: {
@@ -136,13 +263,15 @@ export const createJobRoute = createRoute({
     400: problem,
     401: problem,
     402: problem,
+    404: problem,
     409: problem,
+    410: problem,
     413: problem,
     429: problem,
     500: problem,
   },
   security: [{ BearerAuth: [] }],
-  summary: "Create a document job",
+  summary: "Create a job",
   tags: ["Jobs"],
 })
 
@@ -152,8 +281,30 @@ export const getJobRoute = createRoute({
   request: { params: z.object({ jobId: JobIdSchema }) },
   responses: {
     200: {
-      content: { "application/json": { schema: JobResponseSchema } },
-      description: "Current job state or completed result",
+      content: { "application/json": { schema: JobSchema } },
+      description: "Job state and provider executions",
+    },
+    400: problem,
+    401: problem,
+    404: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "Get a job",
+  tags: ["Jobs"],
+})
+
+export const getExecutionResultRoute = createRoute({
+  method: "get",
+  path: `${HOSTED_EXECUTIONS_PATH}/{executionId}/result`,
+  request: { params: z.object({ executionId: ExecutionIdSchema }) },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.record(z.string(), z.unknown()) },
+      },
+      description: "Normalized provider result",
     },
     400: problem,
     401: problem,
@@ -163,8 +314,37 @@ export const getJobRoute = createRoute({
     500: problem,
   },
   security: [{ BearerAuth: [] }],
-  summary: "Get a document job",
-  tags: ["Jobs"],
+  summary: "Get an execution result",
+  tags: ["Executions"],
 })
 
-export type ProviderId = z.infer<typeof ProviderIdSchema>
+const ProviderSchema = z.object({
+  capabilities: z.object({
+    execution: z.enum(["async", "sync"]),
+    features: z.array(z.string()).optional(),
+    outputs: z.array(ParseOutputSchema),
+  }),
+  id: ProviderIdSchema,
+  name: z.string(),
+})
+
+export const listProvidersRoute = createRoute({
+  method: "get",
+  path: HOSTED_PROVIDERS_PATH,
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ data: z.array(ProviderSchema) }),
+        },
+      },
+      description: "Hosted provider catalog",
+    },
+    401: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "List hosted providers",
+  tags: ["Providers"],
+})

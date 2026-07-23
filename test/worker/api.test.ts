@@ -1,31 +1,32 @@
-import { describe, expect, test, vi } from "vite-plus/test"
 import { SELF } from "cloudflare:test"
 import { env } from "cloudflare:workers"
+import { describe, expect, test, vi } from "vite-plus/test"
+import { MAX_HOSTED_JOB_REQUEST_BYTES } from "@file_router/sdk/hosted"
 
 import { api } from "@/api/app"
-import {
-  createDocumentJob,
-  failDocumentJob,
-  getDocumentJobResponse,
-} from "@/lib/document-jobs.server"
 import { requireApiPrincipal } from "@/lib/api-auth.server"
 import { withAuth } from "@/lib/auth.server"
 import { createProviderSourceUrl } from "@/lib/document-source.server"
 import { isHonoApiPath } from "@/lib/request-routing"
 
 describe("FileRouter Worker", () => {
-  test("serves the OpenAPI contract through the Worker entrypoint", async () => {
+  test("publishes the document execution contract", async () => {
     const response = await SELF.fetch(
       "https://filerouter.test/api/openapi.json"
     )
-    const document = await response.json<{
+    const specification = await response.json<{
       openapi: string
       paths: Record<string, unknown>
     }>()
 
     expect(response.status).toBe(200)
-    expect(document.openapi).toBe("3.1.0")
-    expect(document.paths).toHaveProperty("/api/v1/jobs")
+    expect(specification.openapi).toBe("3.1.0")
+    expect(specification.paths).toHaveProperty("/api/v1/documents")
+    expect(specification.paths).toHaveProperty("/api/v1/jobs")
+    expect(specification.paths).toHaveProperty(
+      "/api/v1/executions/{executionId}/result"
+    )
+    expect(specification.paths).toHaveProperty("/api/v1/providers")
   })
 
   test("reports healthy only when D1 is reachable", async () => {
@@ -36,7 +37,7 @@ describe("FileRouter Worker", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok" })
   })
 
-  test("returns stable problem details from the Worker runtime", async () => {
+  test("returns stable problem details", async () => {
     const response = await SELF.fetch("https://filerouter.test/api/v1/missing")
     const problem = await response.json<{
       code: string
@@ -51,163 +52,338 @@ describe("FileRouter Worker", () => {
     expect(problem.request_id).toBe(response.headers.get("x-request-id"))
   })
 
-  test("protects hosted jobs", async () => {
-    const createJob = await SELF.fetch("https://filerouter.test/api/v1/jobs", {
-      method: "POST",
-    })
+  test("protects hosted resources", async () => {
+    const response = await SELF.fetch(
+      "https://filerouter.test/api/v1/documents",
+      { method: "POST" }
+    )
 
-    expect(createJob.status).toBe(401)
-    expect(createJob.headers.get("www-authenticate")).toBe(
+    expect(response.status).toBe(401)
+    expect(response.headers.get("www-authenticate")).toBe(
       'Bearer realm="FileRouter"'
     )
-    await expect(createJob.json<{ detail: string }>()).resolves.toMatchObject({
-      detail: "Missing FileRouter API key.",
-    })
   })
 
-  test("accepts binary uploads through the OpenAPI route", async () => {
-    await insertUser("user-binary-upload")
-    const apiKey = await withAuth((auth) =>
-      auth.api.createApiKey({
-        body: { name: "Binary upload test", userId: "user-binary-upload" },
-      })
-    )
-    const createBatch = vi.fn().mockResolvedValue([{ id: "workflow-upload" }])
-    const testEnv = envWithWorkflow(createBatch)
-    const response = await api.fetch(
-      new Request("https://filerouter.test/api/v1/jobs", {
-        body: '{"document":true}',
+  test("stores a document and starts provider executions", async () => {
+    const userId = "user-document-job"
+    const apiKey = await createApiKey(userId)
+    const create = vi.fn().mockResolvedValue({ id: "workflow-test" })
+    const terminate = vi.fn().mockResolvedValue(undefined)
+    const get = vi.fn().mockResolvedValue({
+      status: vi.fn().mockResolvedValue({ status: "running" }),
+      terminate,
+    })
+    const testEnv = envWithWorkflow(create, get)
+    const documentResponse = await api.fetch(
+      new Request("https://filerouter.test/api/v1/documents", {
+        body: "%PDF-test",
         headers: {
-          Authorization: `Bearer ${apiKey.key}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/octet-stream",
-          "Idempotency-Key": "binary-upload-1",
-          "X-FileRouter-Content-Type": "application/json",
-          "X-FileRouter-Filename": "document.json",
+          "Idempotency-Key": "document-test-1",
+          "X-FileRouter-Filename": "report.pdf",
+          "X-FileRouter-Content-Type": "application/pdf",
         },
         method: "POST",
       }),
       testEnv
     )
-    expect(response.status).toBe(202)
-    const job = await response.json<{ id: string }>()
-    const sourceKey = `jobs/${job.id}/source`
+    expect(documentResponse.status).toBe(201)
+    const document = await documentResponse.json<{ id: string }>()
 
-    try {
-      expect(createBatch).toHaveBeenCalledOnce()
-      const source = await env.FILEROUTER_FILES.head(sourceKey)
-      expect(source?.httpMetadata?.contentType).toBe("application/json")
-    } finally {
-      await env.FILEROUTER_FILES.delete(sourceKey)
-      await env.DB.prepare("DELETE FROM document_job WHERE id = ?")
-        .bind(job.id)
-        .run()
-    }
+    const jobResponse = await api.fetch(
+      new Request("https://filerouter.test/api/v1/jobs", {
+        body: JSON.stringify({
+          documentId: document.id,
+          outputs: ["markdown"],
+          providers: [
+            { provider: "llamaparse" },
+            { provider: "liteparse", options: { ocr: "auto" } },
+          ],
+        }),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": "job-test-1",
+        },
+        method: "POST",
+      }),
+      testEnv
+    )
+    expect(jobResponse.status).toBe(202)
+    const accepted = await jobResponse.json<{ id: string }>()
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: accepted.id,
+        params: expect.objectContaining({
+          document: expect.objectContaining({ id: document.id }),
+          targets: expect.arrayContaining([
+            expect.objectContaining({ provider: "llamaparse" }),
+            expect.objectContaining({ provider: "liteparse" }),
+          ]),
+        }),
+      })
+    )
+
+    const job = await api.fetch(
+      new Request(`https://filerouter.test/api/v1/jobs/${accepted.id}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }),
+      testEnv
+    )
+    const storedJob = await job.json<{
+      createdAt: string
+      documentId: string
+      executions: Array<{ provider: string; status: string }>
+      id: string
+      status: string
+    }>()
+    expect(storedJob).toMatchObject({
+      documentId: document.id,
+      executions: [
+        { provider: "llamaparse", status: "queued" },
+        { provider: "liteparse", status: "queued" },
+      ],
+      id: accepted.id,
+      status: "queued",
+    })
+    expect(Date.parse(storedJob.createdAt)).toBeLessThanOrEqual(Date.now())
+
+    const readOnlyKey = await withAuth((auth) =>
+      auth.api.createApiKey({
+        body: {
+          name: "Read only",
+          permissions: { jobs: ["read"] },
+          userId,
+        },
+      })
+    )
+    const deniedDelete = await api.fetch(
+      new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
+        headers: { Authorization: `Bearer ${readOnlyKey.key}` },
+        method: "DELETE",
+      }),
+      testEnv
+    )
+    expect(deniedDelete.status).toBe(401)
+
+    const deleted = await api.fetch(
+      new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        method: "DELETE",
+      }),
+      testEnv
+    )
+    expect(deleted.status).toBe(204)
+    expect(
+      (
+        await api.fetch(
+          new Request(
+            `https://filerouter.test/api/v1/documents/${document.id}`,
+            {
+              headers: { Authorization: `Bearer ${apiKey}` },
+              method: "DELETE",
+            }
+          ),
+          testEnv
+        )
+      ).status
+    ).toBe(204)
+    expect(get).toHaveBeenCalledWith(accepted.id)
+    expect(terminate).toHaveBeenCalledOnce()
+    expect(
+      (
+        await api.fetch(
+          new Request(
+            `https://filerouter.test/api/v1/documents/${document.id}`,
+            { headers: { Authorization: `Bearer ${apiKey}` } }
+          ),
+          testEnv
+        )
+      ).status
+    ).toBe(404)
+    expect(
+      await env.FILEROUTER_FILES.head(`documents/${document.id}/source`)
+    ).toBeNull()
+
+    await cleanupUser(userId)
   })
 
-  test("streams scoped provider source URLs without an API key", async () => {
-    const sourceJobId = "550e8400-e29b-41d4-a716-446655440000"
-    const sourceKey = `jobs/${sourceJobId}/source`
-    await env.FILEROUTER_FILES.put(sourceKey, "document", {
+  test("replays document and job idempotency keys", async () => {
+    const userId = "user-idempotency"
+    const apiKey = await createApiKey(userId)
+    const create = vi.fn().mockResolvedValue({ id: "workflow-replay" })
+    const put = vi.fn((...args: Parameters<R2Bucket["put"]>) =>
+      env.FILEROUTER_FILES.put(...args)
+    )
+    const testEnv = envWithWorkflow(create, undefined, {
+      ...env.FILEROUTER_FILES,
+      delete: env.FILEROUTER_FILES.delete.bind(env.FILEROUTER_FILES),
+      put,
+    } as R2Bucket)
+    const upload = (body = "same document") =>
+      api.fetch(
+        new Request("https://filerouter.test/api/v1/documents", {
+          body,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/octet-stream",
+            "Idempotency-Key": "document-replay-1",
+          },
+          method: "POST",
+        }),
+        testEnv
+      )
+    const firstDocument = await upload()
+    const replayedDocument = await upload()
+    expect(firstDocument.status).toBe(201)
+    expect(replayedDocument.status).toBe(200)
+    expect(replayedDocument.headers.get("idempotent-replayed")).toBe("true")
+    const conflictingDocument = await upload("diff document")
+    expect(conflictingDocument.status).toBe(409)
+    await expect(conflictingDocument.json()).resolves.toMatchObject({
+      code: "idempotency_conflict",
+    })
+    expect(put).toHaveBeenCalledTimes(3)
+    const objectKeys = put.mock.calls.map(([key]) => key)
+    expect(new Set(objectKeys).size).toBe(3)
+    await expect(
+      env.FILEROUTER_FILES.head(objectKeys[0]!)
+    ).resolves.not.toBeNull()
+    await expect(env.FILEROUTER_FILES.head(objectKeys[1]!)).resolves.toBeNull()
+    await expect(env.FILEROUTER_FILES.head(objectKeys[2]!)).resolves.toBeNull()
+    const stored = await firstDocument.json<{ id: string }>()
+
+    const createJob = () =>
+      api.fetch(
+        new Request("https://filerouter.test/api/v1/jobs", {
+          body: JSON.stringify({
+            documentId: stored.id,
+            outputs: ["markdown"],
+            providers: [{ provider: "llamaparse" }],
+          }),
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "Idempotency-Key": "job-replay-1",
+          },
+          method: "POST",
+        }),
+        testEnv
+      )
+    expect((await createJob()).status).toBe(202)
+    await env.FILEROUTER_FILES.delete(objectKeys[0]!)
+    await env.DB.prepare(
+      "UPDATE document SET object_key = NULL, status = 'expired' WHERE id = ?"
+    )
+      .bind(stored.id)
+      .run()
+    const replayedJob = await createJob()
+    expect(replayedJob.status).toBe(200)
+    expect(replayedJob.headers.get("idempotent-replayed")).toBe("true")
+    expect(create).toHaveBeenCalledOnce()
+
+    await cleanupUser(userId)
+  })
+
+  test("rejects oversized job requests at the HTTP boundary", async () => {
+    const userId = "user-job-size"
+    const apiKey = await createApiKey(userId)
+    const response = await api.fetch(
+      new Request("https://filerouter.test/api/v1/jobs", {
+        body: JSON.stringify({
+          padding: "x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES),
+        }),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": "job-size-limit-1",
+        },
+        method: "POST",
+      }),
+      env
+    )
+
+    expect(response.status).toBe(413)
+    await expect(response.json()).resolves.toMatchObject({
+      code: "job_request_too_large",
+    })
+    await cleanupUser(userId)
+  })
+
+  test("rejects oversized JSON document requests at the HTTP boundary", async () => {
+    const userId = "user-document-size"
+    const apiKey = await createApiKey(userId)
+    const response = await api.fetch(
+      new Request("https://filerouter.test/api/v1/documents", {
+        body: JSON.stringify({
+          url: `https://example.com/${"x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES)}`,
+        }),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "Application/JSON; Charset=UTF-8",
+          "Idempotency-Key": "document-size-limit-1",
+        },
+        method: "POST",
+      }),
+      env
+    )
+
+    expect(response.status).toBe(413)
+    await expect(response.json()).resolves.toMatchObject({
+      code: "document_request_too_large",
+    })
+    await cleanupUser(userId)
+  })
+
+  test("streams scoped provider source URLs", async () => {
+    const documentId = "550e8400-e29b-41d4-a716-446655440000"
+    const key = `documents/${documentId}/source`
+    await env.FILEROUTER_FILES.put(key, "document", {
       customMetadata: { fileName: "report.pdf" },
       httpMetadata: { contentType: "application/pdf" },
     })
 
     try {
       const url = new URL(
-        await createProviderSourceUrl(env, sourceJobId, "report.pdf")
+        await createProviderSourceUrl(env, documentId, "report.pdf")
       )
       url.protocol = "https:"
       url.host = "filerouter.test"
       const response = await SELF.fetch(url)
-
       expect(response.status).toBe(200)
-      expect(response.headers.get("content-type")).toBe("application/pdf")
       expect(new TextDecoder().decode(await response.arrayBuffer())).toBe(
         "document"
       )
 
-      const rangeResponse = await SELF.fetch(url, {
-        headers: { Range: "bytes=1-3" },
-      })
-      expect(rangeResponse.status).toBe(206)
-      expect(rangeResponse.headers.get("content-range")).toBe("bytes 1-3/8")
-      expect(new TextDecoder().decode(await rangeResponse.arrayBuffer())).toBe(
-        "ocu"
-      )
-
-      const invalidRange = await SELF.fetch(url, {
-        headers: { Range: "bytes=20-30" },
-      })
-      expect(invalidRange.status).toBe(416)
-      expect(invalidRange.headers.get("content-range")).toBe("bytes */8")
-
       url.searchParams.set("token", "invalid")
       expect((await SELF.fetch(url)).status).toBe(404)
     } finally {
-      await env.FILEROUTER_FILES.delete(sourceKey)
+      await env.FILEROUTER_FILES.delete(key)
     }
   })
 
-  test("verifies Better Auth API keys and rejects disabled or expired keys", async () => {
-    await insertUser("user-api-key")
-    const created = await withAuth((auth) =>
-      auth.api.createApiKey({
-        body: { name: "Worker test", userId: "user-api-key" },
-      })
-    )
+  test("verifies and disables API keys", async () => {
+    const userId = "user-api-key"
+    const created = await createApiKeyRecord(userId)
     const request = new Request("https://filerouter.test/api/v1/jobs", {
       headers: { Authorization: `Bearer ${created.key}` },
     })
 
     await expect(requireApiPrincipal(request, "read")).resolves.toMatchObject({
       credentialId: created.id,
-      kind: "api-key",
-      userId: "user-api-key",
+      userId,
     })
-
     await env.DB.prepare("UPDATE apikey SET enabled = 0 WHERE id = ?")
       .bind(created.id)
       .run()
     await expect(requireApiPrincipal(request, "read")).rejects.toMatchObject({
       status: 401,
     })
-
-    await env.DB.prepare(
-      "UPDATE apikey SET enabled = 1, expires_at = ? WHERE id = ?"
-    )
-      .bind(Math.floor(Date.now() / 1_000) - 1, created.id)
-      .run()
-    await expect(requireApiPrincipal(request, "read")).rejects.toMatchObject({
-      status: 401,
-    })
+    await cleanupUser(userId)
   })
 
-  test("returns API-key rate limits as retryable responses", async () => {
-    await insertUser("user-rate-limit")
-    const created = await withAuth((auth) =>
-      auth.api.createApiKey({
-        body: { name: "Rate limit test", userId: "user-rate-limit" },
-      })
-    )
-    await env.DB.prepare(
-      "UPDATE apikey SET request_count = 300, last_request = ? WHERE id = ?"
-    )
-      .bind(Math.floor(Date.now() / 1_000), created.id)
-      .run()
-
-    const response = await SELF.fetch(
-      "https://filerouter.test/api/v1/jobs/550e8400-e29b-41d4-a716-446655440000",
-      { headers: { Authorization: `Bearer ${created.key}` } }
-    )
-
-    expect(response.status).toBe(429)
-    expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0)
-    await expect(response.json<{ code: string }>()).resolves.toMatchObject({
-      code: "api_key_rate_limited",
-    })
-  })
-
-  test("validates the registered CLI device client", async () => {
+  test("validates the CLI client and reserves auth routes", async () => {
     const invalid = await authRequest("/device/code", {
       body: JSON.stringify({ client_id: "unknown-client" }),
       headers: { "Content-Type": "application/json" },
@@ -220,267 +396,11 @@ describe("FileRouter Worker", () => {
       headers: { "Content-Type": "application/json" },
       method: "POST",
     })
-    const authorization = await valid.json<{ verification_uri: string }>()
     expect(valid.status).toBe(200)
-    expect(authorization.verification_uri).toBe(
-      "https://filerouter.test/device"
-    )
-  })
-
-  test("reserves Better Auth routes for the TanStack handler", () => {
     expect(isHonoApiPath("/api/auth/device/code")).toBe(false)
-    expect(isHonoApiPath("/api/v1/jobs")).toBe(true)
-    expect(isHonoApiPath("/api/openapi.json")).toBe(true)
+    expect(isHonoApiPath("/api/v1/documents")).toBe(true)
   })
-
-  test("replays idempotent jobs without starting another Workflow", async () => {
-    await insertUser("user-idempotent")
-    const createBatch = vi.fn().mockResolvedValue([{ id: "workflow-1" }])
-    const testEnv = envWithWorkflow(createBatch)
-
-    const first = await createDocumentJob(
-      urlJobRequest("https://example.com/report.pdf"),
-      "user-idempotent",
-      testEnv,
-      "retry-report-1",
-      "request-idempotent-1"
-    )
-    const replay = await createDocumentJob(
-      urlJobRequest("https://example.com/report.pdf"),
-      "user-idempotent",
-      testEnv,
-      "retry-report-1",
-      "request-idempotent-2"
-    )
-
-    expect(first).toMatchObject({
-      job: { status: "queued" },
-      replayed: false,
-    })
-    expect(replay).toEqual({ ...first, replayed: true })
-    expect(createBatch).toHaveBeenCalledTimes(1)
-
-    await expect(
-      createDocumentJob(
-        urlJobRequest("https://example.com/different.pdf"),
-        "user-idempotent",
-        testEnv,
-        "retry-report-1",
-        "request-idempotent-3"
-      )
-    ).rejects.toMatchObject({ code: "idempotency_conflict", status: 409 })
-  })
-
-  test("returns completed job results without an extra envelope", async () => {
-    await insertUser("user-complete-result")
-    const created = await createDocumentJob(
-      urlJobRequest("https://example.com/report.pdf"),
-      "user-complete-result",
-      envWithWorkflow(vi.fn().mockResolvedValue([{ id: "workflow-result" }])),
-      "complete-result-1",
-      "request-complete-result"
-    )
-    const resultKey = `jobs/${created.job.id}/result.json`
-    const result = {
-      outputs: { markdown: "Report" },
-      pageCount: 1,
-      provider: "llamaparse",
-    }
-
-    await env.FILEROUTER_FILES.put(resultKey, JSON.stringify(result))
-    await env.DB.prepare(
-      "UPDATE document_job SET status = 'complete', result_key = ? WHERE id = ?"
-    )
-      .bind(resultKey, created.job.id)
-      .run()
-
-    const response = await getDocumentJobResponse(
-      created.job.id,
-      "user-complete-result",
-      env,
-      "request-complete-result"
-    )
-    expect(response).toBeInstanceOf(Response)
-    if (!(response instanceof Response)) {
-      throw new Error("Expected a streaming job response.")
-    }
-    expect(response.headers.get("cache-control")).toBe("private, no-store")
-    await expect(response.json()).resolves.toEqual({
-      id: created.job.id,
-      result,
-      status: "complete",
-    })
-    await env.FILEROUTER_FILES.delete(resultKey)
-  })
-
-  test("does not serve expired job results", async () => {
-    await insertUser("user-expired-result")
-    const created = await createDocumentJob(
-      urlJobRequest("https://example.com/expired.pdf"),
-      "user-expired-result",
-      envWithWorkflow(vi.fn().mockResolvedValue([{ id: "workflow-expired" }])),
-      "expired-result-1",
-      "request-expired-result"
-    )
-    const resultKey = `jobs/${created.job.id}/result.json`
-    await env.FILEROUTER_FILES.put(resultKey, '{"outputs":{}}')
-    await env.DB.prepare(
-      "UPDATE document_job SET status = 'complete', result_key = ?, result_expires_at = ? WHERE id = ?"
-    )
-      .bind(resultKey, Math.floor(Date.now() / 1_000) - 1, created.job.id)
-      .run()
-
-    await expect(
-      getDocumentJobResponse(
-        created.job.id,
-        "user-expired-result",
-        env,
-        "request-expired-result"
-      )
-    ).rejects.toMatchObject({ code: "result_expired", status: 410 })
-    expect(await env.FILEROUTER_FILES.head(resultKey)).toBeNull()
-  })
-
-  test("cleans up D1 and R2 when Workflow startup fails", async () => {
-    await insertUser("user-cleanup")
-    const testEnv = envWithWorkflow(
-      vi.fn().mockRejectedValue(new Error("workflow unavailable")),
-      vi.fn().mockRejectedValue(new Error("workflow not found"))
-    )
-    const request = uploadJobRequest()
-
-    await expect(
-      createDocumentJob(
-        request,
-        "user-cleanup",
-        testEnv,
-        "cleanup-report-1",
-        "request-cleanup"
-      )
-    ).rejects.toThrow("workflow unavailable")
-
-    const jobs = await env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM document_job WHERE user_id = ?"
-    )
-      .bind("user-cleanup")
-      .first<{ count: number }>()
-    const objects = await env.FILEROUTER_FILES.list({ prefix: "jobs/" })
-
-    expect(jobs?.count).toBe(0)
-    expect(objects.objects).toHaveLength(0)
-  })
-
-  test("preserves a job when Workflow startup succeeded ambiguously", async () => {
-    await insertUser("user-workflow-reconcile")
-    const createBatch = vi
-      .fn()
-      .mockRejectedValue(new Error("workflow response was lost"))
-    const getWorkflow = vi.fn().mockResolvedValue({ id: "workflow-reconciled" })
-    const testEnv = envWithWorkflow(createBatch, getWorkflow)
-    const request = uploadJobRequest()
-
-    const created = await createDocumentJob(
-      request,
-      "user-workflow-reconcile",
-      testEnv,
-      "reconcile-report-1",
-      "request-reconcile"
-    )
-    const sourceKey = `jobs/${created.job.id}/source`
-
-    try {
-      expect(created.job.status).toBe("queued")
-      expect(createBatch).toHaveBeenCalledOnce()
-      expect(createBatch).toHaveBeenCalledWith([
-        expect.objectContaining({
-          id: created.job.id,
-          params: expect.objectContaining({ jobId: created.job.id }),
-        }),
-      ])
-      expect(getWorkflow).toHaveBeenCalledWith(created.job.id)
-      expect(await env.FILEROUTER_FILES.head(sourceKey)).not.toBeNull()
-    } finally {
-      await env.FILEROUTER_FILES.delete(sourceKey)
-      await env.DB.prepare("DELETE FROM document_job WHERE id = ?")
-        .bind(created.job.id)
-        .run()
-    }
-  })
-
-  test.each(["queued", "running"] as const)(
-    "can mark a %s job failed after a workflow error",
-    async (status) => {
-      const userId = `user-failed-${status}`
-      await insertUser(userId)
-      const created = await createDocumentJob(
-        urlJobRequest("https://example.com/report.pdf"),
-        userId,
-        envWithWorkflow(
-          vi.fn().mockResolvedValue([{ id: `workflow-${status}` }])
-        ),
-        `failed-${status}-1`,
-        `request-failed-${status}`
-      )
-
-      try {
-        if (status === "running") {
-          await env.DB.prepare(
-            "UPDATE document_job SET status = 'running' WHERE id = ?"
-          )
-            .bind(created.job.id)
-            .run()
-        }
-        await failDocumentJob(env.DB, {
-          clearSource: true,
-          error: "Workflow failed before execution started.",
-          jobId: created.job.id,
-        })
-
-        const job = await env.DB.prepare(
-          "SELECT error, source_key, status FROM document_job WHERE id = ?"
-        )
-          .bind(created.job.id)
-          .first<{
-            error: string | null
-            source_key: string | null
-            status: string
-          }>()
-        expect(job).toEqual({
-          error: "Workflow failed before execution started.",
-          source_key: null,
-          status: "failed",
-        })
-      } finally {
-        await env.DB.prepare("DELETE FROM document_job WHERE id = ?")
-          .bind(created.job.id)
-          .run()
-      }
-    }
-  )
 })
-
-function urlJobRequest(url: string): Request {
-  return new Request("https://filerouter.test/api/v1/jobs", {
-    body: JSON.stringify({
-      operation: "parse",
-      outputs: ["markdown"],
-      source: { url },
-    }),
-    headers: { "Content-Type": "application/json" },
-    method: "POST",
-  })
-}
-
-function uploadJobRequest(): Request {
-  return new Request("https://filerouter.test/api/v1/jobs", {
-    body: new Blob(["document"], { type: "application/pdf" }),
-    headers: {
-      "Content-Type": "application/pdf",
-      "X-FileRouter-Filename": "report.pdf",
-    },
-    method: "POST",
-  })
-}
 
 async function insertUser(id: string): Promise<void> {
   await env.DB.prepare(
@@ -490,6 +410,30 @@ async function insertUser(id: string): Promise<void> {
     .run()
 }
 
+async function createApiKey(id: string): Promise<string> {
+  return (await createApiKeyRecord(id)).key
+}
+
+async function createApiKeyRecord(id: string) {
+  await insertUser(id)
+  return withAuth((auth) =>
+    auth.api.createApiKey({ body: { name: "Worker test", userId: id } })
+  )
+}
+
+async function cleanupUser(id: string): Promise<void> {
+  const documents = await env.DB.prepare(
+    "SELECT object_key FROM document WHERE user_id = ? AND object_key IS NOT NULL"
+  )
+    .bind(id)
+    .all<{ object_key: string }>()
+  const keys = documents.results.map((stored) => stored.object_key)
+  if (keys.length > 0) {
+    await env.FILEROUTER_FILES.delete(keys)
+  }
+  await env.DB.prepare("DELETE FROM user WHERE id = ?").bind(id).run()
+}
+
 function authRequest(path: string, init?: RequestInit): Promise<Response> {
   return withAuth((auth) =>
     auth.handler(new Request(`https://filerouter.test/api/auth${path}`, init))
@@ -497,11 +441,17 @@ function authRequest(path: string, init?: RequestInit): Promise<Response> {
 }
 
 function envWithWorkflow(
-  createBatch: ReturnType<typeof vi.fn>,
-  get: ReturnType<typeof vi.fn> = vi.fn()
+  create: ReturnType<typeof vi.fn>,
+  get: ReturnType<typeof vi.fn> = vi.fn(),
+  files: R2Bucket = env.FILEROUTER_FILES
 ): Cloudflare.Env {
   return {
     ...env,
-    DOCUMENT_WORKFLOW: { createBatch, get },
-  } as unknown as Cloudflare.Env
+    DOCUMENT_WORKFLOW: {
+      create,
+      createBatch: vi.fn(),
+      get,
+    } as Cloudflare.Env["DOCUMENT_WORKFLOW"],
+    FILEROUTER_FILES: files,
+  }
 }

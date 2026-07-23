@@ -30,7 +30,6 @@ interface AutumnUsageEnv {
 
 export interface TrackManagedExecutionInput {
   jobId: string
-  operation: "compare" | "parse"
   providers: Array<ProviderOutcome>
   userId: string
 }
@@ -79,7 +78,7 @@ export async function trackManagedExecution(
         },
         {
           headers: {
-            "Idempotency-Key": `document-job:${input.jobId}:${provider.provider}`,
+            "Idempotency-Key": `document-execution:${provider.executionId}`,
           },
         }
       )
@@ -97,7 +96,6 @@ function usageProperties(
   return {
     duration_ms: provider.durationMs,
     job_id: input.jobId,
-    operation: input.operation,
     pages: provider.usage?.pages ?? provider.pageCount,
     provider: provider.provider,
     rate_card_version: HOSTED_RATE_CARD_VERSION,

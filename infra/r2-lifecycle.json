@@ -1,15 +1,28 @@
 {
   "rules": [
     {
-      "id": "expire-job-objects",
+      "id": "expire-document-sources",
       "enabled": true,
       "conditions": {
-        "prefix": "jobs/"
+        "prefix": "documents/"
       },
       "deleteObjectsTransition": {
         "condition": {
           "type": "Age",
-          "maxAge": 691200
+          "maxAge": 1209600
+        }
+      }
+    },
+    {
+      "id": "expire-execution-results",
+      "enabled": true,
+      "conditions": {
+        "prefix": "executions/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 1209600
         }
       }
     },
