@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - .github/workflows/publish.yml
       - packages/cli/package.json
       - packages/filerouter/package.json
   workflow_dispatch:
@@ -97,11 +98,11 @@ jobs:
       - name: Publish SDK
         if: needs.build.outputs.sdk_exists != 'true'
         shell: bash
-        run: npm publish artifacts/file_router-sdk-*.tgz --access public
+        run: npm publish ./artifacts/file_router-sdk-*.tgz --access public
       - name: Publish CLI
         if: needs.build.outputs.cli_exists != 'true'
         shell: bash
-        run: npm publish artifacts/file_router-cli-*.tgz --access public
+        run: npm publish ./artifacts/file_router-cli-*.tgz --access public
 
   release:
     name: Create GitHub release
