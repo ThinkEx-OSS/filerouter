@@ -131,7 +131,14 @@ describe("FileRouter Worker", () => {
       }),
       testEnv
     )
-    await expect(job.json()).resolves.toMatchObject({
+    const storedJob = await job.json<{
+      createdAt: string
+      documentId: string
+      executions: Array<{ provider: string; status: string }>
+      id: string
+      status: string
+    }>()
+    expect(storedJob).toMatchObject({
       documentId: document.id,
       executions: [
         { provider: "llamaparse", status: "queued" },
@@ -140,6 +147,7 @@ describe("FileRouter Worker", () => {
       id: accepted.id,
       status: "queued",
     })
+    expect(Date.parse(storedJob.createdAt)).toBeLessThanOrEqual(Date.now())
 
     const readOnlyKey = await withAuth((auth) =>
       auth.api.createApiKey({

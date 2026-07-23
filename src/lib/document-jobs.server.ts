@@ -81,6 +81,7 @@ export async function createDocumentJob(
   validateTargets(targets, env, jobId, requestId)
   await requireHostedCreditForUser(env, userId)
 
+  const nowUnixSeconds = Math.floor(now.getTime() / 1000)
   try {
     await db.batch([
       db.insert(documentJob).select(
@@ -99,8 +100,8 @@ export async function createDocumentJob(
             }`.as("metadata"),
             meteringStatus: sql<"pending">`${"pending"}`.as("metering_status"),
             error: sql<string | null>`null`.as("error"),
-            createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
-            updatedAt: sql<Date>`${now.getTime()}`.as("updated_at"),
+            createdAt: sql<Date>`${nowUnixSeconds}`.as("created_at"),
+            updatedAt: sql<Date>`${nowUnixSeconds}`.as("updated_at"),
           })
           .from(document)
           .where(
