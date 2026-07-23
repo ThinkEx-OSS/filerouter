@@ -15,6 +15,7 @@ import {
   createDocumentRoute,
   createJobRoute,
   CreateDocumentRequestSchema,
+  deleteDocumentRoute,
   DocumentIdSchema,
   ExecutionIdSchema,
   getDocumentRoute,
@@ -38,6 +39,7 @@ import {
 } from "@/lib/document-jobs.server"
 import { getProviderSourceResponse } from "@/lib/document-source.server"
 import { createDocument, getDocument } from "@/lib/documents.server"
+import { deleteDocument } from "@/lib/document-deletion.server"
 import { HttpError } from "@/lib/http.server"
 import { hostedProviderCatalog } from "@/lib/hosted-providers.server"
 import {
@@ -286,6 +288,13 @@ api.openapi(getDocumentRoute, async (context) => {
     await getDocument(documentId, context.get("principal").userId, context.env),
     200
   )
+})
+
+api.openapi(deleteDocumentRoute, async (context) => {
+  const { documentId } = context.req.valid("param")
+  context.get("requestEvent").document_id = documentId
+  await deleteDocument(documentId, context.get("principal").userId, context.env)
+  return context.body(null, 204)
 })
 
 api.openapi(createJobRoute, async (context) => {

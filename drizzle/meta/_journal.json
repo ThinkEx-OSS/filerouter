@@ -15,6 +15,13 @@
       "when": 1784762904896,
       "tag": "0001_document_execution_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784769039599,
+      "tag": "0002_cascade_document_jobs",
+      "breakpoints": true
     }
   ]
 }

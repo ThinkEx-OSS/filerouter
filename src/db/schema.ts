@@ -206,7 +206,7 @@ export const documentJob = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     documentId: text("document_id")
       .notNull()
-      .references(() => document.id, { onDelete: "restrict" }),
+      .references(() => document.id, { onDelete: "cascade" }),
     status: text("status", {
       enum: hostedJobStatuses,
     })

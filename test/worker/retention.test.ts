@@ -4,6 +4,7 @@ import { describe, expect, test } from "vite-plus/test"
 
 import { document, documentExecution, documentJob, user } from "@/db/schema"
 import { createDb } from "@/db/server"
+import { getDocumentJob, getExecutionResult } from "@/lib/document-jobs.server"
 import { runDocumentRetentionCleanup } from "@/lib/document-retention.server"
 
 describe("document retention", () => {
@@ -119,6 +120,14 @@ describe("document retention", () => {
         .where(eq(documentExecution.id, "expired"))
         .get()
     ).resolves.toEqual({ key: null })
+    await expect(
+      getDocumentJob(expiredJobId, userId, env)
+    ).resolves.toMatchObject({
+      executions: [{ id: "expired", resultAvailable: false }],
+    })
+    await expect(
+      getExecutionResult("expired", userId, env)
+    ).rejects.toMatchObject({ code: "result_expired", status: 410 })
     await expect(
       db
         .select({ id: documentJob.id })

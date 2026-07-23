@@ -156,6 +156,20 @@ describe("FileRouter", () => {
     ).rejects.toMatchObject({ code: "InvalidInput" })
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  test("deletes a stored document", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await expect(
+      createClient(fetchMock).documents.delete("document-6")
+    ).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.com/api/v1/documents/document-6",
+      expect.objectContaining({ method: "DELETE" })
+    )
+  })
 })
 
 function createClient(fetchMock: typeof fetch): FileRouter {

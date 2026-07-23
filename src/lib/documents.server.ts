@@ -54,19 +54,22 @@ export async function createDocument(
   idempotencyKey: string
 ): Promise<CreateDocumentResult> {
   const prepared = prepareDocumentSource(input)
-  const [idempotencyKeyHash, requestHash] = await Promise.all([
-    hashToken(idempotencyKey),
-    hashToken(JSON.stringify(documentFingerprint(prepared))),
-  ])
+  const idempotencyKeyHash = await hashToken(idempotencyKey)
   const db = createDb(env.DB)
-  const replay = await replayDocument(
-    userId,
-    idempotencyKeyHash,
-    requestHash,
-    db
-  )
-  if (replay) {
-    return replay
+  let requestHash: string | undefined
+  if (prepared.kind === "url") {
+    requestHash = await hashToken(
+      JSON.stringify(urlDocumentFingerprint(prepared))
+    )
+    const replay = await replayDocument(
+      userId,
+      idempotencyKeyHash,
+      requestHash,
+      db
+    )
+    if (replay) {
+      return replay
+    }
   }
 
   const id = crypto.randomUUID()
@@ -79,6 +82,26 @@ export async function createDocument(
       objectKey,
       prepared
     )
+    const storedRequestHash =
+      prepared.kind === "upload"
+        ? await hashToken(
+            JSON.stringify(uploadDocumentFingerprint(prepared, source))
+          )
+        : requestHash
+    if (!storedRequestHash) {
+      throw new Error("Document request hash was not created.")
+    }
+    if (prepared.kind === "upload") {
+      const replay = await replayDocument(
+        userId,
+        idempotencyKeyHash,
+        storedRequestHash,
+        db
+      )
+      if (replay) {
+        return replay
+      }
+    }
 
     const createdAt = new Date()
     const expiresAt = documentExpiresAt(createdAt)
@@ -92,7 +115,7 @@ export async function createDocument(
         id,
         idempotencyKeyHash,
         objectKey,
-        requestHash,
+        requestHash: storedRequestHash,
         size: source.size,
         status: "ready",
         updatedAt: createdAt,
@@ -102,7 +125,7 @@ export async function createDocument(
       const raced = await replayDocument(
         userId,
         idempotencyKeyHash,
-        requestHash,
+        storedRequestHash,
         db
       )
       if (raced) {
@@ -319,15 +342,23 @@ function prepareDocumentSource(
   }
 }
 
-function documentFingerprint(source: PreparedDocumentSource) {
-  return source.kind === "url"
-    ? { fileName: source.fileName, kind: source.kind, url: source.url }
-    : {
-        contentLength: source.contentLength,
-        contentType: source.contentType,
-        fileName: source.fileName,
-        kind: source.kind,
-      }
+function urlDocumentFingerprint(
+  source: Extract<PreparedDocumentSource, { kind: "url" }>
+) {
+  return { fileName: source.fileName, kind: source.kind, url: source.url }
+}
+
+function uploadDocumentFingerprint(
+  source: Extract<PreparedDocumentSource, { kind: "upload" }>,
+  stored: StoredDocumentSource
+) {
+  return {
+    contentType: source.contentType,
+    etag: stored.etag,
+    fileName: source.fileName,
+    kind: source.kind,
+    size: stored.size,
+  }
 }
 
 function storeDocumentSource(

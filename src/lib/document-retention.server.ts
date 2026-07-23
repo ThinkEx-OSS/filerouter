@@ -3,6 +3,7 @@ import { and, eq, inArray, isNotNull, lte, notExists } from "drizzle-orm"
 import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
 import { jobsCreatedBefore } from "@/lib/document-retention"
+import { deleteR2Objects } from "@/lib/r2-objects.server"
 
 const CLEANUP_BATCH_SIZE = 100
 
@@ -30,7 +31,7 @@ export async function runDocumentRetentionCleanup(
       )
     )
     .limit(CLEANUP_BATCH_SIZE)
-  await deleteObjects(
+  await deleteR2Objects(
     env.FILEROUTER_FILES,
     expiredResults.map((execution) => execution.key)
   )
@@ -68,7 +69,7 @@ export async function runDocumentRetentionCleanup(
       )
     )
     .limit(CLEANUP_BATCH_SIZE)
-  await deleteObjects(
+  await deleteR2Objects(
     env.FILEROUTER_FILES,
     expiredDocuments.map((stored) => stored.key)
   )
@@ -99,7 +100,7 @@ export async function runDocumentRetentionCleanup(
         .where(inArray(documentExecution.jobId, ids))
         .all()
     ).map((execution) => execution.key)
-    await deleteObjects(env.FILEROUTER_FILES, oldJobResultKeys)
+    await deleteR2Objects(env.FILEROUTER_FILES, oldJobResultKeys)
     await db.delete(documentJob).where(inArray(documentJob.id, ids))
   }
 
@@ -133,15 +134,5 @@ export async function runDocumentRetentionCleanup(
     deletedJobs: oldJobs.length,
     deletedResults: expiredResults.length + oldJobResultKeys.length,
     expiredDocuments: expiredDocuments.length,
-  }
-}
-
-async function deleteObjects(
-  bucket: R2Bucket,
-  keys: Array<string | null>
-): Promise<void> {
-  const uniqueKeys = [...new Set(keys.filter((key): key is string => !!key))]
-  if (uniqueKeys.length > 0) {
-    await bucket.delete(uniqueKeys)
   }
 }

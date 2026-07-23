@@ -68,7 +68,12 @@ describe("FileRouter Worker", () => {
     const userId = "user-document-job"
     const apiKey = await createApiKey(userId)
     const create = vi.fn().mockResolvedValue({ id: "workflow-test" })
-    const testEnv = envWithWorkflow(create)
+    const terminate = vi.fn().mockResolvedValue(undefined)
+    const get = vi.fn().mockResolvedValue({
+      status: vi.fn().mockResolvedValue({ status: "running" }),
+      terminate,
+    })
+    const testEnv = envWithWorkflow(create, get)
     const documentResponse = await api.fetch(
       new Request("https://filerouter.test/api/v1/documents", {
         body: "%PDF-test",
@@ -136,6 +141,31 @@ describe("FileRouter Worker", () => {
       status: "queued",
     })
 
+    const deleted = await api.fetch(
+      new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        method: "DELETE",
+      }),
+      testEnv
+    )
+    expect(deleted.status).toBe(204)
+    expect(get).toHaveBeenCalledWith(accepted.id)
+    expect(terminate).toHaveBeenCalledOnce()
+    expect(
+      (
+        await api.fetch(
+          new Request(
+            `https://filerouter.test/api/v1/documents/${document.id}`,
+            { headers: { Authorization: `Bearer ${apiKey}` } }
+          ),
+          testEnv
+        )
+      ).status
+    ).toBe(404)
+    expect(
+      await env.FILEROUTER_FILES.head(`documents/${document.id}/source`)
+    ).toBeNull()
+
     await cleanupUser(userId)
   })
 
@@ -148,12 +178,13 @@ describe("FileRouter Worker", () => {
     )
     const testEnv = envWithWorkflow(create, undefined, {
       ...env.FILEROUTER_FILES,
+      delete: env.FILEROUTER_FILES.delete.bind(env.FILEROUTER_FILES),
       put,
     } as R2Bucket)
-    const upload = () =>
+    const upload = (body = "same document") =>
       api.fetch(
         new Request("https://filerouter.test/api/v1/documents", {
-          body: "same document",
+          body,
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/octet-stream",
@@ -168,7 +199,19 @@ describe("FileRouter Worker", () => {
     expect(firstDocument.status).toBe(201)
     expect(replayedDocument.status).toBe(200)
     expect(replayedDocument.headers.get("idempotent-replayed")).toBe("true")
-    expect(put).toHaveBeenCalledOnce()
+    const conflictingDocument = await upload("diff document")
+    expect(conflictingDocument.status).toBe(409)
+    await expect(conflictingDocument.json()).resolves.toMatchObject({
+      code: "idempotency_conflict",
+    })
+    expect(put).toHaveBeenCalledTimes(3)
+    const objectKeys = put.mock.calls.map(([key]) => key)
+    expect(new Set(objectKeys).size).toBe(3)
+    await expect(
+      env.FILEROUTER_FILES.head(objectKeys[0]!)
+    ).resolves.not.toBeNull()
+    await expect(env.FILEROUTER_FILES.head(objectKeys[1]!)).resolves.toBeNull()
+    await expect(env.FILEROUTER_FILES.head(objectKeys[2]!)).resolves.toBeNull()
     const stored = await firstDocument.json<{ id: string }>()
 
     const createJob = () =>
@@ -189,6 +232,12 @@ describe("FileRouter Worker", () => {
         testEnv
       )
     expect((await createJob()).status).toBe(202)
+    await env.FILEROUTER_FILES.delete(objectKeys[0]!)
+    await env.DB.prepare(
+      "UPDATE document SET object_key = NULL, status = 'expired' WHERE id = ?"
+    )
+      .bind(stored.id)
+      .run()
     const replayedJob = await createJob()
     expect(replayedJob.status).toBe(200)
     expect(replayedJob.headers.get("idempotent-replayed")).toBe("true")
@@ -249,7 +298,7 @@ describe("FileRouter Worker", () => {
     }
   })
 
-  test("verifies, disables, and expires API keys", async () => {
+  test("verifies and disables API keys", async () => {
     const userId = "user-api-key"
     const created = await createApiKeyRecord(userId)
     const request = new Request("https://filerouter.test/api/v1/jobs", {
@@ -333,7 +382,11 @@ function envWithWorkflow(
 ): Cloudflare.Env {
   return {
     ...env,
-    DOCUMENT_WORKFLOW: { create, get },
+    DOCUMENT_WORKFLOW: {
+      create,
+      createBatch: vi.fn(),
+      get,
+    } as Cloudflare.Env["DOCUMENT_WORKFLOW"],
     FILEROUTER_FILES: files,
-  } as unknown as Cloudflare.Env
+  }
 }

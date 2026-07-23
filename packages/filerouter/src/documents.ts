@@ -21,11 +21,14 @@ export interface HostedDocumentGetOptions {
   signal?: AbortSignal
 }
 
+export type HostedDocumentDeleteOptions = HostedDocumentGetOptions
+
 export interface FileRouterDocuments {
   create(
     input: ParseInput,
     options?: HostedDocumentCreateOptions
   ): Promise<HostedDocument>
+  delete(id: string, options?: HostedDocumentDeleteOptions): Promise<void>
   get(id: string, options?: HostedDocumentGetOptions): Promise<HostedDocument>
 }
 
@@ -80,6 +83,19 @@ export class HostedDocuments implements FileRouterDocuments {
     return this.#transport.request<HostedDocument>(
       `${HOSTED_DOCUMENTS_PATH}/${encodeURIComponent(id)}`,
       options.signal ? { signal: options.signal } : {}
+    )
+  }
+
+  async delete(
+    id: string,
+    options: HostedDocumentDeleteOptions = {}
+  ): Promise<void> {
+    await this.#transport.request(
+      `${HOSTED_DOCUMENTS_PATH}/${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+        ...(options.signal && { signal: options.signal }),
+      }
     )
   }
 }

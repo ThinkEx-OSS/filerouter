@@ -221,6 +221,25 @@ export const getDocumentRoute = createRoute({
   tags: ["Documents"],
 })
 
+export const deleteDocumentRoute = createRoute({
+  description:
+    "Permanently deletes a document, its execution records, and retained source and result objects.",
+  method: "delete",
+  path: `${HOSTED_DOCUMENTS_PATH}/{documentId}`,
+  request: { params: z.object({ documentId: DocumentIdSchema }) },
+  responses: {
+    204: { description: "Document deleted" },
+    400: problem,
+    401: problem,
+    404: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "Delete a document",
+  tags: ["Documents"],
+})
+
 export const createJobRoute = createRoute({
   description:
     "Runs one or more provider executions against a stored document.",

@@ -42,6 +42,24 @@ export async function createDocumentJob(
   requestId: string
 ): Promise<CreateJobResult> {
   const db = createDb(env.DB)
+  const jobId = crypto.randomUUID()
+  const outputs = [...new Set(input.outputs)]
+  const targets = normalizeTargets(input, outputs)
+  const idempotencyKeyHash = await hashToken(idempotencyKey)
+  const requestHash = await hashToken(
+    JSON.stringify({
+      documentId: input.documentId,
+      metadata: input.metadata,
+      providers: targets.map(
+        ({ executionId: _, position: __, ...target }) => target
+      ),
+    })
+  )
+  const replay = await replayJob(userId, idempotencyKeyHash, requestHash, db)
+  if (replay) {
+    return replay
+  }
+
   const storedDocument = await db
     .select()
     .from(document)
@@ -58,25 +76,7 @@ export async function createDocumentJob(
     })
   }
 
-  const jobId = crypto.randomUUID()
-  const outputs = [...new Set(input.outputs)]
-  const targets = normalizeTargets(input, outputs)
   validateTargets(targets, env, jobId, requestId)
-  const idempotencyKeyHash = await hashToken(idempotencyKey)
-  const requestHash = await hashToken(
-    JSON.stringify({
-      documentId: input.documentId,
-      metadata: input.metadata,
-      providers: targets.map(
-        ({ executionId: _, position: __, ...target }) => target
-      ),
-    })
-  )
-  const replay = await replayJob(userId, idempotencyKeyHash, requestHash, db)
-  if (replay) {
-    return replay
-  }
-
   await requireHostedCreditForUser(env, userId)
 
   const now = new Date()
@@ -189,17 +189,18 @@ export async function getExecutionResult(
       code: "execution_not_found",
     })
   }
-  if (row.execution.status !== "complete" || !row.execution.resultKey) {
-    throw new HttpError(404, "Execution result is not available.", {
-      code: "result_not_available",
-    })
-  }
   if (
+    row.execution.status === "complete" &&
     row.execution.resultExpiresAt &&
     row.execution.resultExpiresAt <= new Date()
   ) {
     throw new HttpError(410, "Execution result has expired.", {
       code: "result_expired",
+    })
+  }
+  if (row.execution.status !== "complete" || !row.execution.resultKey) {
+    throw new HttpError(404, "Execution result is not available.", {
+      code: "result_not_available",
     })
   }
   const object = await env.FILEROUTER_FILES.get(row.execution.resultKey)
@@ -258,6 +259,10 @@ function validateTargets(
 function serializeExecution(
   execution: typeof documentExecution.$inferSelect
 ): HostedExecution {
+  const resultAvailable =
+    execution.status === "complete" &&
+    !!execution.resultKey &&
+    (!execution.resultExpiresAt || execution.resultExpiresAt > new Date())
   return {
     ...(execution.completedAt && {
       completedAt: execution.completedAt.toISOString(),
@@ -277,7 +282,7 @@ function serializeExecution(
     outputs: execution.outputs,
     ...(execution.pageCount !== null && { pageCount: execution.pageCount }),
     provider: execution.provider,
-    resultAvailable: execution.status === "complete" && !!execution.resultKey,
+    resultAvailable,
     ...(execution.resultExpiresAt && {
       resultExpiresAt: execution.resultExpiresAt.toISOString(),
     }),

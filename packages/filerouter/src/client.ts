@@ -4,6 +4,7 @@ import { HostedDocuments } from "./documents"
 import type {
   FileRouterDocuments,
   HostedDocumentCreateOptions,
+  HostedDocumentDeleteOptions,
   HostedDocumentGetOptions,
 } from "./documents"
 import { FileRouterError } from "./errors"
@@ -273,6 +274,7 @@ export type {
   FileRouterJobs,
   FileRouterProviders,
   HostedDocumentCreateOptions,
+  HostedDocumentDeleteOptions,
   HostedDocumentGetOptions,
   HostedExecutionResultOptions,
   HostedJobCreateInput,

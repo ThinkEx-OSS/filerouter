@@ -14,6 +14,7 @@ export {
   type FileRouterProviders,
   type HostedCompareOptions,
   type HostedDocumentCreateOptions,
+  type HostedDocumentDeleteOptions,
   type HostedDocumentGetOptions,
   type HostedExecutionResultOptions,
   type HostedJobCreateInput,
