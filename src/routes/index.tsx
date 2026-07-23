@@ -6,6 +6,7 @@ import { LatestBlogSection } from "@/components/blog/latest-blog-section"
 import { CalBookingButton } from "@/components/cal-booking-button"
 import { ClipboardCopyButton } from "@/components/clipboard-copy-button"
 import { DitherButton } from "@/components/dither-kit/button"
+import { HeroDitherField } from "@/components/dither-kit/hero-field"
 import { PricingSection } from "@/components/pricing-section"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { RoutingCanvas } from "@/components/routing-canvas"
@@ -17,35 +18,35 @@ import { buildSocialImageMeta } from "@/lib/seo"
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "FileRouter: One API for document processing" },
+      { title: "FileRouter: Better document processing" },
       {
         name: "description",
         content:
-          "Inspect, parse, and compare documents across providers through one durable API. Switch providers without rebuilding your pipeline.",
+          "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "FileRouter" },
       { property: "og:locale", content: "en_US" },
       {
         property: "og:title",
-        content: "FileRouter: One API for document processing",
+        content: "FileRouter: Better document processing",
       },
       {
         property: "og:description",
         content:
-          "Inspect, parse, and compare documents across providers through one durable API.",
+          "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
       },
       { property: "og:url", content: "https://filerouter.dev/" },
       ...buildSocialImageMeta(),
       { name: "twitter:card", content: "summary_large_image" },
       {
         name: "twitter:title",
-        content: "FileRouter: One API for document processing",
+        content: "FileRouter: Better document processing",
       },
       {
         name: "twitter:description",
         content:
-          "Inspect, parse, and compare documents across providers through one durable API.",
+          "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
       },
     ],
     links: [{ rel: "canonical", href: "https://filerouter.dev/" }],
@@ -66,11 +67,6 @@ const providerLogos = [
     label: "Firecrawl",
     logo: "/providers/firecrawl.svg",
   },
-  {
-    darkLogo: "/providers/reducto-dark.svg",
-    label: "Reducto",
-    logo: "/providers/reducto.svg",
-  },
   availableProviders[1],
   availableProviders[2],
 ] as const
@@ -79,21 +75,21 @@ const cliLoginCommand = "npx @file_router/cli@latest login"
 
 function getProviderLogoHeightClass(label: string) {
   if (label === "Firecrawl") return "h-7"
-  if (label === "Reducto") return "h-[1.375rem]"
   return "h-6"
 }
 
 function App() {
   return (
     <PublicPageShell>
-      <section>
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 pb-16 text-center md:pt-28 md:pb-20">
+      <section className="relative overflow-hidden">
+        <HeroDitherField />
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 pb-16 text-center md:pt-28 md:pb-20">
           <h1 className="max-w-5xl text-4xl font-medium tracking-normal text-balance md:text-6xl lg:text-7xl">
-            One API for document parsing.
+            Better results for every document.
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground md:text-xl">
             Optimize accuracy, reliability, latency, and cost across document
-            providers with durable processing.
+            providers through one durable API.
           </p>
 
           <div className="mt-9 flex w-full max-w-[23rem] flex-col items-center gap-4">
@@ -147,14 +143,14 @@ function App() {
         </div>
       </section>
 
-      <section>
+      <section id="providers">
         <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
           <h2 className="max-w-3xl text-3xl font-medium md:text-4xl">
-            Route every document on your terms.
+            One document pipeline. Every provider.
           </h2>
           <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
-            Run through FileRouter, call providers directly, or compare routes
-            before you switch.
+            Run providers through FileRouter, use your own keys, or compare them
+            through the same interface.
           </p>
 
           <RoutingCanvas />
@@ -165,11 +161,10 @@ function App() {
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
             <h2 className="text-3xl font-medium md:text-4xl">
-              Change providers. Keep your pipeline.
+              One interface from input to result.
             </h2>
             <p className="mt-4 max-w-lg leading-7 text-muted-foreground">
-              Parse with one provider or compare several through the same typed
-              interface.
+              Pass a file, choose a provider, and receive the same typed result.
             </p>
           </div>
 
@@ -186,11 +181,11 @@ function App() {
       <section className="py-16 text-center sm:py-24">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-6">
           <h2 className="mx-auto max-w-3xl text-4xl font-medium tracking-tight text-balance sm:text-6xl">
-            Better results for every document.
+            Production document processing, handled.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Optimize every document for accuracy, reliability, latency, and cost
-            with durable processing.
+            Run the providers you need while FileRouter handles durable jobs,
+            retries, results, and cleanup.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <DitherButton asChild className="h-12 px-6 text-base font-normal">
@@ -236,7 +231,7 @@ const homeStructuredData = {
       name: "FileRouter",
       url: "https://filerouter.dev/",
       description:
-        "Inspect, parse, and compare documents across providers through one durable API.",
+        "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
       publisher: { "@id": "https://filerouter.dev/#organization" },
     },
     {

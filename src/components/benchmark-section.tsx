@@ -54,7 +54,7 @@ export function BenchmarkSection() {
             </h2>
           </div>
           <p className="max-w-2xl leading-7 text-muted-foreground lg:justify-self-end">
-            See where each parser performs best.
+            See where each provider performs best.
           </p>
         </div>
 
