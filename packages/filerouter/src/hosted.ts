@@ -2,6 +2,7 @@ import type { ParseOutput, ParseResult, ProviderCapabilities } from "./types"
 import type { ProviderId } from "./catalog"
 
 export const FILEROUTER_API_KEY_PREFIX = "fr_"
+export const FILEROUTER_VERSION = "0.2.0"
 export const FILEROUTER_CLI_CLIENT_ID = "filerouter-cli"
 export const FILEROUTER_CLI_SCOPE = "jobs:create jobs:read"
 export const FILEROUTER_DEFAULT_API_URL = "https://filerouter.dev"

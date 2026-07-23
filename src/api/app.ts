@@ -4,6 +4,7 @@ import { createMiddleware } from "hono/factory"
 import { requestId } from "hono/request-id"
 import {
   FILEROUTER_DEFAULT_API_URL,
+  FILEROUTER_VERSION,
   HOSTED_DOCUMENTS_PATH,
   HOSTED_EXECUTIONS_PATH,
   HOSTED_JOBS_PATH,
@@ -439,7 +440,7 @@ api.doc31("/api/openapi.json", {
     description:
       "Store documents, run provider executions, and retrieve normalized results.",
     title: "FileRouter API",
-    version: "0.1.0",
+    version: FILEROUTER_VERSION,
   },
   openapi: "3.1.0",
   servers: [{ url: FILEROUTER_DEFAULT_API_URL }],

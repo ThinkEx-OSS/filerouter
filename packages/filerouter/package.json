@@ -1,6 +1,6 @@
 {
   "name": "@file_router/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provider-neutral document parsing SDK.",
   "keywords": [
     "documents",
@@ -20,7 +20,8 @@
     "directory": "packages/filerouter"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "type": "module",
   "sideEffects": false,

@@ -1,6 +1,6 @@
 {
   "name": "@file_router/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Parse and compare documents across providers from the command line.",
   "keywords": [
     "documents",
@@ -23,7 +23,8 @@
     "filerouter": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "type": "module",
   "publishConfig": {

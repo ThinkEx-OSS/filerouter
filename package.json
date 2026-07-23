@@ -17,6 +17,7 @@
     "db:migrate": "wrangler d1 migrations apply DB --remote",
     "db:check": "drizzle-kit check",
     "r2:lifecycle": "wrangler r2 bucket lifecycle set filerouter-files --file infra/r2-lifecycle.json --force",
+    "release:verify": "pnpm build:packages && node scripts/verify-release-packages.mjs",
     "test": "vp test run --passWithNoTests && pnpm test:worker && pnpm --filter @file_router/sdk test && pnpm --filter @file_router/cli test && pnpm --filter @file_router/native-parsers test",
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "lint": "vp lint",
@@ -89,5 +90,5 @@
   "engines": {
     "node": ">=22.14.0"
   },
-  "packageManager": "pnpm@11.9.0"
+  "packageManager": "pnpm@11.16.0"
 }
