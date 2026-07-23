@@ -1,6 +1,7 @@
 {
   "name": "filerouter-root",
   "private": true,
+  "author": "ThinkEx Inc.",
   "type": "module",
   "scripts": {
     "dev": "vp dev --port 3000",
