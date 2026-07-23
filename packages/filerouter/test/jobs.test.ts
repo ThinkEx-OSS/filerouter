@@ -83,6 +83,18 @@ describe("hosted resources", () => {
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     await expect(
+      jobs.create({ ...base, outputs: [], providers: [] })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    await expect(
+      jobs.create({
+        ...base,
+        metadata: Object.fromEntries(
+          Array.from({ length: 51 }, (_, index) => [`key-${index}`, "value"])
+        ),
+        providers: [{ provider: "llamaparse" }],
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    await expect(
       jobs.create({
         ...base,
         providers: [

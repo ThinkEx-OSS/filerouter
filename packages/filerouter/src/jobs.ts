@@ -1,5 +1,9 @@
 import { FileRouterError } from "./errors"
-import { HOSTED_JOBS_PATH, MAX_HOSTED_JOB_REQUEST_BYTES } from "./hosted"
+import {
+  HOSTED_JOBS_PATH,
+  MAX_HOSTED_JOB_REQUEST_BYTES,
+  MAX_HOSTED_METADATA_ENTRIES,
+} from "./hosted"
 import type {
   HostedJob,
   HostedJobAccepted,
@@ -128,6 +132,16 @@ export function assertHostedJobDraft(input: HostedJobCreateDraft): void {
 }
 
 function serializeJobInput(input: HostedJobCreateInput): string {
+  if (input.outputs.length === 0) {
+    throw new FileRouterError("Hosted jobs require at least one output.", {
+      code: "InvalidInput",
+    })
+  }
+  if (input.providers.length === 0) {
+    throw new FileRouterError("Hosted jobs require at least one provider.", {
+      code: "InvalidInput",
+    })
+  }
   if (
     new Set(input.providers.map((target) => target.provider)).size !==
     input.providers.length
@@ -135,6 +149,15 @@ function serializeJobInput(input: HostedJobCreateInput): string {
     throw new FileRouterError("Each provider may appear only once.", {
       code: "InvalidInput",
     })
+  }
+  if (
+    input.metadata &&
+    Object.keys(input.metadata).length > MAX_HOSTED_METADATA_ENTRIES
+  ) {
+    throw new FileRouterError(
+      `Hosted jobs allow at most ${MAX_HOSTED_METADATA_ENTRIES} metadata entries.`,
+      { code: "InvalidInput" }
+    )
   }
   return stringifyJson(input)
 }

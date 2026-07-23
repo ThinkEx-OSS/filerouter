@@ -1,7 +1,7 @@
 export {
   DirectFileRouter,
   assertProviderOutputs,
-  createFileRouter,
+  createDirectFileRouter,
   serializeProviderError,
   type DirectFileRouterOptions,
 } from "./router"

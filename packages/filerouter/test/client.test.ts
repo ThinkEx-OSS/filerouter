@@ -62,6 +62,20 @@ describe("FileRouter", () => {
     expect(headers.get("x-filerouter-filename")).toBe("document")
   })
 
+  test("recognizes URL strings with uppercase schemes", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-url")))
+
+    await createClient(fetchMock).documents.create(
+      "HTTPS://example.com/report.pdf"
+    )
+
+    expect(readJsonBody(fetchMock, 0)).toEqual({
+      url: "HTTPS://example.com/report.pdf",
+    })
+  })
+
   test("maps provider options onto explicit execution targets", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -118,6 +132,37 @@ describe("FileRouter", () => {
 
     expect(comparison.providers).toMatchObject([
       { provider: "llamaparse", status: "parsed" },
+      { provider: "liteparse", status: "parsed" },
+    ])
+  })
+
+  test("keeps comparison outcomes when one result cannot be retrieved", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-results")))
+      .mockResolvedValueOnce(
+        Response.json({ id: "job-results", status: "queued" })
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          job("job-results", "document-results", [
+            execution("execution-expired", "llamaparse"),
+            execution("execution-current", "liteparse"),
+          ])
+        )
+      )
+      .mockResolvedValueOnce(
+        Response.json({ detail: "result expired" }, { status: 410 })
+      )
+      .mockResolvedValueOnce(Response.json(parseResult("liteparse", "text")))
+
+    const comparison = await createClient(fetchMock).compare(
+      "https://example.com/report.pdf",
+      { providers: ["llamaparse", "liteparse"] }
+    )
+
+    expect(comparison.providers).toMatchObject([
+      { provider: "llamaparse", status: "failed" },
       { provider: "liteparse", status: "parsed" },
     ])
   })

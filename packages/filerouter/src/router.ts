@@ -171,7 +171,7 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
   }
 }
 
-export const createFileRouter = <Providers extends ProviderMap>(
+export const createDirectFileRouter = <Providers extends ProviderMap>(
   opts: DirectFileRouterOptions<Providers>
 ): DirectFileRouter<Providers> => new DirectFileRouter(opts)
 

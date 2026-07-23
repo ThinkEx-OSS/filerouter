@@ -14,6 +14,7 @@ import type {
   HostedExecutionResultOptions,
 } from "./executions"
 import { FILEROUTER_DEFAULT_API_URL } from "./hosted"
+import type { HostedJob } from "./hosted"
 import { describeInput } from "./internal/input"
 import { HostedTransport } from "./internal/hosted-transport"
 import { readEnv, trimTrailingSlash } from "./internal/env"
@@ -169,26 +170,8 @@ export class FileRouter {
         timeoutMs: remainingTimeout(timeoutMs, startedAt),
       })
       const results = await Promise.all(
-        job.executions.map(
-          async (execution): Promise<CompareProviderResult> =>
-            execution.status === "complete"
-              ? {
-                  durationMs: execution.durationMs ?? 0,
-                  provider: execution.provider,
-                  result: await this.executions.result(execution.id, {
-                    signal,
-                  }),
-                  status: "parsed",
-                }
-              : {
-                  durationMs: execution.durationMs ?? 0,
-                  ...(execution.error && { error: execution.error }),
-                  provider: execution.provider,
-                  status:
-                    execution.error?.code === "ProviderUnsupportedOutput"
-                      ? "unsupported"
-                      : "failed",
-                }
+        job.executions.map((execution) =>
+          compareExecution(execution, this.executions, signal)
         )
       )
       const completedAt = new Date().toISOString()
@@ -203,6 +186,51 @@ export class FileRouter {
         },
       }
     })
+  }
+}
+
+async function compareExecution(
+  execution: HostedJob["executions"][number],
+  executions: FileRouterExecutions,
+  signal: AbortSignal
+): Promise<CompareProviderResult> {
+  const durationMs = execution.durationMs ?? 0
+  if (execution.status !== "complete") {
+    return {
+      durationMs,
+      ...(execution.error && { error: execution.error }),
+      provider: execution.provider,
+      status:
+        execution.error?.code === "ProviderUnsupportedOutput"
+          ? "unsupported"
+          : "failed",
+    }
+  }
+
+  try {
+    return {
+      durationMs,
+      provider: execution.provider,
+      result: await executions.result(execution.id, { signal }),
+      status: "parsed",
+    }
+  } catch (error) {
+    if (signal.aborted) {
+      throw error
+    }
+    return {
+      durationMs,
+      error: FileRouterError.isInstance(error)
+        ? { code: error.code, message: error.message }
+        : {
+            message:
+              error instanceof Error
+                ? error.message
+                : "Execution result could not be retrieved.",
+          },
+      provider: execution.provider,
+      status: "failed",
+    }
   }
 }
 

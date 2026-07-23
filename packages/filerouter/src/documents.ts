@@ -139,7 +139,12 @@ function isHttpInput(input: ParseInput): boolean {
     return input.protocol === "http:" || input.protocol === "https:"
   }
   if (typeof input === "string") {
-    return input.startsWith("http://") || input.startsWith("https://")
+    try {
+      const protocol = new URL(input).protocol
+      return protocol === "http:" || protocol === "https:"
+    } catch {
+      return false
+    }
   }
   return (
     typeof input === "object" &&
