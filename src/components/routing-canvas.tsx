@@ -5,6 +5,7 @@ import {
   CheckCircle,
   CloudArrowUp,
   Code,
+  Cpu,
   FilePdf,
   Key,
 } from "@phosphor-icons/react"
@@ -51,15 +52,26 @@ export function RoutingCanvas() {
       <TabsContent value="hosted">
         <RouteStage
           center={<FileRouterNode detail="Durable job" />}
-          footer={["Upload", "Poll", "Retry", "Store", "Clean up"]}
-          providers={<SelectedProvider />}
+          footer={[
+            "Upload once",
+            "Durable jobs",
+            "Safe retries",
+            "Stored results",
+            "Automatic cleanup",
+          ]}
+          providers={<HostedProvidersNode />}
         />
       </TabsContent>
 
       <TabsContent value="direct">
         <RouteStage
           center={<RuntimeNode />}
-          footer={["Your runtime", "Your keys", "Provider API"]}
+          footer={[
+            "Your runtime",
+            "Your keys",
+            "Provider billing",
+            "Same result shape",
+          ]}
           providers={<SelectedProvider />}
         />
       </TabsContent>
@@ -67,7 +79,12 @@ export function RoutingCanvas() {
       <TabsContent value="compare">
         <RouteStage
           center={<FileRouterNode detail="compare()" compare />}
-          footer={["One input", "Parallel providers", "Normalized results"]}
+          footer={[
+            "One document",
+            "Parallel executions",
+            "Partial success",
+            "Normalized results",
+          ]}
           providers={<ProviderStack />}
         />
       </TabsContent>
@@ -172,6 +189,18 @@ function SelectedProvider() {
       <ProviderLogo provider={provider} />
       <p className="mt-5 font-mono text-xs text-muted-foreground">
         Selected provider
+      </p>
+    </RouteNode>
+  )
+}
+
+function HostedProvidersNode() {
+  return (
+    <RouteNode className="w-full max-w-52">
+      <Cpu className="size-6 text-primary" weight="regular" />
+      <p className="mt-4 text-sm font-medium">Providers</p>
+      <p className="mt-1 font-mono text-[10px] leading-4 text-muted-foreground">
+        LlamaParse · Mistral OCR · Datalab · LiteParse · PDF Inspector
       </p>
     </RouteNode>
   )
