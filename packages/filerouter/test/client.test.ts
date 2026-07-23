@@ -18,7 +18,14 @@ describe("FileRouter", () => {
 
     await expect(
       client.parse("https://example.com/report.pdf")
-    ).resolves.toEqual(result)
+    ).resolves.toEqual({
+      ...result,
+      resources: {
+        documentId: "document-1",
+        executionId: "execution-1",
+        jobId: "job-1",
+      },
+    })
     expect(fetchMock.mock.calls.map(([url]) => requestUrl(url))).toEqual([
       "https://example.com/api/v1/documents",
       "https://example.com/api/v1/jobs",
@@ -60,6 +67,39 @@ describe("FileRouter", () => {
       "application/octet-stream"
     )
     expect(headers.get("x-filerouter-filename")).toBe("document")
+  })
+
+  test("preserves a stream input name and MIME type", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("document"))
+        controller.close()
+      },
+    })
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json(document("document-stream")))
+      .mockResolvedValueOnce(
+        Response.json({ id: "job-stream", status: "queued" })
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          job("job-stream", "document-stream", [execution("execution-stream")])
+        )
+      )
+      .mockResolvedValueOnce(Response.json(parseResult("llamaparse", "text")))
+
+    await createClient(fetchMock).parse({
+      data: stream,
+      kind: "stream",
+      mimeType: "application/pdf",
+      name: "annual-report.pdf",
+    })
+
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(stream)
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
+    expect(headers.get("x-filerouter-content-type")).toBe("application/pdf")
+    expect(headers.get("x-filerouter-filename")).toBe("annual-report.pdf")
   })
 
   test("recognizes URL strings with uppercase schemes", async () => {
@@ -134,6 +174,14 @@ describe("FileRouter", () => {
       { provider: "llamaparse", status: "parsed" },
       { provider: "liteparse", status: "parsed" },
     ])
+    expect(comparison.resources).toEqual({
+      documentId: "document-4",
+      executions: [
+        { id: "execution-4a", provider: "llamaparse" },
+        { id: "execution-4b", provider: "liteparse" },
+      ],
+      jobId: "job-4",
+    })
   })
 
   test("keeps comparison outcomes when one result cannot be retrieved", async () => {
@@ -152,7 +200,10 @@ describe("FileRouter", () => {
         )
       )
       .mockResolvedValueOnce(
-        Response.json({ detail: "result expired" }, { status: 410 })
+        Response.json(
+          { detail: "result expired", request_id: "request-result" },
+          { status: 410 }
+        )
       )
       .mockResolvedValueOnce(Response.json(parseResult("liteparse", "text")))
 
@@ -162,7 +213,11 @@ describe("FileRouter", () => {
     )
 
     expect(comparison.providers).toMatchObject([
-      { provider: "llamaparse", status: "failed" },
+      {
+        error: { requestId: "request-result" },
+        provider: "llamaparse",
+        status: "failed",
+      },
       { provider: "liteparse", status: "parsed" },
     ])
   })

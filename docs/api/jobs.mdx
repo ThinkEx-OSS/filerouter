@@ -86,6 +86,8 @@ curl https://filerouter.dev/api/v1/executions/EXECUTION_ID/result \
 
 The TypeScript SDK's `parse` and `compare` methods perform these steps for you.
 Use `router.documents`, `router.jobs`, and `router.executions` when your app
-needs to persist IDs or compose its own workflow. Call
+needs to persist IDs or compose its own workflow. Use
+`router.jobs.waitForExecution(job, provider)` to consume one provider without
+waiting for the complete job. Call
 `router.documents.delete(documentId)` to remove a document and its retained job
 data immediately.

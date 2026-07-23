@@ -1,8 +1,14 @@
-import type { ParseOutput, ParseResult, ProviderCapabilities } from "./types"
+import type {
+  CompareResult,
+  ParseOutput,
+  ParseResult,
+  ProviderCapabilities,
+  ProviderOptionsById,
+} from "./types"
 import type { ProviderId } from "./catalog"
 
 export const FILEROUTER_API_KEY_PREFIX = "fr_"
-export const FILEROUTER_VERSION = "0.2.0"
+export const FILEROUTER_VERSION = "0.3.0"
 export const FILEROUTER_CLI_CLIENT_ID = "filerouter-cli"
 export const FILEROUTER_CLI_SCOPE = "jobs:create jobs:read"
 export const FILEROUTER_DEFAULT_API_URL = "https://filerouter.dev"
@@ -44,13 +50,22 @@ export interface HostedDocument {
   status: HostedDocumentStatus
 }
 
-export interface HostedProviderTarget {
+interface HostedProviderTargetBase {
   includeRaw?: boolean
-  options?: Record<string, unknown>
   outputs?: Array<ParseOutput>
   pages?: Array<number>
-  provider: ProviderId
 }
+
+export type HostedProviderOptions = Partial<{
+  [Id in ProviderId]: ProviderOptionsById[Id]
+}>
+
+export type HostedProviderTarget = {
+  [Id in ProviderId]: HostedProviderTargetBase & {
+    options?: ProviderOptionsById[Id]
+    provider: Id
+  }
+}[ProviderId]
 
 export interface HostedExecution {
   completedAt?: string
@@ -88,4 +103,29 @@ export interface HostedProvider {
   capabilities: ProviderCapabilities
   id: ProviderId
   name: string
+}
+
+export interface HostedExecutionReference {
+  id: string
+  provider: ProviderId
+}
+
+export interface HostedParseResources {
+  documentId: string
+  executionId: string
+  jobId: string
+}
+
+export interface HostedCompareResources {
+  documentId: string
+  executions: Array<HostedExecutionReference>
+  jobId: string
+}
+
+export interface HostedParseResult extends ParseResult {
+  resources: HostedParseResources
+}
+
+export interface HostedCompareResult extends CompareResult {
+  resources: HostedCompareResources
 }

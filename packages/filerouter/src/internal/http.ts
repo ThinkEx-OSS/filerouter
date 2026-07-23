@@ -32,15 +32,29 @@ export async function requestJson<T>(
 
   if (!response.ok) {
     const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"))
+    const requestId = readRequestId(payload, response.headers)
     throw new FileRouterError(readErrorMessage(payload, response.statusText), {
       code: errorCodeForStatus(response.status),
       providerId,
+      ...(requestId && { requestId }),
       ...(retryAfterMs !== undefined && { retryAfterMs }),
       statusCode: response.status,
     })
   }
 
   return payload as T
+}
+
+function readRequestId(payload: unknown, headers: Headers): string | undefined {
+  if (isRecord(payload)) {
+    for (const field of ["request_id", "requestId"]) {
+      const value = payload[field]
+      if (typeof value === "string" && value.length > 0) {
+        return value
+      }
+    }
+  }
+  return headers.get("x-request-id")?.trim() || undefined
 }
 
 function errorCodeForStatus(status: number): FileRouterErrorCode {

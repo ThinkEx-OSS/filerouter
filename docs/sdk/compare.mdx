@@ -31,6 +31,14 @@ for (const attempt of comparison.providers) {
 
 A failed provider does not discard successful results from the others.
 
+Hosted comparisons expose the document, job, and execution IDs under
+`comparison.resources`. Delete the document when the retained results are no
+longer needed:
+
+```ts
+await client.documents.delete(comparison.resources.documentId)
+```
+
 <Warning>
   A comparison sends the document to every selected provider. Consider the data
   policy and cost of each provider before running it.

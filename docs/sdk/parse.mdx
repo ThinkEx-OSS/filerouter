@@ -22,7 +22,19 @@ The SDK accepts:
 - `URL`, `File`, or `Blob`
 - `ArrayBuffer` or an array-buffer view
 - `ReadableStream<Uint8Array>`
-- Explicit `{ kind: "file", path }`, `{ kind: "url", url }`, or byte input objects
+- Explicit file, URL, byte, or named stream input objects
+
+Use a named stream when uploading from object storage so FileRouter receives the
+original filename and content type without buffering the stream:
+
+```ts
+const result = await client.parse({
+  data: object.body,
+  kind: "stream",
+  mimeType: object.httpMetadata?.contentType,
+  name: "report.pdf",
+})
+```
 
 ## Options
 
@@ -37,6 +49,17 @@ The SDK accepts:
 | `signal`          | `AbortSignal`   | Cancel from your application                         |
 
 Hosted calls also accept `idempotencyKey`. When omitted, the client generates a UUID for the request.
+
+Hosted results expose the resource IDs created by the convenience call:
+
+```ts
+await client.documents.delete(result.resources.documentId)
+```
+
+Deleting the document also removes its retained job and execution results.
+
+Failed hosted requests throw `FileRouterError`. Its `requestId` identifies the
+server request when you need support or are correlating application logs.
 
 <Note>
   FileRouter rejects outputs the selected provider does not advertise before

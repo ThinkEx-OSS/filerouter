@@ -41,6 +41,36 @@ describe("hosted resources", () => {
     expect(statuses).toEqual(["queued", "running", "complete"])
   })
 
+  test("waits for one provider without waiting for the whole job", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json(
+          job("running", [
+            execution("liteparse", "queued"),
+            execution("llamaparse", "running"),
+          ])
+        )
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          job("running", [
+            execution("liteparse", "complete"),
+            execution("llamaparse", "running"),
+          ])
+        )
+      )
+    const statuses: Array<string> = []
+
+    await expect(
+      createClient(fetchMock).jobs.waitForExecution("job-2", "liteparse", {
+        onStatus: (value) => statuses.push(value.status),
+      })
+    ).resolves.toMatchObject({ provider: "liteparse", status: "complete" })
+    expect(statuses).toEqual(["queued", "complete"])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   test("retries transient reads", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -59,12 +89,19 @@ describe("hosted resources", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValue(
-        Response.json({ detail: "out of credits" }, { status: 402 })
+        Response.json(
+          { detail: "out of credits", request_id: "request-payment" },
+          { status: 402 }
+        )
       )
 
     await expect(
       createClient(fetchMock).jobs.get("job-4")
-    ).rejects.toMatchObject({ code: "PaymentRequired", retryable: false })
+    ).rejects.toMatchObject({
+      code: "PaymentRequired",
+      requestId: "request-payment",
+      retryable: false,
+    })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
@@ -99,7 +136,11 @@ describe("hosted resources", () => {
         ...base,
         providers: [
           {
-            options: { prompt: "x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES) },
+            options: {
+              agentic_options: {
+                custom_prompt: "x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES),
+              },
+            },
             provider: "llamaparse",
           },
         ],
@@ -118,13 +159,31 @@ function createClient(fetchMock: typeof fetch): FileRouter {
   })
 }
 
-function job(status: "complete" | "queued" | "running") {
+function job(
+  status: "complete" | "queued" | "running",
+  executions: Array<object> = []
+) {
   return {
     createdAt: "2026-07-18T00:00:00.000Z",
     documentId: "document-1",
-    executions: [],
+    executions,
     id: "job",
     status,
     updatedAt: "2026-07-18T00:00:00.000Z",
+  }
+}
+
+function execution(
+  provider: "liteparse" | "llamaparse",
+  status: "complete" | "queued" | "running"
+) {
+  return {
+    createdAt: "2026-07-18T00:00:00.000Z",
+    id: `execution-${provider}`,
+    jobId: "job",
+    outputs: ["markdown"],
+    provider,
+    resultAvailable: status === "complete",
+    status,
   }
 }

@@ -1,6 +1,10 @@
 import { and, eq, gt, isNotNull, sql } from "drizzle-orm"
 import { assertProviderOutputs } from "@file_router/sdk"
-import type { HostedJobCreateInput, ParseOutput } from "@file_router/sdk"
+import type {
+  HostedJobCreateInput,
+  HostedProviderTarget,
+  ParseOutput,
+} from "@file_router/sdk"
 import type { ProviderId } from "@file_router/sdk/catalog"
 import type {
   HostedExecution,
@@ -35,8 +39,16 @@ interface NormalizedTarget {
   provider: ProviderId
 }
 
+type UnvalidatedProviderTarget = Omit<HostedProviderTarget, "options"> & {
+  options?: Record<string, unknown>
+}
+
+type CreateDocumentJobInput = Omit<HostedJobCreateInput, "providers"> & {
+  providers: Array<UnvalidatedProviderTarget>
+}
+
 export async function createDocumentJob(
-  input: HostedJobCreateInput,
+  input: CreateDocumentJobInput,
   userId: string,
   env: Cloudflare.Env,
   idempotencyKey: string,
@@ -273,7 +285,7 @@ export async function getExecutionResult(
 }
 
 function normalizeTargets(
-  input: HostedJobCreateInput,
+  input: CreateDocumentJobInput,
   defaultOutputs: Array<ParseOutput>
 ): Array<NormalizedTarget> {
   return input.providers.map((target, position) => ({

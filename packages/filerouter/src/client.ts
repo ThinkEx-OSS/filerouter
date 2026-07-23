@@ -14,7 +14,13 @@ import type {
   HostedExecutionResultOptions,
 } from "./executions"
 import { FILEROUTER_DEFAULT_API_URL } from "./hosted"
-import type { HostedJob } from "./hosted"
+import type {
+  HostedCompareResult,
+  HostedJob,
+  HostedParseResult,
+  HostedProviderOptions,
+  HostedProviderTarget,
+} from "./hosted"
 import { describeInput } from "./internal/input"
 import { HostedTransport } from "./internal/hosted-transport"
 import { readEnv, trimTrailingSlash } from "./internal/env"
@@ -27,6 +33,7 @@ import {
 } from "./jobs"
 import type {
   FileRouterJobs,
+  HostedExecutionWaitOptions,
   HostedJobCreateDraft,
   HostedJobCreateInput,
   HostedJobCreateOptions,
@@ -42,10 +49,8 @@ import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   CompareOptions,
   CompareProviderResult,
-  CompareResult,
   ParseInput,
   ParseOptions,
-  ParseResult,
 } from "./types"
 
 export interface FileRouterOptions {
@@ -55,18 +60,23 @@ export interface FileRouterOptions {
   pollingIntervalMs?: number
 }
 
-export interface HostedParseOptions extends Omit<ParseOptions, "provider"> {
+export interface HostedParseOptions extends Omit<
+  ParseOptions,
+  "provider" | "providerOptions"
+> {
   idempotencyKey?: string
   metadata?: Record<string, string>
   provider?: ProviderId
+  providerOptions?: HostedProviderOptions
 }
 
 export interface HostedCompareOptions extends Omit<
   CompareOptions,
-  "providers"
+  "providerOptions" | "providers"
 > {
   idempotencyKey?: string
   metadata?: Record<string, string>
+  providerOptions?: HostedProviderOptions
   providers?: Array<ProviderId>
 }
 
@@ -106,50 +116,80 @@ export class FileRouter {
   async parse(
     input: ParseInput,
     options: HostedParseOptions = {}
-  ): Promise<ParseResult> {
-    assertPages(options.pages)
-    const timeoutMs = options.timeoutMs ?? DEFAULT_HOSTED_JOB_TIMEOUT_MS
-    const startedAt = Date.now()
-    return withTimeout(timeoutMs, options.signal, async (signal) => {
-      const provider = options.provider ?? DEFAULT_PROVIDER_ID
-      const request = jobInput([provider], options)
-      const documentKey = documentIdempotencyKey(options.idempotencyKey)
-      const document = await this.documents.create(input, {
-        signal,
-        ...(documentKey && { idempotencyKey: documentKey }),
-      })
-      const accepted = await this.jobs.create(
-        { ...request, documentId: document.id },
-        {
-          signal,
-          ...(options.idempotencyKey && {
-            idempotencyKey: options.idempotencyKey,
-          }),
+  ): Promise<HostedParseResult> {
+    const provider = options.provider ?? DEFAULT_PROVIDER_ID
+    return this.#runHostedJob(
+      input,
+      [provider],
+      options,
+      async ({ documentId, job, signal }) => {
+        const execution = job.executions.find(
+          (candidate) => candidate.provider === provider
+        )
+        if (!execution || execution.status !== "complete") {
+          throw executionError(execution?.error?.message ?? job.error)
         }
-      )
-      const job = await this.jobs.wait(accepted, {
-        signal,
-        timeoutMs: remainingTimeout(timeoutMs, startedAt),
-      })
-      const execution = job.executions.find(
-        (candidate) => candidate.provider === provider
-      )
-      if (!execution || execution.status !== "complete") {
-        throw executionError(execution?.error?.message ?? job.error)
+        const result = await this.executions.result(execution.id, { signal })
+        return {
+          ...result,
+          resources: {
+            documentId,
+            executionId: execution.id,
+            jobId: job.id,
+          },
+        }
       }
-      return this.executions.result(execution.id, { signal })
-    })
+    )
   }
 
   async compare(
     input: ParseInput,
     options: HostedCompareOptions = {}
-  ): Promise<CompareResult> {
+  ): Promise<HostedCompareResult> {
+    const providers = uniqueProviders(options.providers ?? [...providerIds])
+    return this.#runHostedJob(
+      input,
+      providers,
+      options,
+      async ({ documentId, job, signal, startedAt }) => {
+        const results = await Promise.all(
+          job.executions.map((execution) =>
+            compareExecution(execution, this.executions, signal)
+          )
+        )
+        const completedAt = new Date().toISOString()
+        return {
+          input: describeInput(input),
+          outputs: options.outputs ?? [DEFAULT_PARSE_OUTPUT],
+          providers: results,
+          resources: {
+            documentId,
+            executions: job.executions.map(({ id, provider }) => ({
+              id,
+              provider,
+            })),
+            jobId: job.id,
+          },
+          timing: {
+            completedAt,
+            durationMs: Date.now() - startedAt,
+            startedAt: new Date(startedAt).toISOString(),
+          },
+        }
+      }
+    )
+  }
+
+  #runHostedJob<Result>(
+    input: ParseInput,
+    providers: Array<ProviderId>,
+    options: HostedParseOptions | HostedCompareOptions,
+    complete: (run: HostedJobRun) => Promise<Result>
+  ): Promise<Result> {
     assertPages(options.pages)
     const timeoutMs = options.timeoutMs ?? DEFAULT_HOSTED_JOB_TIMEOUT_MS
     const startedAt = Date.now()
     return withTimeout(timeoutMs, options.signal, async (signal) => {
-      const providers = uniqueProviders(options.providers ?? [...providerIds])
       const request = jobInput(providers, options)
       const documentKey = documentIdempotencyKey(options.idempotencyKey)
       const document = await this.documents.create(input, {
@@ -169,24 +209,21 @@ export class FileRouter {
         signal,
         timeoutMs: remainingTimeout(timeoutMs, startedAt),
       })
-      const results = await Promise.all(
-        job.executions.map((execution) =>
-          compareExecution(execution, this.executions, signal)
-        )
-      )
-      const completedAt = new Date().toISOString()
-      return {
-        input: describeInput(input),
-        outputs: options.outputs ?? [DEFAULT_PARSE_OUTPUT],
-        providers: results,
-        timing: {
-          completedAt,
-          durationMs: Date.now() - startedAt,
-          startedAt: new Date(startedAt).toISOString(),
-        },
-      }
+      return complete({
+        documentId: document.id,
+        job,
+        signal,
+        startedAt,
+      })
     })
   }
+}
+
+interface HostedJobRun {
+  documentId: string
+  job: HostedJob
+  signal: AbortSignal
+  startedAt: number
 }
 
 async function compareExecution(
@@ -221,7 +258,11 @@ async function compareExecution(
     return {
       durationMs,
       error: FileRouterError.isInstance(error)
-        ? { code: error.code, message: error.message }
+        ? {
+            code: error.code,
+            message: error.message,
+            ...(error.requestId && { requestId: error.requestId }),
+          }
         : {
             message:
               error instanceof Error
@@ -242,34 +283,34 @@ function jobInput(
   const input: HostedJobCreateDraft = {
     ...(options.metadata && { metadata: options.metadata }),
     outputs,
-    providers: providers.map((provider) => ({
-      ...(options.includeRaw !== undefined && {
-        includeRaw: options.includeRaw,
-      }),
-      ...(options.pages && { pages: options.pages }),
-      ...providerTargetOptions(options, provider),
-      provider,
-    })),
+    providers: providers.map((provider) => providerTarget(provider, options)),
   }
   assertHostedJobDraft(input)
   return input
 }
 
-function providerTargetOptions(
-  options: HostedParseOptions | HostedCompareOptions,
-  provider: ProviderId
-): { options?: Record<string, unknown> } {
+function providerTarget(
+  provider: ProviderId,
+  options: HostedParseOptions | HostedCompareOptions
+): HostedProviderTarget {
   const value = options.providerOptions?.[provider]
-  if (value === undefined) {
-    return {}
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (
+    value !== undefined &&
+    (typeof value !== "object" || value === null || Array.isArray(value))
+  ) {
     throw new FileRouterError(
       `Provider options for ${provider} must be an object.`,
       { code: "InvalidInput" }
     )
   }
-  return { options: value as Record<string, unknown> }
+  return {
+    ...(options.includeRaw !== undefined && {
+      includeRaw: options.includeRaw,
+    }),
+    ...(value !== undefined && { options: value }),
+    ...(options.pages && { pages: options.pages }),
+    provider,
+  } as HostedProviderTarget
 }
 
 function uniqueProviders(providers: Array<ProviderId>): Array<ProviderId> {
@@ -305,6 +346,7 @@ export type {
   HostedDocumentDeleteOptions,
   HostedDocumentGetOptions,
   HostedExecutionResultOptions,
+  HostedExecutionWaitOptions,
   HostedJobCreateInput,
   HostedJobCreateOptions,
   HostedJobGetOptions,

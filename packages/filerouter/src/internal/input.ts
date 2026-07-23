@@ -63,6 +63,19 @@ export async function resolveParseInput(
         return resolveUrl(new URL(input.url))
       case "file":
         return resolveFilePath(input.path)
+      case "stream": {
+        const name = normalizeDocumentFileName(input.name)
+        return {
+          data: normalizeBlob(
+            await readStreamAsBlob(input.data, signal),
+            name,
+            input.mimeType
+          ),
+          kind: "bytes",
+          mimeType: resolveDocumentMimeType(name, input.mimeType),
+          name,
+        }
+      }
       case "bytes": {
         const name = normalizeDocumentFileName(input.name)
         const suppliedType =
@@ -173,6 +186,8 @@ export function describeInput(input: ParseInput): string {
         return input.name ?? "bytes"
       case "file":
         return input.path
+      case "stream":
+        return input.name
       case "url":
         return input.url.toString()
     }
@@ -298,9 +313,20 @@ function hasControlCharacters(value: string): boolean {
 }
 
 export function isReadableStream(
-  input: ParseInput
+  input: unknown
 ): input is ReadableStream<Uint8Array> {
   return (
     typeof ReadableStream !== "undefined" && input instanceof ReadableStream
+  )
+}
+
+export function isStreamInput(
+  input: unknown
+): input is Extract<ParseInput, { kind: "stream" }> {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    "kind" in input &&
+    input.kind === "stream"
   )
 }
