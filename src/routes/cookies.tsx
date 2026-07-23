@@ -6,7 +6,8 @@ import { buildPublicMeta, getAbsoluteUrl } from "@/lib/seo"
 
 const cookieDocument = {
   description:
-    "This policy explains how FileRouter uses cookies and browser storage for authentication, security, preferences, and scheduling.",
+    "This policy explains how FileRouter uses cookies and browser storage for authentication, security, preferences, analytics, and scheduling.",
+  lastUpdated: "July 22, 2026",
   sections: [
     {
       title: "What these technologies are",

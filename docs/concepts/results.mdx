@@ -23,6 +23,11 @@ interface ParseResult {
     text: string
   }>
   pageCount: number
+  quality?: {
+    score: number
+    scale?: number
+  }
+  raw?: unknown
   timing: {
     startedAt: string
     completedAt: string

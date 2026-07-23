@@ -30,7 +30,17 @@ curl https://filerouter.dev/api/v1/documents \
   --data-binary @report.pdf
 ```
 
-The response contains an immutable document ID that can be reused across jobs.
+The response contains an immutable document ID that can be reused across jobs
+until its `expiresAt` time, seven days after upload.
+
+Delete the document, its jobs, and retained results before then when you no
+longer need them:
+
+```bash
+curl https://filerouter.dev/api/v1/documents/DOCUMENT_ID \
+  --request DELETE \
+  --header "Authorization: Bearer $FILEROUTER_API_KEY"
+```
 
 ## Create a job
 
@@ -76,4 +86,6 @@ curl https://filerouter.dev/api/v1/executions/EXECUTION_ID/result \
 
 The TypeScript SDK's `parse` and `compare` methods perform these steps for you.
 Use `router.documents`, `router.jobs`, and `router.executions` when your app
-needs to persist IDs or compose its own workflow.
+needs to persist IDs or compose its own workflow. Call
+`router.documents.delete(documentId)` to remove a document and its retained job
+data immediately.

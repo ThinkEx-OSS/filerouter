@@ -7,6 +7,7 @@ import { buildPublicMeta, getAbsoluteUrl } from "@/lib/seo"
 const termsDocument = {
   description:
     "These terms govern your use of FileRouter's website, hosted document-processing service, API, SDK, and CLI.",
+  lastUpdated: "July 22, 2026",
   sections: [
     {
       title: "Agreement",
@@ -59,7 +60,7 @@ const termsDocument = {
     },
     {
       title: "Fees",
-      body: "Some FileRouter features may be free, metered, or paid. Any applicable pricing, credits, taxes, renewal terms, and payment obligations will be presented before you incur a charge. Provider charges incurred through direct or BYOK mode are between you and that provider.",
+      body: "Some FileRouter features may be free, metered, or paid. Hosted credits pay for successful hosted provider executions; source and result retention do not incur a separate storage charge during the stated retention window. Free credits reset monthly, while purchased credits do not expire. Any applicable pricing, taxes, and payment obligations will be presented before you incur a charge. Provider charges incurred through direct or BYOK mode are between you and that provider.",
     },
     {
       title: "Output and availability",

@@ -10,7 +10,7 @@ FileRouter supports two explicit processing modes. Hosted mode sends documents t
 - [Complete documentation index](https://docs.filerouter.dev/llms.txt): Machine-readable links to every FileRouter documentation page.
 - [Full documentation](https://docs.filerouter.dev/llms-full.txt): The complete FileRouter documentation in one text file.
 - [Quickstart](https://docs.filerouter.dev/quickstart.md): Install the SDK and parse a first document.
-- [Direct or BYOK mode](https://docs.filerouter.dev/sdk/direct-byok.md): Call providers directly with your own credentials instead of routing through FileRouter infrastructure.
+- [Hosted and direct processing](https://docs.filerouter.dev/concepts/processing-modes.md): Choose between FileRouter-hosted execution and direct calls with your own provider credentials.
 - [API reference](https://docs.filerouter.dev/api/overview.md): Use the hosted HTTP API.
 
 ## Product and source

@@ -1,7 +1,5 @@
 import { PublicPageShell } from "@/components/public-page-shell"
 
-export const LEGAL_LAST_UPDATED = "July 20, 2026"
-
 interface LegalSection {
   body?: string
   items?: Array<string>
@@ -10,6 +8,7 @@ interface LegalSection {
 
 export interface LegalDocument {
   description: string
+  lastUpdated: string
   sections: Array<LegalSection>
   title: string
 }
@@ -19,7 +18,7 @@ export function LegalPage({ document }: { document: LegalDocument }) {
     <PublicPageShell>
       <article className="mx-auto w-full max-w-3xl px-6 py-12 sm:py-16">
         <p className="text-sm text-muted-foreground">
-          Last updated {LEGAL_LAST_UPDATED}
+          Last updated {document.lastUpdated}
         </p>
         <h1 className="mt-3 text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           {document.title}

@@ -28,7 +28,11 @@ A comparison uses credits for each provider that successfully returns a parsed r
 
 Free credits reset each month. Purchased credits never expire and remain available after the monthly allowance resets.
 
-Hosted binary uploads are limited to **100 MB**. Stored documents and completed results expire after **7 days**, and job records are retained for **30 days**.
+Hosted document sources are limited to **100 MB**, whether uploaded or fetched
+from a public URL. Stored documents and completed results expire after **7
+days**, and job records are retained for **30 days**. Delete a document sooner
+with `router.documents.delete(documentId)` or the hosted document deletion
+endpoint. Storage during these retention windows does not consume credits.
 
 Public URL inputs are fetched once into FileRouter storage before any provider
 runs. This gives retries and comparisons one immutable source and avoids sending
