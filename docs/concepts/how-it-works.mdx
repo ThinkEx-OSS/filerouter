@@ -6,17 +6,17 @@ description: "The stable contract between your application and document parsing 
 FileRouter separates your document pipeline from provider-specific behavior.
 
 <Steps>
-  <Step title="Resolve the input">
+  <Step title="Store the document">
     Pass a file path, public URL, `File`, `Blob`, buffer, typed array, or web
-    stream. FileRouter resolves it into a replayable provider input.
+    stream. Hosted FileRouter stores it once as an immutable document.
   </Step>
   <Step title="Select providers and outputs">
     Choose one provider with `parse`, or several with `compare`. FileRouter
     validates requested outputs before starting provider work.
   </Step>
-  <Step title="Run the provider workflow">
-    Each adapter owns provider authentication, request translation, uploads,
-    polling, and cleanup.
+  <Step title="Run provider executions">
+    A durable job creates one execution per selected provider. Each adapter owns
+    request translation, submission, and polling.
   </Step>
   <Step title="Normalize the result">
     Read the same result envelope regardless of the provider: outputs, page
@@ -24,7 +24,7 @@ FileRouter separates your document pipeline from provider-specific behavior.
   </Step>
 </Steps>
 
-## Two operations
+## Convenience and primitives
 
 ### `parse`
 
@@ -32,7 +32,11 @@ Processes a document with one provider and returns a `ParseResult`.
 
 ### `compare`
 
-Processes the same resolved document across several providers concurrently. The returned `CompareResult` retains a status and duration for every provider, including failures and unsupported output combinations.
+Processes the same stored document across several providers concurrently. The returned `CompareResult` retains a status and duration for every provider, including failures and unsupported output combinations.
+
+For longer application workflows, use `documents.create`, `jobs.create`,
+`jobs.wait`, and `executions.result` directly. Those IDs are the stable boundary;
+`parse` and `compare` are concise wrappers over the same resources.
 
 ## Built-in providers
 

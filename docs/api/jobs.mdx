@@ -1,59 +1,79 @@
 ---
-title: "Jobs"
-description: "Create and poll hosted parse and comparison jobs."
+title: "Documents and jobs"
+description: "Store a document and run explicit provider executions."
 ---
 
-## Create a job from a URL
+## Store a document
 
 Every create request requires an `Idempotency-Key` between 8 and 255 characters.
+
+```bash
+curl https://filerouter.dev/api/v1/documents \
+  --request POST \
+  --header "Authorization: Bearer $FILEROUTER_API_KEY" \
+  --header "Content-Type: application/json" \
+  --header "Idempotency-Key: document-01J2Y9QX3M" \
+  --data '{"url":"https://example.com/report.pdf"}'
+```
+
+For an upload, send `application/octet-stream` with the original filename and
+content type:
+
+```bash
+curl https://filerouter.dev/api/v1/documents \
+  --request POST \
+  --header "Authorization: Bearer $FILEROUTER_API_KEY" \
+  --header "Content-Type: application/octet-stream" \
+  --header "X-FileRouter-Content-Type: application/pdf" \
+  --header "X-FileRouter-Filename: report.pdf" \
+  --header "Idempotency-Key: document-01J2Y9QX3M" \
+  --data-binary @report.pdf
+```
+
+The response contains an immutable document ID that can be reused across jobs.
+
+## Create a job
+
+Each provider entry is an independent execution. Provider-specific options stay
+on that target instead of leaking into the rest of the job.
 
 ```bash
 curl https://filerouter.dev/api/v1/jobs \
   --request POST \
   --header "Authorization: Bearer $FILEROUTER_API_KEY" \
   --header "Content-Type: application/json" \
-  --header "Idempotency-Key: 01J2Y9QX3MXJQHD2YQ9N7J93M4" \
+  --header "Idempotency-Key: job-01J2Y9QX3M" \
   --data '{
-    "operation": "parse",
-    "source": { "url": "https://example.com/report.pdf" },
-    "provider": "llamaparse",
-    "outputs": ["markdown"]
+    "documentId": "550e8400-e29b-41d4-a716-446655440000",
+    "outputs": ["markdown"],
+    "providers": [
+      { "provider": "llamaparse" },
+      { "provider": "liteparse", "options": { "ocr": "auto" } }
+    ]
   }'
 ```
 
-A new job returns `202 Accepted`:
+A new job returns `202 Accepted`. Reusing the key with the same request returns
+the existing job and `Idempotent-Replayed: true`; changing the request returns a
+conflict.
 
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "queued"
-}
-```
-
-Reusing the key with the same request returns the existing job with `200 OK` and `Idempotent-Replayed: true`. Reusing it with different request data returns a conflict.
-
-## Poll a job
+## Poll and retrieve results
 
 ```bash
 curl https://filerouter.dev/api/v1/jobs/550e8400-e29b-41d4-a716-446655440000 \
   --header "Authorization: Bearer $FILEROUTER_API_KEY"
 ```
 
-Jobs move through `queued`, `running`, and then either `complete` or `failed`.
+Jobs move through `queued`, `running`, and then `complete` or `failed`. The job
+contains one execution per provider, including its status, duration, usage, and
+result availability. Results stay separate so one slow or failed provider does
+not hide successful work.
 
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "complete",
-  "result": {
-    "provider": "llamaparse",
-    "outputs": {
-      "markdown": "# Parsed document"
-    }
-  }
-}
+```bash
+curl https://filerouter.dev/api/v1/executions/EXECUTION_ID/result \
+  --header "Authorization: Bearer $FILEROUTER_API_KEY"
 ```
 
-## Binary uploads
-
-The endpoint also accepts an `application/octet-stream` body with `X-FileRouter-*` headers describing the filename, operation, provider, and outputs. Prefer `FileRouterClient` unless you need to implement the transport directly; it handles those headers and polling for you.
+The TypeScript SDK's `parse` and `compare` methods perform these steps for you.
+Use `router.documents`, `router.jobs`, and `router.executions` when your app
+needs to persist IDs or compose its own workflow.

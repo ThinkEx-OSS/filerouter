@@ -10,10 +10,10 @@ pnpm add @file_router/sdk
 ## Hosted
 
 ```ts
-import { FileRouterClient } from "@file_router/sdk"
+import { FileRouter } from "@file_router/sdk"
 
-const client = new FileRouterClient({ apiKey: process.env.FILEROUTER_API_KEY })
-const result = await client.parse("https://example.com/report.pdf", {
+const router = new FileRouter({ apiKey: process.env.FILEROUTER_API_KEY })
+const result = await router.parse("https://example.com/report.pdf", {
   provider: "llamaparse",
   outputs: ["markdown", "pages"],
 })
@@ -24,10 +24,10 @@ console.log(result.outputs.markdown)
 ## Direct BYOK
 
 ```ts
-import { FileRouter } from "@file_router/sdk"
+import { DirectFileRouter } from "@file_router/sdk"
 import { llamaparse } from "@file_router/sdk/llamaparse"
 
-const router = new FileRouter({
+const router = new DirectFileRouter({
   providers: { llamaparse: llamaparse() },
 })
 

@@ -7,7 +7,7 @@ FileRouter supports two explicit processing modes. Neither mode silently falls b
 
 |                        | Hosted                           | Direct / BYOK        |
 | ---------------------- | -------------------------------- | -------------------- |
-| TypeScript entry point | `FileRouterClient`               | `FileRouter`         |
+| TypeScript entry point | `FileRouter`                     | `DirectFileRouter`   |
 | Authentication         | FileRouter API key               | Provider API keys    |
 | Document route         | Your app → FileRouter → provider | Your app → provider  |
 | Job orchestration      | Managed by FileRouter            | Runs in your process |
@@ -16,7 +16,7 @@ FileRouter supports two explicit processing modes. Neither mode silently falls b
 
 ## Hosted
 
-Hosted processing is the shortest path to production. FileRouter accepts the input, creates a durable job, submits it to the selected provider, polls long-running provider jobs, stores the result, and cleans up uploaded source documents after the job reaches a terminal state.
+Hosted processing is the shortest path to production. FileRouter stores the document, creates a durable job, runs each selected provider independently, and retains each normalized result for retrieval.
 
 Credits pay for FileRouter-hosted processing. Each account receives **5,000 free credits each month**, and purchased credits never expire. Direct or BYOK requests do not use FileRouter credits.
 
@@ -28,22 +28,21 @@ A comparison uses credits for each provider that successfully returns a parsed r
 
 Free credits reset each month. Purchased credits never expire and remain available after the monthly allowance resets.
 
-Hosted binary uploads are limited to **100 MB**. Completed results expire after **7 days**, and job records are retained for **30 days**.
+Hosted binary uploads are limited to **100 MB**. Stored documents and completed results expire after **7 days**, and job records are retained for **30 days**.
 
-Public URL inputs are fetched once into temporary FileRouter storage before any
-provider runs. This gives comparisons one immutable source and avoids sending a
-user-controlled URL to private native parsers. Source objects are deleted when
-the job reaches a terminal state.
+Public URL inputs are fetched once into FileRouter storage before any provider
+runs. This gives retries and comparisons one immutable source and avoids sending
+a user-controlled URL to private native parsers.
 
 ## Direct / BYOK
 
 Direct processing uses provider adapters from `@file_router/sdk` inside your runtime. Your document and provider credential do not pass through FileRouter, but the selected provider still receives the document.
 
 ```ts
-import { FileRouter } from "@file_router/sdk"
+import { DirectFileRouter } from "@file_router/sdk"
 import { llamaparse } from "@file_router/sdk/llamaparse"
 
-const router = new FileRouter({
+const router = new DirectFileRouter({
   providers: { llamaparse: llamaparse() },
 })
 

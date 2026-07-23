@@ -17,11 +17,15 @@ Authorization: Bearer fr_...
 
 ## Endpoints
 
-| Method | Path                   | Purpose                                  |
-| ------ | ---------------------- | ---------------------------------------- |
-| `POST` | `/api/v1/jobs`         | Create or replay a parse or compare job  |
-| `GET`  | `/api/v1/jobs/{jobId}` | Read job status and the completed result |
-| `GET`  | `/api/v1/health`       | Check API and database availability      |
+| Method | Path                                      | Purpose                               |
+| ------ | ----------------------------------------- | ------------------------------------- |
+| `POST` | `/api/v1/documents`                       | Store a file or public URL            |
+| `GET`  | `/api/v1/documents/{documentId}`          | Read document metadata                |
+| `POST` | `/api/v1/jobs`                            | Run providers against a document      |
+| `GET`  | `/api/v1/jobs/{jobId}`                    | Read job and execution status         |
+| `GET`  | `/api/v1/executions/{executionId}/result` | Retrieve one provider result          |
+| `GET`  | `/api/v1/providers`                       | Discover hosted provider capabilities |
+| `GET`  | `/api/v1/health`                          | Check API and database availability   |
 
 The complete OpenAPI 3.1 contract is published at [filerouter.dev/api/openapi.json](https://filerouter.dev/api/openapi.json).
 

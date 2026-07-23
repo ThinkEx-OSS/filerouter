@@ -3,7 +3,7 @@ title: "Parse"
 description: "Parse a document with one provider using the TypeScript SDK."
 ---
 
-Use `FileRouterClient` for hosted jobs or `FileRouter` for direct provider calls. Both expose the same `parse(input, options)` shape.
+Use `FileRouter` for hosted jobs or `DirectFileRouter` for direct provider calls. Both expose the same `parse(input, options)` shape.
 
 ```ts
 const result = await client.parse("./invoice.pdf", {
