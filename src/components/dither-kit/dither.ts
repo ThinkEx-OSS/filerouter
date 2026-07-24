@@ -5,7 +5,7 @@ export const BAYER4 = [
   [15, 7, 13, 5],
 ].map((row) => row.map((value) => (value + 0.5) / 16))
 
-const BRAND_RGB = [0, 189, 247] as const
+export const BRAND_RGB = [0, 189, 247] as const
 
 export const clamp01 = (value: number) =>
   value < 0 ? 0 : value > 1 ? 1 : value
