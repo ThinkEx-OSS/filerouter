@@ -1,0 +1,80 @@
+---
+title: "Fast preview, then full parse"
+description: "Show a LiteParse result as soon as it is ready while a heavier engine keeps running."
+---
+
+Use this when the UI should update early, and you are willing to run two engines on the same document. Both executions start together, so you pay for both successful parses.
+
+If you want to **avoid** starting the expensive engine until the cheap one looks weak, use [Cheap path, then escalate](/guides/cheap-path) instead.
+
+## Pattern
+
+1. Store the document once.
+2. Create one job with a fast engine and a stronger engine.
+3. `waitForExecution` on the fast provider and render.
+4. `waitForExecution` on the strong provider and replace or merge.
+5. Delete the document when you are done.
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+
+const router = new FileRouter()
+
+const document = await router.documents.create("./invoice.pdf", {
+  fileName: "invoice.pdf",
+  mimeType: "application/pdf",
+})
+
+try {
+  // Job-level outputs must be supported by every listed provider.
+  // LiteParse supports markdown/pages/text (not tables).
+  const job = await router.jobs.create({
+    documentId: document.id,
+    outputs: ["markdown", "pages"],
+    providers: [
+      { provider: "liteparse", options: { ocr: "auto" } },
+      { provider: "llamaparse" },
+    ],
+  })
+
+  const preview = await router.jobs.waitForExecution(job, "liteparse")
+  if (preview.status === "complete" && preview.resultAvailable) {
+    const fast = await router.executions.result(preview.id)
+    // Render draft UI from fast.outputs.markdown
+    console.log("preview", fast.outputs.markdown?.slice(0, 200))
+  }
+
+  const strong = await router.jobs.waitForExecution(job, "llamaparse")
+  if (strong.status === "complete" && strong.resultAvailable) {
+    const full = await router.executions.result(strong.id)
+    // Replace draft UI with full.outputs.markdown
+    console.log("final", full.timing.durationMs, full.pageCount)
+  }
+} finally {
+  await router.documents.delete(document.id)
+}
+```
+
+## Why this works
+
+- One stored document. Both engines see the same bytes.
+- Executions are independent. A slow or failed LlamaParse run does not erase a finished LiteParse result.
+- `waitForExecution` returns when that provider hits `complete` or `failed`. Sibling work can keep running.
+
+## Output rules
+
+Hosted job creation validates outputs per provider. If any selected provider does not advertise an output, the job create fails with `unsupported_provider_output`.
+
+| Provider                                 | Useful shared outputs                             |
+| ---------------------------------------- | ------------------------------------------------- |
+| `liteparse`                              | `markdown`, `pages`, `text`, `images`, `metadata` |
+| `pdf-inspector`                          | `markdown`, `pages`, `metadata`                   |
+| `llamaparse` / `mistral-ocr` / `datalab` | broader sets including `tables` on some adapters  |
+
+For a shared job, stick to the intersection (usually `markdown` or `markdown` + `pages`). Need tables only from LlamaParse? Prefer [Cheap path, then escalate](/guides/cheap-path) with a second job, or set per-provider `outputs` on each target.
+
+## Related
+
+- [Cheap path, then escalate](/guides/cheap-path)
+- [How FileRouter works](/concepts/how-it-works)
+- [Documents and jobs](/api/jobs)

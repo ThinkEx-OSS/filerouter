@@ -1,0 +1,108 @@
+---
+title: "Idempotency and cleanup"
+description: "Safe retries, retention windows, and deleting hosted documents."
+---
+
+Hosted FileRouter is a job system: store a document, run executions, retain results for a while, then clean up. Treat document IDs, job IDs, and idempotency keys as part of your application contract.
+
+## Idempotent creates
+
+Document and job creates require an `Idempotency-Key` header. The SDK generates a UUID when you omit one. Replaying the **same key with the same body** returns the existing resource instead of starting a second billed run. Changing the body with the same key conflicts.
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+
+const router = new FileRouter()
+const claimId = "claim_123"
+
+const document = await router.documents.create("./claim.pdf", {
+  fileName: "claim.pdf",
+  mimeType: "application/pdf",
+  idempotencyKey: `doc:${claimId}`,
+})
+
+// Job idempotency key is the second argument, not a field on the job body.
+const accepted = await router.jobs.create(
+  {
+    documentId: document.id,
+    outputs: ["markdown"],
+    providers: [{ provider: "liteparse" }],
+  },
+  { idempotencyKey: `job:${claimId}:liteparse` }
+)
+```
+
+Derive keys from your business ID when a queue consumer or webhook might retry.
+
+`parse` and `compare` also accept `idempotencyKey`. The client uses it for the job (and a derived key for the document) so a retried convenience call does not double-submit.
+
+## Retention
+
+From the hosted product rules:
+
+| Resource           | Retention                                                     |
+| ------------------ | ------------------------------------------------------------- |
+| Source document    | 7 days from upload (`expiresAt` on the document)              |
+| Normalized results | Available while retained; tied to the document cleanup window |
+| Job records        | Scheduled for deletion after 30 days                          |
+
+Storage in these windows does not consume credits. Do not rely on expiry for sensitive data. Delete when the workflow finishes.
+
+## Cleanup after a job
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+
+const router = new FileRouter()
+const claimId = "claim_123"
+
+const document = await router.documents.create("./claim.pdf", {
+  fileName: "claim.pdf",
+  mimeType: "application/pdf",
+  idempotencyKey: `doc:${claimId}`,
+})
+
+try {
+  const accepted = await router.jobs.create(
+    {
+      documentId: document.id,
+      outputs: ["markdown"],
+      providers: [{ provider: "liteparse" }],
+    },
+    { idempotencyKey: `job:${claimId}:liteparse` }
+  )
+
+  const job = await router.jobs.wait(accepted)
+  const execution = job.executions.find((item) => item.provider === "liteparse")
+
+  if (execution?.status === "complete" && execution.resultAvailable) {
+    const result = await router.executions.result(execution.id)
+    // Persist result.outputs.markdown (and any other fields you need) in your DB
+    console.log(result.pageCount, result.timing.durationMs)
+  }
+} finally {
+  await router.documents.delete(document.id)
+}
+```
+
+`documents.delete` removes the source, related jobs, and retained results. Prefer it at the end of ingest handlers and one-shot tools.
+
+For hosted `parse` / `compare`, delete via the returned resources when you no longer need retained outputs:
+
+```ts
+const parsed = await router.parse("./claim.pdf", {
+  provider: "liteparse",
+  outputs: ["markdown"],
+})
+await router.documents.delete(parsed.resources.documentId)
+```
+
+## Partial failure
+
+In a multi-provider job, one execution can fail while another completes. Read per-execution `status` and `resultAvailable`. Do not treat the whole job as useless because a single engine timed out.
+
+## Related
+
+- [Documents and jobs](/api/jobs)
+- [Processing modes](/concepts/processing-modes)
+- [How FileRouter works](/concepts/how-it-works)

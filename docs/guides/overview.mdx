@@ -1,0 +1,49 @@
+---
+title: "Guides"
+description: "Recipes for hosted documents, jobs, compare, and waitForExecution."
+---
+
+These guides are for **hosted** `FileRouter` workflows. They use the same primitives as the rest of the docs: store a document, run executions, read normalized results, delete when done.
+
+They are application-owned patterns. FileRouter does not auto-pick engines or fail over for you today.
+
+<CardGroup cols={2}>
+  <Card
+    title="Fast preview, then full parse"
+    icon="zap"
+    href="/guides/fast-then-strong"
+  >
+    One document, one job, two engines. Show LiteParse as soon as it finishes.
+  </Card>
+  <Card
+    title="Cheap path, then escalate"
+    icon="coins"
+    href="/guides/cheap-path"
+  >
+    Run LiteParse first. Start a heavier engine only if the cheap result looks
+    weak.
+  </Card>
+  <Card title="Bake off engines" icon="git-compare" href="/guides/bake-off">
+    Fan out with `compare` to score quality, latency, and cost on your files.
+  </Card>
+  <Card
+    title="Idempotency and cleanup"
+    icon="shield"
+    href="/guides/durable-jobs"
+  >
+    Safe retries, retention windows, and `documents.delete`.
+  </Card>
+</CardGroup>
+
+## Primitives cheat sheet
+
+| Piece                         | Role                                         |
+| ----------------------------- | -------------------------------------------- |
+| `documents.create` / `delete` | Store once; remove source + retained results |
+| `jobs.create`                 | Start one or more provider executions        |
+| `jobs.waitForExecution`       | Unblock when a single provider finishes      |
+| `jobs.wait`                   | Wait until the whole job ends                |
+| `executions.result`           | Fetch a normalized `ParseResult`             |
+| `parse` / `compare`           | Convenience wrappers over the same resources |
+
+See [How FileRouter works](/concepts/how-it-works) for the contract, and [Documents and jobs](/api/jobs) for the HTTP shape.

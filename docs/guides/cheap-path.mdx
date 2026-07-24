@@ -1,0 +1,117 @@
+---
+title: "Cheap path, then escalate"
+description: "Parse with LiteParse first. Start a heavier engine only when the cheap result is not enough."
+---
+
+Not every file needs a commercial OCR stack. On **hosted** FileRouter, LiteParse and PDF Inspector run as focused engines. Use them first when the document is likely born-digital or you only need a light pass.
+
+This guide starts the expensive engine **only after** the cheap result looks weak. That is different from [Fast preview, then full parse](/guides/fast-then-strong), which starts both engines immediately for UI latency.
+
+## Pick a cheap engine
+
+| Provider                               | Good for                                       | Hosted outputs                                    |
+| -------------------------------------- | ---------------------------------------------- | ------------------------------------------------- |
+| `liteparse`                            | Lightweight markdown, optional OCR             | `markdown`, `pages`, `text`, `images`, `metadata` |
+| `pdf-inspector`                        | Structure / inspection oriented passes         | `markdown`, `pages`, `metadata`                   |
+| `llamaparse`, `mistral-ocr`, `datalab` | Hard scans, complex layouts, richer extraction | Wider sets (often including `tables`)             |
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+
+const router = new FileRouter()
+
+const result = await router.parse("./statement.pdf", {
+  provider: "liteparse",
+  outputs: ["markdown", "pages"],
+  providerOptions: {
+    liteparse: { ocr: "auto" },
+  },
+})
+
+console.log(result.outputs.markdown)
+```
+
+Do not request `tables` from LiteParse. Hosted create/parse rejects unsupported outputs before provider I/O.
+
+## Escalate on the same document
+
+Reuse one `documentId`. Run a LiteParse job. If the result looks weak, create a **second** job for the heavier engine. You avoid paying for LlamaParse when LiteParse is already good enough.
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+import type { ParseResult } from "@file_router/sdk"
+
+const router = new FileRouter()
+
+function looksWeak(result: ParseResult): boolean {
+  const markdown = result.outputs.markdown ?? ""
+  const pages = result.pageCount || 1
+  return markdown.length < 200 * pages
+}
+
+async function parseClaim(claimId: string, filePath: string) {
+  const document = await router.documents.create(filePath, {
+    fileName: "packet.pdf",
+    mimeType: "application/pdf",
+    idempotencyKey: `doc:${claimId}`,
+  })
+
+  try {
+    const cheapAccepted = await router.jobs.create(
+      {
+        documentId: document.id,
+        outputs: ["markdown", "pages"],
+        providers: [{ provider: "liteparse", options: { ocr: "auto" } }],
+      },
+      { idempotencyKey: `job:${claimId}:liteparse` }
+    )
+
+    const cheapExec = await router.jobs.waitForExecution(
+      cheapAccepted,
+      "liteparse"
+    )
+    if (cheapExec.status === "complete" && cheapExec.resultAvailable) {
+      const cheap = await router.executions.result(cheapExec.id)
+      if (!looksWeak(cheap)) {
+        return cheap
+      }
+    }
+
+    const strongAccepted = await router.jobs.create(
+      {
+        documentId: document.id,
+        outputs: ["markdown", "tables"],
+        providers: [{ provider: "llamaparse" }],
+      },
+      { idempotencyKey: `job:${claimId}:llamaparse` }
+    )
+
+    const strongExec = await router.jobs.waitForExecution(
+      strongAccepted,
+      "llamaparse"
+    )
+    if (strongExec.status !== "complete" || !strongExec.resultAvailable) {
+      throw new Error("Strong parse did not complete.")
+    }
+    return await router.executions.result(strongExec.id)
+  } finally {
+    await router.documents.delete(document.id)
+  }
+}
+```
+
+`idempotencyKey` on jobs belongs in the **second** argument to `jobs.create`, not inside the job body.
+
+## Habits that keep cost down
+
+- Triage with `liteparse` or `pdf-inspector`
+- Escalate with a second job on the same document, not a second blind `parse()` that re-uploads
+- Request only outputs each engine supports
+- Delete documents when the pipeline finishes
+- Use [Bake off engines](/guides/bake-off) offline to learn which engine wins on your corpus
+
+## Related
+
+- [Fast preview, then full parse](/guides/fast-then-strong)
+- [Provider options](/sdk/provider-options)
+- [Idempotency and cleanup](/guides/durable-jobs)

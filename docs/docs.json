@@ -48,6 +48,16 @@
         "pages": ["index", "quickstart"]
       },
       {
+        "group": "Guides",
+        "pages": [
+          "guides/overview",
+          "guides/fast-then-strong",
+          "guides/cheap-path",
+          "guides/bake-off",
+          "guides/durable-jobs"
+        ]
+      },
+      {
         "group": "Concepts",
         "pages": [
           "concepts/how-it-works",

@@ -1,0 +1,83 @@
+---
+title: "Bake off engines"
+description: "Use compare to score engines on your own documents for quality, latency, and cost."
+---
+
+`compare` is a concurrent fan-out, not a router. One document is stored once, then each selected engine runs independently. You keep every `parsed`, `failed`, or `unsupported` outcome and decide what wins for your corpus.
+
+## Hosted SDK
+
+```ts
+import { FileRouter } from "@file_router/sdk"
+
+const router = new FileRouter()
+
+const comparison = await router.compare("./contracts/sample.pdf", {
+  providers: ["liteparse", "pdf-inspector", "llamaparse", "mistral-ocr"],
+  outputs: ["markdown"],
+})
+
+for (const attempt of comparison.providers) {
+  if (attempt.status === "parsed") {
+    console.log({
+      provider: attempt.provider,
+      durationMs: attempt.durationMs,
+      costUsd: attempt.result?.usage?.costUsd,
+      credits: attempt.result?.usage?.credits,
+      pages: attempt.result?.usage?.pages,
+      markdownChars: attempt.result?.outputs.markdown?.length ?? 0,
+    })
+    continue
+  }
+
+  console.warn({
+    provider: attempt.provider,
+    status: attempt.status,
+    error: attempt.error?.message,
+  })
+}
+
+// Hosted compare retains the document. Delete when you are done evaluating.
+await router.documents.delete(comparison.resources.documentId)
+```
+
+Request outputs every selected engine supports. `markdown` is the safe shared choice for LiteParse, PDF Inspector, and the commercial adapters. Asking for `tables` with LiteParse or PDF Inspector in the same compare will fail job creation.
+
+## What to score
+
+Use **your** documents. Public benches are orientation only.
+
+| Signal      | Source                                                                          |
+| ----------- | ------------------------------------------------------------------------------- |
+| Latency     | `attempt.durationMs` (and `comparison.timing.durationMs` for the whole fan-out) |
+| Cost        | `result.usage.costUsd` / `result.usage.credits` when present                    |
+| Coverage    | Did `outputs.markdown` (or tables/pages) come back?                             |
+| Quality     | Diff markdown, spot-check tables, or score with a judge model                   |
+| Reliability | Counts of `parsed` vs `failed` / `unsupported` across a fixture set             |
+
+Provider-native quality scores are not on one scale. Prefer your own rubric.
+
+Hosted billing note: credits are charged per provider that **successfully** returns a parsed result. Failed or unsupported attempts do not consume credits. See [Processing modes](/concepts/processing-modes).
+
+## CLI
+
+```bash
+npx @file_router/cli@latest compare ./fixtures/scan.pdf \
+  --providers liteparse,llamaparse,mistral-ocr \
+  --outputs markdown
+```
+
+Run this on a small golden set when you change engines or options. One bad engine should not hide the others.
+
+## After the bake-off
+
+- Pin a default engine for production `parse`
+- Keep `compare` for evals and regressions
+- For product UX that needs a fast draft then a richer pass, see [Fast preview, then full parse](/guides/fast-then-strong)
+- To avoid paying for the heavy engine on easy docs, see [Cheap path, then escalate](/guides/cheap-path)
+
+## Related
+
+- [Compare](/sdk/compare)
+- [Results](/concepts/results)
+- [CLI](/cli/overview)

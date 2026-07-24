@@ -46,6 +46,7 @@ const document = await router.documents.create(stream, {
 })
 
 try {
+  // Job-level outputs must be supported by every listed provider.
   const job = await router.jobs.create({
     documentId: document.id,
     outputs: ["markdown", "pages"],
@@ -56,11 +57,16 @@ try {
   })
 
   const execution = await router.jobs.waitForExecution(job, "liteparse")
-  const result = await router.executions.result(execution.id)
+  if (execution.status === "complete" && execution.resultAvailable) {
+    const result = await router.executions.result(execution.id)
+    console.log(result.outputs.markdown)
+  }
 } finally {
   await router.documents.delete(document.id)
 }
 ```
+
+For step-by-step recipes, see [Guides](/guides/overview).
 
 `waitForExecution` lets an application consume one provider as soon as it
 finishes without waiting for the other executions in the job.
