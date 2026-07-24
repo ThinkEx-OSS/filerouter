@@ -1,17 +1,23 @@
 import {
   ArrowRight,
-  ArrowsSplit,
   BracketsCurly,
   CheckCircle,
   CloudArrowUp,
   Code,
-  Cpu,
   FilePdf,
   Key,
 } from "@phosphor-icons/react"
+import { useState } from "react"
+
 import { DitherGradient } from "@/components/dither-kit/gradient"
 import { FileRouterLogo } from "@/components/file-router-logo"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  ENGINE_LOGO_CLASS,
+  hostedEngineRows,
+  hostedEnginesStackMinHeight,
+  type HostedEngineRow,
+} from "@/lib/hosted-engines"
 import { availableProviders } from "@/lib/provider-display"
 import { cn } from "@/lib/utils"
 
@@ -23,17 +29,58 @@ const modes = [
     label: "Direct (BYOK)",
     shortLabel: "Direct",
   },
-  { icon: ArrowsSplit, id: "compare", label: "Compare", shortLabel: "Compare" },
 ] as const
 
+type ModeId = (typeof modes)[number]["id"]
+
+const MODE_IDS: ReadonlySet<string> = new Set(modes.map((mode) => mode.id))
+
+function isModeId(value: string): value is ModeId {
+  return MODE_IDS.has(value)
+}
+
+/** Shared card width so Hosted ↔ Direct don’t reflow the pipeline. */
+const NODE = "w-full max-w-48"
+const CENTER_SLOT_MIN_H = "min-h-44"
+
+const stageMeta: Record<
+  ModeId,
+  {
+    footer: ReadonlyArray<string>
+  }
+> = {
+  hosted: {
+    footer: [
+      "Durable jobs",
+      "Safe retries",
+      "Stored results",
+      "Automatic cleanup",
+    ],
+  },
+  direct: {
+    footer: [
+      "Your runtime",
+      "Your keys",
+      "Provider billing",
+      "Same result shape",
+    ],
+  },
+}
+
 export function RoutingCanvas() {
+  const [mode, setMode] = useState<ModeId>("hosted")
+  const footer = stageMeta[mode].footer
+
   return (
     <Tabs
       className="mt-10 gap-0 overflow-hidden rounded-none border border-border bg-background"
-      defaultValue="hosted"
+      onValueChange={(value) => {
+        if (isModeId(value)) setMode(value)
+      }}
+      value={mode}
     >
       <div className="border-b border-border">
-        <TabsList className="grid w-full grid-cols-3" variant="panel">
+        <TabsList className="grid w-full grid-cols-2" variant="panel">
           {modes.map(({ icon: Icon, id, label, shortLabel }) => (
             <TabsTrigger
               aria-label={`${label} execution mode`}
@@ -49,129 +96,127 @@ export function RoutingCanvas() {
         </TabsList>
       </div>
 
-      <TabsContent value="hosted">
-        <RouteStage
-          center={<FileRouterNode detail="Durable job" />}
-          footer={[
-            "Upload once",
-            "Durable jobs",
-            "Safe retries",
-            "Stored results",
-            "Automatic cleanup",
-          ]}
-          providers={<HostedProvidersNode />}
+      {/* One shell — providers slot height derived from hostedEngineRows. */}
+      <div className="relative overflow-hidden bg-background">
+        <DitherGradient
+          cell={5}
+          className="opacity-55"
+          direction="left"
+          opacity={0.12}
         />
-      </TabsContent>
 
-      <TabsContent value="direct">
-        <RouteStage
-          center={<RuntimeNode />}
-          footer={[
-            "Your runtime",
-            "Your keys",
-            "Provider billing",
-            "Same result shape",
-          ]}
-          providers={<SelectedProvider />}
-        />
-      </TabsContent>
+        <div className="relative flex flex-col items-center justify-center px-5 py-10 md:flex-row md:px-8 md:py-14">
+          <FileNode />
+          <RouteConnector />
+          <StageSlot className={CENTER_SLOT_MIN_H}>
+            {mode === "hosted" ? (
+              <FileRouterNode
+                actions={["parse()", "compare()"]}
+                detail="Durable job"
+              />
+            ) : (
+              <RuntimeNode />
+            )}
+          </StageSlot>
+          <RouteConnector />
+          <StageSlot style={{ minHeight: hostedEnginesStackMinHeight }}>
+            {mode === "hosted" ? <EngineStack /> : <SelectedProvider />}
+          </StageSlot>
+          <RouteConnector />
+          <ResultNode />
+        </div>
 
-      <TabsContent value="compare">
-        <RouteStage
-          center={<FileRouterNode detail="compare()" compare />}
-          footer={[
-            "One document",
-            "Parallel executions",
-            "Partial success",
-            "Normalized results",
-          ]}
-          providers={<ProviderStack />}
-        />
-      </TabsContent>
+        <div className="relative flex min-h-14 flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border bg-background/90 px-5 py-4">
+          {footer.map((item) => (
+            <span
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              key={item}
+            >
+              <CheckCircle className="size-3.5 text-primary" weight="fill" />
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
     </Tabs>
   )
 }
 
-function RouteStage({
-  center,
-  footer,
-  providers,
+function StageSlot({
+  children,
+  className,
+  style,
 }: {
-  center: React.ReactNode
-  footer: ReadonlyArray<string>
-  providers: React.ReactNode
+  children: React.ReactNode
+  className?: string
+  style?: React.CSSProperties
 }) {
   return (
-    <div className="relative overflow-hidden bg-background">
-      <DitherGradient
-        cell={5}
-        className="opacity-55"
-        direction="left"
-        opacity={0.12}
-      />
-
-      <div className="relative flex min-h-[25rem] flex-col items-center justify-center px-5 py-10 md:flex-row md:px-8 md:py-14">
-        <FileNode />
-        <RouteConnector />
-        {center}
-        <RouteConnector />
-        {providers}
-        <RouteConnector />
-        <ResultNode />
-      </div>
-
-      <div className="relative flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border bg-background/90 px-5 py-4">
-        {footer.map((item) => (
-          <span
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
-            key={item}
-          >
-            <CheckCircle className="size-3.5 text-primary" weight="fill" />
-            {item}
-          </span>
-        ))}
-      </div>
+    <div
+      className={cn(
+        "flex w-full max-w-48 shrink-0 items-center justify-center",
+        className
+      )}
+      style={style}
+    >
+      {children}
     </div>
   )
 }
 
 function FileNode() {
   return (
-    <RouteNode className="w-full max-w-44">
+    <RouteNode className={NODE}>
       <FilePdf className="size-6 text-primary" weight="regular" />
-      <p className="mt-5 text-sm font-medium">document.pdf</p>
-      <p className="mt-1 font-mono text-xs text-muted-foreground">Input</p>
+      <p className="mt-5 text-sm font-medium">document</p>
+      <p className="mt-1 font-mono text-xs text-muted-foreground">Source</p>
     </RouteNode>
   )
 }
 
 function FileRouterNode({
-  compare = false,
+  actions,
   detail,
 }: {
-  compare?: boolean
+  actions?: ReadonlyArray<string>
   detail: string
 }) {
   return (
-    <RouteNode className="w-full max-w-48 border-primary/35 shadow-[0_0_48px_-28px_var(--primary)]">
-      <div className="flex items-center gap-2">
-        {compare ? (
-          <ArrowsSplit className="size-5 text-primary" weight="bold" />
-        ) : (
-          <span className="inline-flex size-8 items-center justify-center">
-            <FileRouterLogo className="h-5 w-auto" />
-          </span>
-        )}
-      </div>
+    <RouteNode
+      className={cn(
+        NODE,
+        "border-primary/35 shadow-[0_0_48px_-28px_var(--primary)]"
+      )}
+    >
+      <span className="inline-flex size-8 items-center justify-center">
+        <FileRouterLogo className="h-5 w-auto" />
+      </span>
       <p className="mt-4 text-sm font-medium">FileRouter</p>
       <p className="mt-1 font-mono text-xs text-muted-foreground">{detail}</p>
+      {actions ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {actions.map((action) => (
+            <span
+              className="border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+              key={action}
+            >
+              {action}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </RouteNode>
   )
 }
 
 function RuntimeNode() {
   return (
-    <RouteNode className="w-full max-w-48 border-primary/35 shadow-[0_0_48px_-28px_var(--primary)]">
+    <RouteNode
+      className={cn(
+        NODE,
+        "border-primary/35 shadow-[0_0_48px_-28px_var(--primary)]"
+      )}
+    >
       <Code className="size-6 text-primary" weight="regular" />
       <p className="mt-5 text-sm font-medium">Your runtime</p>
       <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -185,8 +230,12 @@ function SelectedProvider() {
   const provider = availableProviders[0]
 
   return (
-    <RouteNode className="w-full max-w-48">
-      <ProviderLogo provider={provider} />
+    <RouteNode className={NODE}>
+      <ProviderLogo
+        className="h-8 w-28"
+        darkLogo={provider.darkLogo}
+        logo={provider.logo}
+      />
       <p className="mt-5 font-mono text-xs text-muted-foreground">
         Selected provider
       </p>
@@ -194,59 +243,70 @@ function SelectedProvider() {
   )
 }
 
-function HostedProvidersNode() {
+function EngineStack() {
   return (
-    <RouteNode className="w-full max-w-52">
-      <Cpu className="size-6 text-primary" weight="regular" />
-      <p className="mt-4 text-sm font-medium">Providers</p>
-      <p className="mt-1 font-mono text-[10px] leading-4 text-muted-foreground">
-        LlamaParse · Mistral OCR · Datalab · LiteParse · PDF Inspector
-      </p>
-    </RouteNode>
-  )
-}
-
-function ProviderStack() {
-  return (
-    <div className="grid w-full max-w-48 gap-2">
-      {availableProviders.map((provider) => (
-        <div
-          aria-label={provider.label}
-          className="flex h-12 items-center rounded-none border border-border bg-background/90 px-3 shadow-sm"
-          key={provider.id}
-          role="img"
-        >
-          <ProviderLogo compact provider={provider} />
-        </div>
+    <div className={cn("grid gap-2", NODE)}>
+      {hostedEngineRows.map((engine) => (
+        <EngineRow key={engine.id} row={engine} />
       ))}
     </div>
   )
 }
 
-function ProviderLogo({
-  compact = false,
-  provider,
-}: {
-  compact?: boolean
-  provider: (typeof availableProviders)[number]
-}) {
-  const containerClassName = compact
-    ? provider.id === "llamaparse"
-      ? "h-6 w-24"
-      : "h-5 w-16"
-    : "h-8 w-28"
-
+function EngineRow({ row }: { row: HostedEngineRow }) {
   return (
-    <span className={cn("flex items-center", containerClassName)}>
+    <div
+      aria-label={row.label}
+      className="flex h-11 items-center gap-2 rounded-none border border-border bg-background/90 px-3 shadow-sm"
+      role="img"
+    >
+      {row.kind === "branded" ? (
+        <>
+          <ProviderLogo
+            className={ENGINE_LOGO_CLASS[row.logoSize]}
+            darkLogo={row.darkLogo}
+            logo={row.logo}
+          />
+          {row.caption ? (
+            <span className="truncate font-mono text-[11px] text-foreground">
+              {row.caption}
+            </span>
+          ) : null}
+        </>
+      ) : (
+        <span
+          className={cn(
+            "font-mono text-[11px]",
+            row.muted ? "text-muted-foreground/80" : "text-foreground"
+          )}
+        >
+          {row.label}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function ProviderLogo({
+  className,
+  darkLogo,
+  logo,
+}: {
+  className: string
+  darkLogo: string
+  logo: string
+}) {
+  return (
+    <span className={cn("flex shrink-0 items-center", className)}>
       <img
         alt=""
         className="max-h-full max-w-full object-contain object-left dark:hidden"
-        src={provider.logo}
+        src={logo}
       />
       <img
         alt=""
         className="hidden max-h-full max-w-full object-contain object-left dark:block"
-        src={provider.darkLogo}
+        src={darkLogo}
       />
     </span>
   )
@@ -254,7 +314,7 @@ function ProviderLogo({
 
 function ResultNode() {
   return (
-    <RouteNode className="w-full max-w-44">
+    <RouteNode className={NODE}>
       <BracketsCurly className="size-6 text-primary" weight="regular" />
       <p className="mt-5 text-sm font-medium">ParseResult</p>
       <p className="mt-1 font-mono text-xs text-muted-foreground">

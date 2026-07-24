@@ -28,9 +28,17 @@ export const availableProviders = [
   },
 ] as const satisfies ReadonlyArray<ProviderDisplay>
 
+export type CommercialProviderId = (typeof availableProviders)[number]["id"]
+
 const providerById = Object.fromEntries(
   availableProviders.map((provider) => [provider.id, provider])
-) as Record<(typeof availableProviders)[number]["id"], ProviderDisplay>
+) as Record<CommercialProviderId, ProviderDisplay>
+
+export function getCommercialProvider(
+  id: CommercialProviderId
+): ProviderDisplay {
+  return providerById[id]
+}
 
 /** Map public benchmark row names to FileRouter adapters we actually ship. */
 export function resolveSupportedBenchmarkProvider(
@@ -38,7 +46,9 @@ export function resolveSupportedBenchmarkProvider(
 ): ProviderDisplay | null {
   const name = entryName.trim().toLowerCase()
 
-  if (name.startsWith("llamaparse")) return providerById.llamaparse
+  if (name.startsWith("llamaparse") || name.startsWith("llamaextract")) {
+    return providerById.llamaparse
+  }
   if (name.startsWith("datalab")) return providerById.datalab
   if (name.startsWith("mistral ocr") || name.startsWith("mistral-ocr")) {
     return providerById["mistral-ocr"]

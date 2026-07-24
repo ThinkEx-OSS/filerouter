@@ -18,35 +18,35 @@ import { buildSocialImageMeta } from "@/lib/seo"
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "FileRouter: Better document processing" },
+      { title: "FileRouter: Durable document parsing API" },
       {
         name: "description",
         content:
-          "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
+          "Hosted parsers and commercial engines behind one durable API. Compare engines for accuracy, cost, latency, and reliability.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "FileRouter" },
       { property: "og:locale", content: "en_US" },
       {
         property: "og:title",
-        content: "FileRouter: Better document processing",
+        content: "FileRouter: Durable document parsing API",
       },
       {
         property: "og:description",
         content:
-          "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
+          "Hosted parsers and commercial engines behind one durable API. Compare engines for accuracy, cost, latency, and reliability.",
       },
       { property: "og:url", content: "https://filerouter.dev/" },
       ...buildSocialImageMeta(),
       { name: "twitter:card", content: "summary_large_image" },
       {
         name: "twitter:title",
-        content: "FileRouter: Better document processing",
+        content: "FileRouter: Durable document parsing API",
       },
       {
         name: "twitter:description",
         content:
-          "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
+          "Hosted parsers and commercial engines behind one durable API. Compare engines for accuracy, cost, latency, and reliability.",
       },
     ],
     links: [{ rel: "canonical", href: "https://filerouter.dev/" }],
@@ -122,7 +122,7 @@ function App() {
           </div>
 
           <p className="mt-12 text-xs font-normal text-muted-foreground uppercase">
-            Adapters for
+            Works with
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-5">
             {providerLogos.map((provider) => (
@@ -146,11 +146,10 @@ function App() {
       <section id="providers">
         <div className="mx-auto w-full max-w-6xl px-5 py-16 md:py-20">
           <h2 className="max-w-3xl text-3xl font-medium md:text-4xl">
-            One document pipeline. Every provider.
+            Building blocks for the pipeline you want.
           </h2>
           <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
-            Run providers through FileRouter, use your own keys, or compare them
-            through the same interface.
+            Focused engines for cheap paths, hard docs, and durable jobs.
           </p>
 
           <RoutingCanvas />
@@ -161,10 +160,14 @@ function App() {
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
             <h2 className="text-3xl font-medium md:text-4xl">
-              One interface from input to result.
+              Same interface for every engine.
             </h2>
             <p className="mt-4 max-w-lg leading-7 text-muted-foreground">
-              Pass a file, choose a provider, and receive the same typed result.
+              Point at{" "}
+              <span className="font-mono text-foreground">liteparse</span> or{" "}
+              <span className="font-mono text-foreground">pdf-inspector</span>{" "}
+              for simple pages, a heavier engine when you need it. Same typed
+              result.
             </p>
           </div>
 
@@ -181,11 +184,11 @@ function App() {
       <section className="py-16 text-center sm:py-24">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-6">
           <h2 className="mx-auto max-w-3xl text-4xl font-medium tracking-tight text-balance sm:text-6xl">
-            Production document processing, handled.
+            Assemble the pipeline. We run the jobs.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Run the providers you need while FileRouter handles durable jobs,
-            retries, results, and cleanup.
+            Pick the engines that fit each document. FileRouter handles durable
+            execution, retries, results, and cleanup.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <DitherButton asChild className="h-12 px-6 text-base font-normal">
@@ -231,7 +234,7 @@ const homeStructuredData = {
       name: "FileRouter",
       url: "https://filerouter.dev/",
       description:
-        "Optimize accuracy, reliability, latency, and cost across document providers through one durable API.",
+        "Hosted parsers and commercial engines behind one durable API. Compare engines for accuracy, cost, latency, and reliability.",
       publisher: { "@id": "https://filerouter.dev/#organization" },
     },
     {
@@ -239,7 +242,7 @@ const homeStructuredData = {
       "@type": "SoftwareSourceCode",
       name: "@file_router/sdk",
       description:
-        "A provider-neutral TypeScript SDK for parsing and comparing documents through FileRouter or directly with provider keys.",
+        "A TypeScript SDK for parsing and comparing documents across engines through FileRouter or directly with provider keys.",
       codeRepository: "https://github.com/ThinkEx-OSS/filerouter",
       license: "https://opensource.org/license/mit",
       programmingLanguage: "TypeScript",

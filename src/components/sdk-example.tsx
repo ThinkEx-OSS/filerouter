@@ -8,16 +8,18 @@ const examples = {
 
 const router = new FileRouter()
 
+// Fast hosted engine for simple pages
 const result = await router.parse(file, {
-  provider: "llamaparse",
+  provider: "liteparse",
   outputs: ["markdown", "tables"],
 })`,
   compare: `import { FileRouter } from "@file_router/sdk"
 
 const router = new FileRouter()
 
+// Fan out one document across engines; keep every outcome
 const results = await router.compare(file, {
-  providers: ["llamaparse", "mistral-ocr", "datalab"],
+  providers: ["liteparse", "pdf-inspector", "llamaparse", "mistral-ocr"],
   outputs: ["markdown"],
 })`,
 } as const
