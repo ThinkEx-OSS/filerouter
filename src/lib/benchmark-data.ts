@@ -9,17 +9,24 @@ export type BenchmarkMetricId =
   | "recall"
   | "precision"
   | "leafAccuracy"
-  | "readingOrder"
-  | "headings"
   | "oldScans"
   | "multiColumn"
   | "longText"
+
+export type BenchmarkPresentation =
+  | "cost-scatter"
+  | "latency-scatter"
+  | "ranked-list"
 
 export type BenchmarkEntry = {
   name: string
   category?: string
   scores: Partial<Record<BenchmarkMetricId, number | null>>
   secondary: string | null
+  /** Public list price in cents per page when the source publishes one. */
+  costPerPageCents?: number | null
+  /** Published p50 latency in seconds when the source includes it. */
+  latencyP50Seconds?: number | null
   featured?: boolean
 }
 
@@ -35,8 +42,8 @@ export type BenchmarkMetric = {
 
 export type BenchmarkDefinition = {
   id: "parsebench" | "long-extraction" | "olmocr"
+  presentation: BenchmarkPresentation
   tabLabel: string
-  tabHint: string
   title: string
   description: string
   sourceName: string
@@ -134,6 +141,31 @@ function parseScore(value: string): number | null {
   return value ? Number(value) : null
 }
 
+function parseCostPerPageCents(secondary: string): number | null {
+  const match = secondary.match(/^([\d.]+)\s*¢/)
+  if (!match?.[1]) return null
+  const value = Number(match[1])
+  return Number.isFinite(value) ? value : null
+}
+
+function parseLatencyP50Seconds(secondary: string): number | null {
+  const match = secondary.match(/^p50\s+([\d,]+)\s*s$/i)
+  if (!match?.[1]) return null
+  const value = Number(match[1].replaceAll(",", ""))
+  return Number.isFinite(value) ? value : null
+}
+
+function withLatency(
+  entry: Omit<BenchmarkEntry, "latencyP50Seconds">
+): BenchmarkEntry {
+  return {
+    ...entry,
+    latencyP50Seconds: entry.secondary
+      ? parseLatencyP50Seconds(entry.secondary)
+      : null,
+  }
+}
+
 const parseBenchEntries: ReadonlyArray<BenchmarkEntry> = parseBenchSnapshot
   .trim()
   .split("\n")
@@ -163,6 +195,7 @@ const parseBenchEntries: ReadonlyArray<BenchmarkEntry> = parseBenchSnapshot
         grounding: parseScore(grounding),
       },
       secondary: secondary || null,
+      costPerPageCents: parseCostPerPageCents(secondary),
       featured: featured === "1",
     }
   })
@@ -245,7 +278,7 @@ const longExtractionEntries = [
     },
     secondary: "p50 187s",
   },
-] satisfies ReadonlyArray<BenchmarkEntry>
+].map(withLatency) satisfies ReadonlyArray<BenchmarkEntry>
 
 const olmOcrEntries = [
   {
@@ -326,11 +359,10 @@ const olmOcrEntries = [
 export const benchmarks = [
   {
     id: "parsebench",
+    presentation: "cost-scatter",
     tabLabel: "Output quality",
-    tabHint: "Enterprise PDFs",
-    title: "Which parser preserves the most useful content?",
-    description:
-      "Compares tables, charts, content accuracy, formatting, and layout across real enterprise documents.",
+    title: "Quality vs cost across providers",
+    description: "Up and to the right is better value.",
     sourceName: "ParseBench",
     sourceUrl: "https://github.com/run-llama/ParseBench",
     snapshotLabel: "Latest public leaderboard · accessed July 20, 2026",
@@ -400,11 +432,10 @@ export const benchmarks = [
   },
   {
     id: "long-extraction",
+    presentation: "latency-scatter",
     tabLabel: "Extraction at scale",
-    tabHint: "Dense extraction",
-    title: "Which parser stays reliable on long documents?",
-    description:
-      "Measures completion and field accuracy across hundreds-page, table-heavy documents.",
+    title: "Coverage vs latency on long documents",
+    description: "Up and to the right is better: finish more, faster.",
     sourceName: "LongExtractionBench",
     sourceUrl: "https://www.micro1.ai/benchmark/long-extraction",
     snapshotLabel: "Published July 2026",
@@ -456,8 +487,8 @@ export const benchmarks = [
   },
   {
     id: "olmocr",
+    presentation: "ranked-list",
     tabLabel: "Complex PDFs",
-    tabHint: "OCR and structure",
     title: "Which parser handles difficult pages best?",
     description:
       "Tests old scans, tables, multi-column layouts, and long or tiny text across 1,400 PDFs.",
