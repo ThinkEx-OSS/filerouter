@@ -5,7 +5,7 @@ export const seo = {
   defaultDescription:
     "Inspect, parse, and compare documents across providers through one durable API.",
   defaultSocialImage: "/og-image.png",
-  defaultSocialImageAlt: "White FileRouter logo on a blue background",
+  defaultSocialImageAlt: "FileRouter wordmark on a black background",
 } as const
 
 type PublicMetaOptions = {
