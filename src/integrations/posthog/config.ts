@@ -1,7 +1,6 @@
-export const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com"
+export const DEFAULT_POSTHOG_HOST = "https://h.filerouter.dev"
 
 export interface PostHogEnv {
-  POSTHOG_HOST?: string
   POSTHOG_PROJECT_TOKEN?: string
 }
 
@@ -18,7 +17,7 @@ export function getPostHogConfig(
     return undefined
   }
   return {
-    host: env.POSTHOG_HOST?.trim() || DEFAULT_POSTHOG_HOST,
+    host: DEFAULT_POSTHOG_HOST,
     token,
   }
 }

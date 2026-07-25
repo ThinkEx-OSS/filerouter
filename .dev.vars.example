@@ -20,4 +20,3 @@ BETTER_AUTH_URL="http://localhost:3000"
 # Optional product analytics and error tracking. The project token is public;
 # leave it unset to disable PostHog without changing application behavior.
 # POSTHOG_PROJECT_TOKEN=""
-# POSTHOG_HOST="https://us.i.posthog.com"
