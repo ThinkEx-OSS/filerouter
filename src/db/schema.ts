@@ -256,11 +256,6 @@ export const documentExecution = sqliteTable(
     outputs: text("outputs", { mode: "json" })
       .$type<Array<ParseOutput>>()
       .notNull(),
-    options: text("options", { mode: "json" }).$type<Record<string, unknown>>(),
-    includeRaw: integer("include_raw", { mode: "boolean" })
-      .default(false)
-      .notNull(),
-    pages: text("pages", { mode: "json" }).$type<Array<number>>(),
     resultKey: text("result_key"),
     resultExpiresAt: integer("result_expires_at", { mode: "timestamp" }),
     pageCount: integer("page_count"),
