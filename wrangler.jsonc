@@ -31,8 +31,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "filerouter",
-      "database_id": "98a02e23-1c7f-4663-993f-ff4d8de54662",
+      "database_name": "filerouter-production",
+      "database_id": "a5bfa076-ebbf-40f7-9c1a-2a5cc9c31c48",
       "migrations_dir": "drizzle",
     },
   ],
