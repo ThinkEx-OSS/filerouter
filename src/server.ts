@@ -8,6 +8,7 @@ import {
 } from "@/integrations/posthog/server"
 import { runDocumentRetentionCleanup } from "@/lib/document-retention.server"
 import { isHonoApiPath } from "@/lib/request-routing"
+import { withSecurityHeaders } from "@/lib/security-headers"
 import {
   emitWideEvent,
   requestIdFrom,
@@ -19,14 +20,14 @@ import {
 export { DocumentWorkflow } from "@/workflows/document-workflow"
 
 export default {
-  fetch(request, env, context) {
+  async fetch(request, env, context) {
     const requestId = requestIdFrom(request)
     const routedRequest = withRequestId(request, requestId)
     const pathname = new URL(routedRequest.url).pathname
-    if (isHonoApiPath(pathname)) {
-      return api.fetch(routedRequest, env, context)
-    }
-    return handleWebsiteRequest(routedRequest, env, context, requestId)
+    const response = isHonoApiPath(pathname)
+      ? await api.fetch(routedRequest, env, context)
+      : await handleWebsiteRequest(routedRequest, env, context, requestId)
+    return withSecurityHeaders(routedRequest, response)
   },
   scheduled(_controller, env, context) {
     context.waitUntil(runScheduledCleanup(env))

@@ -59,6 +59,10 @@ const footerColumns = [
       { label: "Terms of Service", to: "/terms" },
       { label: "Privacy Policy", to: "/privacy" },
       { label: "Cookie Policy", to: "/cookies" },
+      {
+        label: "Security",
+        href: "https://github.com/ThinkEx-OSS/filerouter/security/policy",
+      },
     ],
   },
 ] as const

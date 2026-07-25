@@ -1,0 +1,5 @@
+Contact: mailto:hello@thinkex.app?subject=FileRouter%20security%20report
+Expires: 2027-01-25T00:00:00Z
+Preferred-Languages: en
+Canonical: https://filerouter.dev/.well-known/security.txt
+Policy: https://github.com/ThinkEx-OSS/filerouter/security/policy
