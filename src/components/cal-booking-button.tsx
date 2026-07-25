@@ -1,26 +1,22 @@
-import { useEffect, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const CAL_LINK = "thinkex-team-vuzyak/15min"
 const CAL_NAMESPACE = "15min"
+const CAL_CONFIG = {
+  layout: "month_view" as const,
+  useSlotsViewOnSmallScreen: "true",
+}
 
-let calendarInitialization: Promise<void> | undefined
+let calendarInitialization:
+  | ReturnType<(typeof import("@calcom/embed-react"))["getCalApi"]>
+  | undefined
 
 function initializeCalendar() {
   calendarInitialization ??= import("@calcom/embed-react").then(
-    async ({ getCalApi }) => {
-      const cal = await getCalApi({ namespace: CAL_NAMESPACE })
-      cal("ui", {
-        cssVarsPerTheme: {
-          light: { "cal-brand": "#00BDF7" },
-          dark: { "cal-brand": "#00BDF7" },
-        },
-        hideEventTypeDetails: false,
-        layout: "month_view",
-      })
-    }
+    ({ getCalApi }) => getCalApi({ namespace: CAL_NAMESPACE })
   )
 
   return calendarInitialization
@@ -35,16 +31,34 @@ export function CalBookingButton({
   children,
   className,
 }: CalBookingButtonProps) {
-  useEffect(() => {
-    void initializeCalendar()
-  }, [])
+  const [isOpening, setIsOpening] = useState(false)
+
+  async function openCalendar() {
+    setIsOpening(true)
+    try {
+      const cal = await initializeCalendar()
+      cal("ui", {
+        cssVarsPerTheme: {
+          light: { "cal-brand": "#00BDF7" },
+          dark: { "cal-brand": "#00BDF7" },
+        },
+        hideEventTypeDetails: false,
+        layout: "month_view",
+      })
+      cal("modal", {
+        calLink: CAL_LINK,
+        config: CAL_CONFIG,
+      })
+    } finally {
+      setIsOpening(false)
+    }
+  }
 
   return (
     <Button
       className={cn("font-normal", className)}
-      data-cal-config='{"layout":"month_view","useSlotsViewOnSmallScreen":"true"}'
-      data-cal-link={CAL_LINK}
-      data-cal-namespace={CAL_NAMESPACE}
+      disabled={isOpening}
+      onClick={() => void openCalendar()}
       type="button"
       variant="outline"
     >
