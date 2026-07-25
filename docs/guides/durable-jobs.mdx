@@ -25,8 +25,7 @@ const document = await router.documents.create("./claim.pdf", {
 const accepted = await router.jobs.create(
   {
     documentId: document.id,
-    outputs: ["markdown"],
-    providers: [{ provider: "liteparse" }],
+    providers: [{ outputs: ["markdown"], provider: "liteparse" }],
   },
   { idempotencyKey: `job:${claimId}:liteparse` }
 )
@@ -66,8 +65,7 @@ try {
   const accepted = await router.jobs.create(
     {
       documentId: document.id,
-      outputs: ["markdown"],
-      providers: [{ provider: "liteparse" }],
+      providers: [{ outputs: ["markdown"], provider: "liteparse" }],
     },
     { idempotencyKey: `job:${claimId}:liteparse` }
   )

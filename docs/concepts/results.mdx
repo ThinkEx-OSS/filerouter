@@ -44,6 +44,25 @@ interface ParseResult {
 
 Only requested and supported values appear under `outputs`.
 
+## Page fields
+
+Request `pages` when you need page boundaries. Use `pageFields` to keep only
+the portable fields your application consumes:
+
+```ts
+const result = await router.parse(file, {
+  provider: "liteparse",
+  outputs: ["pages"],
+  pageFields: ["markdown"],
+  providerOptions: {
+    liteparse: { ocr: "off", imageMode: "off" },
+  },
+})
+```
+
+Every returned page retains `pageNumber` and `warnings`. Other requested fields
+appear when the provider supplies them.
+
 ## Page numbering
 
 Pages in FileRouter results are one-based. Provider adapters translate page selections to the provider's native representation.

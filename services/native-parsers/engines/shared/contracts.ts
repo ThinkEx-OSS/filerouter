@@ -1,5 +1,24 @@
 export type NativeParserId = "liteparse" | "pdf-inspector"
 
+export const nativeParserOutputIds = [
+  "images",
+  "markdown",
+  "metadata",
+  "pages",
+  "text",
+] as const
+
+export type NativeParserOutput = (typeof nativeParserOutputIds)[number]
+
+export const nativeParserPageFieldIds = [
+  "dimensions",
+  "markdown",
+  "metadata",
+  "text",
+] as const
+
+export type NativeParserPageField = (typeof nativeParserPageFieldIds)[number]
+
 export type NativeParserWarning = {
   code: string
   message: string
@@ -36,6 +55,8 @@ export type NativeParserResult = {
 }
 
 export type NativeParserOptions = {
+  outputs?: Array<NativeParserOutput>
+  pageFields?: Array<NativeParserPageField>
   pages?: Array<number>
   providerOptions?: unknown
 }

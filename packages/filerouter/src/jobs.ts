@@ -12,16 +12,16 @@ import type {
 } from "./hosted"
 import type { ProviderId } from "./catalog"
 import type { HostedTransport } from "./internal/hosted-transport"
+import { assertPageFields } from "./internal/provider-options"
 import { abortableSleep } from "./internal/sleep"
 import { withTimeout } from "./internal/timeout"
-import type { ParseOutput } from "./types"
+import { DEFAULT_PARSE_OUTPUT } from "./types"
 
 export const DEFAULT_HOSTED_JOB_TIMEOUT_MS = 10 * 60 * 1000
 
 export interface HostedJobCreateInput {
   documentId: string
   metadata?: Record<string, string>
-  outputs: Array<ParseOutput>
   providers: Array<HostedProviderTarget>
 }
 
@@ -203,11 +203,6 @@ export function assertHostedJobDraft(input: HostedJobCreateDraft): void {
 }
 
 function serializeJobInput(input: HostedJobCreateInput): string {
-  if (input.outputs.length === 0) {
-    throw new FileRouterError("Hosted jobs require at least one output.", {
-      code: "InvalidInput",
-    })
-  }
   if (input.providers.length === 0) {
     throw new FileRouterError("Hosted jobs require at least one provider.", {
       code: "InvalidInput",
@@ -228,6 +223,12 @@ function serializeJobInput(input: HostedJobCreateInput): string {
     throw new FileRouterError(
       `Hosted jobs allow at most ${MAX_HOSTED_METADATA_ENTRIES} metadata entries.`,
       { code: "InvalidInput" }
+    )
+  }
+  for (const target of input.providers) {
+    assertPageFields(
+      target.outputs ?? [DEFAULT_PARSE_OUTPUT],
+      target.pageFields
     )
   }
   return stringifyJson(input)

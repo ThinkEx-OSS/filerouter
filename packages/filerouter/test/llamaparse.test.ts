@@ -45,6 +45,39 @@ describe("llamaparse", () => {
     )
   })
 
+  test("expands only the requested page fields", async () => {
+    const get = vi.fn().mockResolvedValue({
+      job: { id: "parse-job", status: "COMPLETED" },
+      markdown: { pages: [{ markdown: "# Parsed", page_number: 1 }] },
+    })
+    const provider = llamaparse({
+      client: {
+        parsing: {
+          create: vi.fn().mockResolvedValue({ id: "parse-job" }),
+          get,
+        },
+      },
+    })
+
+    const job = await provider.jobs?.submit(
+      { kind: "url", url: "https://example.com/sample.pdf" },
+      { outputs: ["pages"], pageFields: ["markdown"] }
+    )
+    if (!job) {
+      throw new Error("Expected a LlamaParse job reference.")
+    }
+    await provider.jobs?.get(job, {
+      outputs: ["pages"],
+      pageFields: ["markdown"],
+    })
+
+    expect(get).toHaveBeenCalledWith(
+      "parse-job",
+      expect.objectContaining({ expand: ["job_metadata", "markdown"] }),
+      undefined
+    )
+  })
+
   test("normalizes markdown, text, metadata, tables, and images", async () => {
     const create = vi.fn().mockResolvedValue({ id: "parse-job" })
     const get = vi.fn().mockResolvedValue({

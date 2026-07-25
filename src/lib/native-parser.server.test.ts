@@ -17,6 +17,7 @@ function liteParseProvider(fetch: (request: Request) => Promise<Response>) {
     capabilities: {
       execution: "sync",
       outputs: ["markdown", "metadata", "pages", "text"],
+      pageFields: ["dimensions", "markdown", "metadata", "text"],
     },
     fetch,
     id: "liteparse",
@@ -39,11 +40,22 @@ describe("hosted native parser transport", () => {
         url: "https://filerouter.dev/api/v1/sources/job/report.pdf?expires=1&token=x",
       },
       {
-        outputs: ["markdown", "metadata"],
+        outputs: ["markdown", "metadata", "pages"],
+        pageFields: ["markdown"],
         providerOptions: { liteparse: { ocr: "auto" } },
       }
     )
 
+    const engineOptions = JSON.parse(
+      decodeURIComponent(
+        requests[0]?.headers.get("x-filerouter-engine-options") ?? ""
+      )
+    )
+    expect(engineOptions).toEqual({
+      outputs: ["markdown", "metadata", "pages"],
+      pageFields: ["markdown"],
+      providerOptions: { ocr: "auto" },
+    })
     expect(requests[0]?.headers.get("x-filerouter-source-url")).toContain(
       "/api/v1/sources/job/report.pdf"
     )
@@ -54,6 +66,14 @@ describe("hosted native parser transport", () => {
           engine: { id: "liteparse", version: "2.8.0" },
           ocrEnabled: true,
         },
+        pages: [
+          {
+            markdown: "# Parsed",
+            pageNumber: 1,
+            text: "Parsed",
+            warnings: [],
+          },
+        ],
       },
       pageCount: 1,
       provider: "liteparse",

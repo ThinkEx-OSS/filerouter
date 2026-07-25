@@ -1,5 +1,6 @@
 import { FileRouterError } from "../errors"
-import type { ParseOptions } from "../types"
+import { parsePageFieldIds } from "../types"
+import type { ParseOptions, ParseOutput, ParsePageField } from "../types"
 
 const MAX_TIMER_DELAY_MS = 2_147_483_647
 
@@ -24,6 +25,29 @@ export function assertPages(pages: Array<number> | undefined): void {
   if (pages?.some((page) => !Number.isSafeInteger(page) || page < 1)) {
     throw new FileRouterError("Pages must be positive, one-based integers.", {
       code: "ParseFailed",
+    })
+  }
+}
+
+export function assertPageFields(
+  outputs: Array<ParseOutput>,
+  pageFields: Array<ParsePageField> | undefined
+): void {
+  if (!pageFields) {
+    return
+  }
+  if (
+    pageFields.length === 0 ||
+    pageFields.some((field) => !parsePageFieldIds.includes(field))
+  ) {
+    throw new FileRouterError(
+      "pageFields must contain supported page fields.",
+      { code: "InvalidInput" }
+    )
+  }
+  if (!outputs.includes("pages")) {
+    throw new FileRouterError("pageFields requires the pages output.", {
+      code: "InvalidInput",
     })
   }
 }

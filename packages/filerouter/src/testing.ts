@@ -30,6 +30,7 @@ export const fakeProvider = (
         "metadata",
         "html",
       ],
+      pageFields: ["markdown", "text"],
     },
     id,
     name: opts.name ?? "Fake Provider",

@@ -1,6 +1,11 @@
 import { FileRouterError, toFileRouterError } from "./errors"
 import { describeInput, resolveParseInput } from "./internal/input"
-import { assertPages, assertTimeoutMs } from "./internal/provider-options"
+import { selectPageFields } from "./internal/outputs"
+import {
+  assertPageFields,
+  assertPages,
+  assertTimeoutMs,
+} from "./internal/provider-options"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   CompareOptions,
@@ -10,6 +15,7 @@ import type {
   ParseInput,
   ParseOptions,
   ParseOutput,
+  ParsePageField,
   ParseResult,
   ProviderMap,
 } from "./types"
@@ -43,11 +49,16 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     const provider = this.#selectProvider(options.provider)
     const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
 
+    assertPageFields(outputs, options.pageFields)
     assertProviderOutputs(provider, outputs)
+    assertProviderPageFields(provider, options.pageFields)
     const normalizedInput = await resolveParseInput(input)
 
     try {
-      return await provider.parse(normalizedInput, { ...options, outputs })
+      return selectPageFields(
+        await provider.parse(normalizedInput, { ...options, outputs }),
+        options.pageFields
+      )
     } catch (error) {
       throw toFileRouterError(error, {
         code: "ParseFailed",
@@ -64,6 +75,7 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     assertTimeoutMs(options.timeoutMs)
     const startedAt = new Date()
     const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
+    assertPageFields(outputs, options.pageFields)
     const providerIds = options.providers ?? Object.keys(this.#providers)
     const normalizedInput = await resolveParseInput(input)
     const providers = await Promise.all(
@@ -110,6 +122,7 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
 
     try {
       assertProviderOutputs(provider, options.outputs ?? [DEFAULT_PARSE_OUTPUT])
+      assertProviderPageFields(provider, options.pageFields)
     } catch (error) {
       return {
         durationMs: Date.now() - startedAt,
@@ -120,10 +133,13 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     }
 
     try {
-      const result = await provider.parse(input, {
-        ...options,
-        provider: provider.id,
-      })
+      const result = selectPageFields(
+        await provider.parse(input, {
+          ...options,
+          provider: provider.id,
+        }),
+        options.pageFields
+      )
 
       return {
         durationMs: Date.now() - startedAt,
@@ -185,6 +201,27 @@ export const assertProviderOutputs = (
   if (unsupported.length > 0) {
     throw new FileRouterError(
       `Provider "${provider.id}" does not support output(s): ${unsupported.join(", ")}.`,
+      {
+        code: "ProviderUnsupportedOutput",
+        providerId: provider.id,
+      }
+    )
+  }
+}
+
+export const assertProviderPageFields = (
+  provider: FileRouterProvider,
+  pageFields: Array<ParsePageField> | undefined
+): void => {
+  if (!pageFields) {
+    return
+  }
+  const supported = new Set(provider.capabilities.pageFields ?? [])
+  const unsupported = pageFields.filter((field) => !supported.has(field))
+
+  if (unsupported.length > 0) {
+    throw new FileRouterError(
+      `Provider "${provider.id}" does not support page field(s): ${unsupported.join(", ")}.`,
       {
         code: "ProviderUnsupportedOutput",
         providerId: provider.id,

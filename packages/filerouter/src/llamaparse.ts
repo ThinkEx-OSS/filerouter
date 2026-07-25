@@ -17,6 +17,7 @@ import type {
   ParsedTable,
   ParseOptions,
   ParseOutput,
+  ParsePageField,
   ParsePage,
   ParseResult,
   ParseWarning,
@@ -75,8 +76,9 @@ export const llamaparse = (
   return {
     capabilities: {
       execution: "async",
-      features: ["blocks", "page-selection"],
+      features: ["page-selection"],
       outputs: LLAMAPARSE_OUTPUTS,
+      pageFields: ["images", "markdown", "metadata", "tables", "text"],
     },
     id: "llamaparse",
     jobs,
@@ -154,7 +156,10 @@ const getLlamaParseJob = async (
   const response = await client.parsing.get(
     job.id,
     {
-      expand: mergeExpansions(outputsToExpand(outputs), nativeOptions.expand),
+      expand: mergeExpansions(
+        outputsToExpand(outputs, options.pageFields),
+        nativeOptions.expand
+      ),
       ...(nativeOptions.image_filenames && {
         image_filenames: nativeOptions.image_filenames,
       }),
@@ -220,27 +225,34 @@ const resolveClient = async (
   }
 }
 
-const outputsToExpand = (outputs: Array<ParseOutput>): Array<string> => {
+const outputsToExpand = (
+  outputs: Array<ParseOutput>,
+  pageFields?: Array<ParsePageField>
+): Array<string> => {
   const expand = new Set<string>(["job_metadata"])
+  const fullPages = outputs.includes("pages") && pageFields === undefined
+  const pageFieldRequested = (field: ParsePageField): boolean =>
+    fullPages || pageFields?.includes(field) === true
 
-  if (outputs.includes("markdown") || outputs.includes("pages")) {
+  if (outputs.includes("markdown") || pageFieldRequested("markdown")) {
     expand.add("markdown")
   }
-  if (outputs.includes("text") || outputs.includes("pages")) {
+  if (outputs.includes("text") || pageFieldRequested("text")) {
     expand.add("text")
   }
   if (
     outputs.includes("json") ||
     outputs.includes("tables") ||
     outputs.includes("images") ||
-    outputs.includes("pages")
+    pageFieldRequested("tables") ||
+    pageFieldRequested("images")
   ) {
     expand.add("items")
   }
   if (outputs.includes("images")) {
     expand.add("images_content_metadata")
   }
-  if (outputs.includes("metadata") || outputs.includes("pages")) {
+  if (outputs.includes("metadata") || pageFieldRequested("metadata")) {
     expand.add("metadata")
   }
 

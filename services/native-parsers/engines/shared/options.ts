@@ -1,16 +1,51 @@
+import { nativeParserOutputIds, nativeParserPageFieldIds } from "./contracts.ts"
 import type { NativeParserOptions } from "./contracts.ts"
 import { ParserRequestError } from "./http.ts"
 
 export function readNativeParserOptions(value: unknown): NativeParserOptions {
   const options = readObject(value, "Parser options must be an object.")
-  assertAllowedKeys(options, ["pages", "providerOptions"])
+  assertAllowedKeys(options, [
+    "outputs",
+    "pageFields",
+    "pages",
+    "providerOptions",
+  ])
+  const outputs = readStringSelection(
+    options.outputs,
+    nativeParserOutputIds,
+    "outputs"
+  )
+  const pageFields = readStringSelection(
+    options.pageFields,
+    nativeParserPageFieldIds,
+    "pageFields"
+  )
   const pages = readPages(options.pages)
   return {
+    ...(outputs && { outputs }),
+    ...(pageFields && { pageFields }),
     ...(pages && { pages }),
     ...(options.providerOptions !== undefined && {
       providerOptions: options.providerOptions,
     }),
   }
+}
+
+function readStringSelection<T extends string>(
+  value: unknown,
+  allowed: ReadonlyArray<T>,
+  name: string
+): Array<T> | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const allowedValues = new Set<string>(allowed)
+  const isAllowed = (item: unknown): item is T =>
+    typeof item === "string" && allowedValues.has(item)
+  if (!Array.isArray(value) || !value.every(isAllowed)) {
+    throw invalidOptions(`${name} contains an unsupported value.`)
+  }
+  return [...new Set(value)]
 }
 
 export function readObject(

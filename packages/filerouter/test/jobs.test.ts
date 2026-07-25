@@ -14,14 +14,19 @@ describe("hosted resources", () => {
       client.jobs.create(
         {
           documentId: "document-1",
-          outputs: ["markdown"],
-          providers: [{ provider: "llamaparse" }],
+          providers: [{ outputs: ["markdown"], provider: "llamaparse" }],
         },
         { idempotencyKey: "job-create-1" }
       )
     ).resolves.toEqual({ id: "job-1", status: "queued" })
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
     expect(headers.get("idempotency-key")).toBe("job-create-1")
+    await expect(
+      new Request("https://example.com", fetchMock.mock.calls[0]?.[1]).json()
+    ).resolves.toEqual({
+      documentId: "document-1",
+      providers: [{ outputs: ["markdown"], provider: "llamaparse" }],
+    })
   })
 
   test("waits for a terminal job and reports status transitions once", async () => {
@@ -110,7 +115,6 @@ describe("hosted resources", () => {
     const jobs = createClient(fetchMock).jobs
     const base = {
       documentId: "document-1",
-      outputs: ["markdown" as const],
     }
 
     await expect(
@@ -119,8 +123,16 @@ describe("hosted resources", () => {
         providers: [{ provider: "llamaparse" }, { provider: "llamaparse" }],
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
+    await expect(jobs.create({ ...base, providers: [] })).rejects.toMatchObject(
+      {
+        code: "InvalidInput",
+      }
+    )
     await expect(
-      jobs.create({ ...base, outputs: [], providers: [] })
+      jobs.create({
+        ...base,
+        providers: [{ pageFields: ["markdown"], provider: "llamaparse" }],
+      })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     await expect(
       jobs.create({
@@ -136,7 +148,7 @@ describe("hosted resources", () => {
         ...base,
         providers: [
           {
-            options: {
+            providerOptions: {
               agentic_options: {
                 custom_prompt: "x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES),
               },

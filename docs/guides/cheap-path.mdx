@@ -23,6 +23,7 @@ const router = new FileRouter()
 const result = await router.parse("./statement.pdf", {
   provider: "liteparse",
   outputs: ["markdown", "pages"],
+  pageFields: ["markdown"],
   providerOptions: {
     liteparse: { ocr: "auto" },
   },
@@ -60,8 +61,14 @@ async function parseClaim(claimId: string, filePath: string) {
     const cheapAccepted = await router.jobs.create(
       {
         documentId: document.id,
-        outputs: ["markdown", "pages"],
-        providers: [{ provider: "liteparse", options: { ocr: "auto" } }],
+        providers: [
+          {
+            outputs: ["markdown", "pages"],
+            provider: "liteparse",
+            pageFields: ["markdown"],
+            providerOptions: { ocr: "auto" },
+          },
+        ],
       },
       { idempotencyKey: `job:${claimId}:liteparse` }
     )
@@ -80,8 +87,9 @@ async function parseClaim(claimId: string, filePath: string) {
     const strongAccepted = await router.jobs.create(
       {
         documentId: document.id,
-        outputs: ["markdown", "tables"],
-        providers: [{ provider: "llamaparse" }],
+        providers: [
+          { outputs: ["markdown", "tables"], provider: "llamaparse" },
+        ],
       },
       { idempotencyKey: `job:${claimId}:llamaparse` }
     )

@@ -37,8 +37,7 @@ describe("FileRouter", () => {
     })
     expect(readJsonBody(fetchMock, 1)).toEqual({
       documentId: "document-1",
-      outputs: ["markdown"],
-      providers: [{ provider: "llamaparse" }],
+      providers: [{ outputs: ["markdown"], provider: "llamaparse" }],
     })
   })
 
@@ -128,6 +127,8 @@ describe("FileRouter", () => {
 
     await createClient(fetchMock).parse(new Blob(["document"]), {
       idempotencyKey: "parse-report-3",
+      outputs: ["pages"],
+      pageFields: ["markdown"],
       pages: [1, 3],
       providerOptions: { llamaparse: { tier: "agentic" } },
     })
@@ -141,9 +142,10 @@ describe("FileRouter", () => {
     expect(readJsonBody(fetchMock, 1)).toMatchObject({
       providers: [
         {
-          options: { tier: "agentic" },
+          pageFields: ["markdown"],
           pages: [1, 3],
           provider: "llamaparse",
+          providerOptions: { tier: "agentic" },
         },
       ],
     })

@@ -94,11 +94,20 @@ async function parseNative(
   }
 
   const startedAt = new Date()
+  const supportedPageFields = new Set(config.capabilities.pageFields)
+  const selectedNativePageFields =
+    options.pageFields?.filter((field) => supportedPageFields.has(field)) ?? []
   const response = await config.fetch(
     new Request(`https://native-parsers.internal/v1/${config.id}/parse`, {
       headers: {
         "x-filerouter-engine-options": encodeURIComponent(
           JSON.stringify({
+            ...(!options.includeRaw &&
+              options.outputs && { outputs: options.outputs }),
+            ...(!options.includeRaw &&
+              options.pageFields && {
+                pageFields: selectedNativePageFields,
+              }),
             ...(options.pages && { pages: options.pages }),
             ...(options.providerOptions?.[config.id] && {
               providerOptions: options.providerOptions[config.id],
@@ -149,7 +158,7 @@ async function parseNative(
       durationMs: completedAt.getTime() - startedAt.getTime(),
       startedAt: startedAt.toISOString(),
     },
-    usage: { pages: pages.length },
+    usage: { pages: native.pageCount },
     warnings: native.warnings,
   }
 }

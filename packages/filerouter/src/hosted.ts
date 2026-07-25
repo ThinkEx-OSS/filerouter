@@ -1,6 +1,7 @@
 import type {
   CompareResult,
   ParseOutput,
+  ParsePageField,
   ParseResult,
   ProviderCapabilities,
   ProviderOptionsById,
@@ -53,6 +54,7 @@ export interface HostedDocument {
 interface HostedProviderTargetBase {
   includeRaw?: boolean
   outputs?: Array<ParseOutput>
+  pageFields?: Array<ParsePageField>
   pages?: Array<number>
 }
 
@@ -62,7 +64,7 @@ export type HostedProviderOptions = Partial<{
 
 export type HostedProviderTarget = {
   [Id in ProviderId]: HostedProviderTargetBase & {
-    options?: ProviderOptionsById[Id]
+    providerOptions?: ProviderOptionsById[Id]
     provider: Id
   }
 }[ProviderId]

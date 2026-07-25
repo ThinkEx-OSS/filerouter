@@ -26,14 +26,19 @@ const document = await router.documents.create("./invoice.pdf", {
 })
 
 try {
-  // Job-level outputs must be supported by every listed provider.
-  // LiteParse supports markdown/pages/text (not tables).
   const job = await router.jobs.create({
     documentId: document.id,
-    outputs: ["markdown", "pages"],
     providers: [
-      { provider: "liteparse", options: { ocr: "auto" } },
-      { provider: "llamaparse" },
+      {
+        outputs: ["markdown", "pages"],
+        provider: "liteparse",
+        pageFields: ["markdown"],
+        providerOptions: { ocr: "auto" },
+      },
+      {
+        outputs: ["markdown", "pages"],
+        provider: "llamaparse",
+      },
     ],
   })
 

@@ -46,13 +46,20 @@ const document = await router.documents.create(stream, {
 })
 
 try {
-  // Job-level outputs must be supported by every listed provider.
   const job = await router.jobs.create({
     documentId: document.id,
-    outputs: ["markdown", "pages"],
     providers: [
-      { provider: "liteparse", options: { ocr: "auto" } },
-      { provider: "llamaparse", options: { tier: "agentic" } },
+      {
+        provider: "liteparse",
+        outputs: ["markdown", "pages"],
+        pageFields: ["markdown"],
+        providerOptions: { ocr: "auto" },
+      },
+      {
+        provider: "llamaparse",
+        outputs: ["markdown", "tables"],
+        providerOptions: { tier: "agentic" },
+      },
     ],
   })
 
@@ -77,4 +84,4 @@ Hosted jobs can select `llamaparse`, `mistral-ocr`, `datalab`, `liteparse`, or
 `pdf-inspector`. LiteParse and PDF Inspector run in separate private parser
 pools so lightweight PDF inspection does not inherit the OCR and Office
 conversion footprint. Every provider advertises its supported outputs and
-execution model through its runtime adapter.
+page fields, along with its execution model, through its runtime adapter.

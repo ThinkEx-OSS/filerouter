@@ -1,6 +1,7 @@
 export {
   DirectFileRouter,
   assertProviderOutputs,
+  assertProviderPageFields,
   createDirectFileRouter,
   serializeProviderError,
   type DirectFileRouterOptions,
@@ -65,7 +66,10 @@ export {
   normalizeDocumentFileName,
   resolveDocumentMimeType,
 } from "./internal/input"
-export { selectOutputs as selectParseOutputs } from "./internal/outputs"
+export {
+  selectOutputs as selectParseOutputs,
+  selectPageFields,
+} from "./internal/outputs"
 export type {
   CompareOptions,
   CompareProviderResult,
@@ -78,6 +82,7 @@ export type {
   ParseOutput,
   ParseOutputValues,
   ParsePage,
+  ParsePageField,
   ParseResult,
   ParsedImage,
   ParsedTable,
@@ -93,4 +98,8 @@ export type {
   ProviderOptionsById,
   ProviderParseOptions,
 } from "./types"
-export { DEFAULT_PARSE_OUTPUT, parseOutputIds } from "./types"
+export {
+  DEFAULT_PARSE_OUTPUT,
+  parseOutputIds,
+  parsePageFieldIds,
+} from "./types"

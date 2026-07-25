@@ -5,10 +5,15 @@ import type {
   WorkflowStepConfig,
 } from "cloudflare:workers"
 import { and, eq, exists, inArray } from "drizzle-orm"
-import { FileRouterError, serializeProviderError } from "@file_router/sdk"
+import {
+  FileRouterError,
+  selectPageFields,
+  serializeProviderError,
+} from "@file_router/sdk"
 import type {
   FileRouterProvider,
   ParseOutput,
+  ParsePageField,
   ProviderInput,
   ProviderParseOptions,
 } from "@file_router/sdk"
@@ -30,10 +35,11 @@ import {
 export interface DocumentWorkflowTarget {
   executionId: string
   includeRaw: boolean
-  options?: Record<string, unknown>
   outputs: Array<ParseOutput>
+  pageFields?: Array<ParsePageField>
   pages?: Array<number>
   provider: ProviderId
+  providerOptions?: Record<string, unknown>
 }
 
 export interface DocumentWorkflowParams {
@@ -58,6 +64,8 @@ const METERING_STEP = {
   retries: { backoff: "exponential", delay: "5 seconds", limit: 5 },
   timeout: "1 minute",
 } as const satisfies WorkflowStepConfig
+
+const SYNC_PROVIDER_ATTEMPTS = 4
 
 type ProviderStepStatus =
   | { status: "pending" | "running" }
@@ -188,16 +196,7 @@ async function processExecution(
   try {
     outcome = provider.jobs
       ? await processAsyncProvider(step, provider, target, input, env)
-      : await step.do(
-          `process ${target.executionId}`,
-          PROVIDER_EXECUTION_STEP,
-          async () =>
-            storeProviderResult(
-              env.FILEROUTER_FILES,
-              target.executionId,
-              await provider.parse(input, parseOptions(target))
-            )
-        )
+      : await processSyncProvider(step, provider, target, input, env)
   } catch (error) {
     outcome = {
       durationMs: Date.now() - startedAt,
@@ -210,6 +209,45 @@ async function processExecution(
 
   await recordExecution(step, env.DB, outcome)
   return outcome
+}
+
+async function processSyncProvider(
+  step: WorkflowStep,
+  provider: FileRouterProvider,
+  target: DocumentWorkflowTarget,
+  input: ProviderInput,
+  env: Cloudflare.Env
+): Promise<Extract<ProviderOutcome, { status: "parsed" }>> {
+  for (let attempt = 1; attempt <= SYNC_PROVIDER_ATTEMPTS; attempt += 1) {
+    try {
+      return await step.do(
+        `process ${target.executionId} ${attempt}`,
+        PROVIDER_EXECUTION_STEP,
+        async () =>
+          storeProviderResult(
+            env.FILEROUTER_FILES,
+            target.executionId,
+            selectPageFields(
+              await provider.parse(input, parseOptions(target)),
+              target.pageFields
+            )
+          )
+      )
+    } catch (error) {
+      if (
+        attempt === SYNC_PROVIDER_ATTEMPTS ||
+        !FileRouterError.isInstance(error) ||
+        !error.retryable
+      ) {
+        throw error
+      }
+      await step.sleep(
+        `wait to retry ${target.executionId} ${attempt}`,
+        `${attempt} second${attempt === 1 ? "" : "s"}`
+      )
+    }
+  }
+  throw new Error("Sync provider retry loop exhausted.")
 }
 
 async function processAsyncProvider(
@@ -244,7 +282,7 @@ async function processAsyncProvider(
         return storeProviderResult(
           env.FILEROUTER_FILES,
           target.executionId,
-          current.result
+          selectPageFields(current.result, target.pageFields)
         )
       }
     )
@@ -408,11 +446,12 @@ function parseOptions(target: DocumentWorkflowTarget) {
   return {
     includeRaw: target.includeRaw,
     outputs: target.outputs,
+    ...(target.pageFields && { pageFields: target.pageFields }),
     ...(target.pages && { pages: target.pages }),
     provider: target.provider,
-    ...(target.options && {
+    ...(target.providerOptions && {
       providerOptions: {
-        [target.provider]: target.options,
+        [target.provider]: target.providerOptions,
       } satisfies ProviderParseOptions,
     }),
   }

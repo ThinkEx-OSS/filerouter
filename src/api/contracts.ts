@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { parseOutputIds } from "@file_router/sdk"
+import { parseOutputIds, parsePageFieldIds } from "@file_router/sdk"
 import {
   HOSTED_DOCUMENTS_PATH,
   HOSTED_EXECUTIONS_PATH,
@@ -16,6 +16,7 @@ export const ProviderIdSchema = z.enum(providerIds)
 export type ProviderId = z.infer<typeof ProviderIdSchema>
 
 export const ParseOutputSchema = z.enum(parseOutputIds)
+export const ParsePageFieldSchema = z.enum(parsePageFieldIds)
 
 const HttpUrlSchema = z
   .url()
@@ -64,10 +65,11 @@ const DocumentSchema = z
 const ProviderTargetSchema = z
   .object({
     includeRaw: z.boolean().optional(),
-    options: z.record(z.string(), z.unknown()).optional(),
     outputs: z.array(ParseOutputSchema).min(1).optional(),
+    pageFields: z.array(ParsePageFieldSchema).min(1).optional(),
     pages: z.array(z.number().int().positive()).min(1).optional(),
     provider: ProviderIdSchema,
+    providerOptions: z.record(z.string(), z.unknown()).optional(),
   })
   .strict()
   .openapi("ProviderTarget")
@@ -84,7 +86,6 @@ export const CreateJobRequestSchema = z
         }
       )
       .optional(),
-    outputs: z.array(ParseOutputSchema).min(1),
     providers: z.array(ProviderTargetSchema).min(1).max(providerIds.length),
   })
   .strict()

@@ -9,6 +9,7 @@ Use `FileRouter` for hosted jobs or `DirectFileRouter` for direct provider calls
 const result = await client.parse("./invoice.pdf", {
   provider: "mistral-ocr",
   outputs: ["markdown", "pages", "tables"],
+  pageFields: ["markdown", "tables"],
   pages: [1, 2, 3],
   timeoutMs: 120_000,
 })
@@ -38,15 +39,19 @@ const result = await client.parse({
 
 ## Options
 
-| Option            | Type            | Purpose                                              |
-| ----------------- | --------------- | ---------------------------------------------------- |
-| `provider`        | `string`        | Provider ID to use                                   |
-| `outputs`         | `ParseOutput[]` | Requested normalized outputs; defaults to `markdown` |
-| `pages`           | `number[]`      | One-based page selection                             |
-| `providerOptions` | `object`        | Namespaced provider-native settings                  |
-| `includeRaw`      | `boolean`       | Include the provider response                        |
-| `timeoutMs`       | `number`        | Abort the operation after this duration              |
-| `signal`          | `AbortSignal`   | Cancel from your application                         |
+| Option            | Type               | Purpose                                              |
+| ----------------- | ------------------ | ---------------------------------------------------- |
+| `provider`        | `string`           | Provider ID to use                                   |
+| `outputs`         | `ParseOutput[]`    | Requested normalized outputs; defaults to `markdown` |
+| `pageFields`      | `ParsePageField[]` | Fields retained on each requested page               |
+| `pages`           | `number[]`         | One-based page selection                             |
+| `providerOptions` | `object`           | Namespaced provider-native settings                  |
+| `includeRaw`      | `boolean`          | Include the provider response                        |
+| `timeoutMs`       | `number`           | Abort the operation after this duration              |
+| `signal`          | `AbortSignal`      | Cancel from your application                         |
+
+`pageFields` requires `outputs: ["pages"]` (or another output list containing
+`pages`). FileRouter always retains each page's `pageNumber` and `warnings`.
 
 Hosted calls also accept `idempotencyKey`. When omitted, the client generates a UUID for the request.
 
@@ -62,6 +67,7 @@ Failed hosted requests throw `FileRouterError`. Its `requestId` identifies the
 server request when you need support or are correlating application logs.
 
 <Note>
-  FileRouter rejects outputs the selected provider does not advertise before
-  starting the provider request.
+  FileRouter rejects outputs and page fields the selected provider does not
+  advertise before starting the provider request. Use `client.providers.list()`
+  to discover the hosted capabilities at runtime.
 </Note>

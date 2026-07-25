@@ -95,10 +95,14 @@ describe("FileRouter Worker", () => {
       new Request("https://filerouter.test/api/v1/jobs", {
         body: JSON.stringify({
           documentId: document.id,
-          outputs: ["markdown"],
           providers: [
-            { provider: "llamaparse" },
-            { provider: "liteparse", options: { ocr: "auto" } },
+            { outputs: ["markdown"], provider: "llamaparse" },
+            {
+              outputs: ["pages"],
+              pageFields: ["markdown"],
+              provider: "liteparse",
+              providerOptions: { ocr: "auto" },
+            },
           ],
         }),
         headers: {
@@ -119,7 +123,12 @@ describe("FileRouter Worker", () => {
           document: expect.objectContaining({ id: document.id }),
           targets: expect.arrayContaining([
             expect.objectContaining({ provider: "llamaparse" }),
-            expect.objectContaining({ provider: "liteparse" }),
+            expect.objectContaining({
+              outputs: ["pages"],
+              pageFields: ["markdown"],
+              provider: "liteparse",
+              providerOptions: { ocr: "auto" },
+            }),
           ]),
         }),
       })
@@ -259,7 +268,6 @@ describe("FileRouter Worker", () => {
         new Request("https://filerouter.test/api/v1/jobs", {
           body: JSON.stringify({
             documentId: stored.id,
-            outputs: ["markdown"],
             providers: [{ provider: "llamaparse" }],
           }),
           headers: {

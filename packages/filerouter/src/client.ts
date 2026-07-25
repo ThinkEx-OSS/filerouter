@@ -24,7 +24,7 @@ import type {
 import { describeInput } from "./internal/input"
 import { HostedTransport } from "./internal/hosted-transport"
 import { readEnv, trimTrailingSlash } from "./internal/env"
-import { assertPages } from "./internal/provider-options"
+import { assertPageFields, assertPages } from "./internal/provider-options"
 import { withTimeout } from "./internal/timeout"
 import {
   assertHostedJobDraft,
@@ -187,6 +187,10 @@ export class FileRouter {
     complete: (run: HostedJobRun) => Promise<Result>
   ): Promise<Result> {
     assertPages(options.pages)
+    assertPageFields(
+      options.outputs ?? [DEFAULT_PARSE_OUTPUT],
+      options.pageFields
+    )
     const timeoutMs = options.timeoutMs ?? DEFAULT_HOSTED_JOB_TIMEOUT_MS
     const startedAt = Date.now()
     return withTimeout(timeoutMs, options.signal, async (signal) => {
@@ -279,10 +283,8 @@ function jobInput(
   providers: Array<ProviderId>,
   options: HostedParseOptions | HostedCompareOptions
 ): HostedJobCreateDraft {
-  const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
   const input: HostedJobCreateDraft = {
     ...(options.metadata && { metadata: options.metadata }),
-    outputs,
     providers: providers.map((provider) => providerTarget(provider, options)),
   }
   assertHostedJobDraft(input)
@@ -307,8 +309,10 @@ function providerTarget(
     ...(options.includeRaw !== undefined && {
       includeRaw: options.includeRaw,
     }),
-    ...(value !== undefined && { options: value }),
+    outputs: options.outputs ?? [DEFAULT_PARSE_OUTPUT],
+    ...(options.pageFields && { pageFields: options.pageFields }),
     ...(options.pages && { pages: options.pages }),
+    ...(value !== undefined && { providerOptions: value }),
     provider,
   } as HostedProviderTarget
 }

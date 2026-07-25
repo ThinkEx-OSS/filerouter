@@ -6,6 +6,7 @@ import { assertPdfInspectorPageLimit } from "./options.ts"
 import type { NativeParserResult } from "../shared/contracts.ts"
 import { ParserRequestError, startParserServer } from "../shared/http.ts"
 import { readNativeParserOptions, readObject } from "../shared/options.ts"
+import { selectNativeParserResult } from "../shared/selection.ts"
 
 const ENGINE_VERSION = runtimePackage.dependencies["@firecrawl/pdf-inspector"]
 const MAX_INPUT_BYTES = 50 * 1024 * 1024
@@ -67,19 +68,22 @@ function parsePdf(bytes: Buffer, value: unknown): NativeParserResult {
       : []
   )
 
-  return {
-    engine: { id: "pdf-inspector", version: ENGINE_VERSION },
-    markdown: pages.map((page) => page.markdown ?? "").join("\n\n"),
-    metadata: {
-      confidence: classification.confidence,
-      isComplex: extraction.isComplex,
-      pagesNeedingOcr: extraction.pagesNeedingOcr,
-      pagesWithColumns: extraction.pagesWithColumns,
-      pagesWithTables: extraction.pagesWithTables,
-      pdfType: classification.pdfType,
+  return selectNativeParserResult(
+    {
+      engine: { id: "pdf-inspector", version: ENGINE_VERSION },
+      markdown: pages.map((page) => page.markdown ?? "").join("\n\n"),
+      metadata: {
+        confidence: classification.confidence,
+        isComplex: extraction.isComplex,
+        pagesNeedingOcr: extraction.pagesNeedingOcr,
+        pagesWithColumns: extraction.pagesWithColumns,
+        pagesWithTables: extraction.pagesWithTables,
+        pdfType: classification.pdfType,
+      },
+      pageCount: classification.pageCount,
+      pages,
+      warnings,
     },
-    pageCount: classification.pageCount,
-    pages,
-    warnings,
-  }
+    options
+  )
 }

@@ -24,6 +24,60 @@ describe("DirectFileRouter", () => {
     expect(result.outputs.pages).toHaveLength(1)
   })
 
+  test("selects portable page fields", async () => {
+    const router = new DirectFileRouter({
+      providers: { fake: fakeProvider() },
+    })
+
+    const result = await router.parse(new Blob(["document"]), {
+      outputs: ["pages"],
+      pageFields: ["markdown"],
+    })
+
+    expect(result.outputs.pages).toEqual([
+      {
+        markdown: "# Fake document",
+        pageNumber: 1,
+        warnings: [],
+      },
+    ])
+  })
+
+  test("requires pages when selecting page fields", async () => {
+    const router = new DirectFileRouter({
+      providers: { fake: fakeProvider() },
+    })
+
+    await expect(
+      router.parse(new Blob(["document"]), {
+        outputs: ["markdown"],
+        pageFields: ["markdown"],
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+  })
+
+  test("rejects page fields the provider does not advertise", async () => {
+    const router = new DirectFileRouter({
+      providers: {
+        fake: {
+          ...fakeProvider(),
+          capabilities: {
+            execution: "sync",
+            outputs: ["pages"],
+            pageFields: ["text"],
+          },
+        },
+      },
+    })
+
+    await expect(
+      router.parse(new Blob(["document"]), {
+        outputs: ["pages"],
+        pageFields: ["markdown"],
+      })
+    ).rejects.toMatchObject({ code: "ProviderUnsupportedOutput" })
+  })
+
   test("selects a provider by id", async () => {
     const router = new DirectFileRouter({
       defaultProvider: "one",

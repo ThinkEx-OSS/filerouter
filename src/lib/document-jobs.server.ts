@@ -1,11 +1,14 @@
 import { and, eq, gt, isNotNull, sql } from "drizzle-orm"
-import { assertProviderOutputs } from "@file_router/sdk"
+import {
+  assertProviderOutputs,
+  assertProviderPageFields,
+  DEFAULT_PARSE_OUTPUT,
+} from "@file_router/sdk"
 import type {
   HostedJobCreateInput,
   HostedProviderTarget,
   ParseOutput,
 } from "@file_router/sdk"
-import type { ProviderId } from "@file_router/sdk/catalog"
 import type {
   HostedExecution,
   HostedDocumentStatus,
@@ -22,25 +25,25 @@ import {
 } from "@/lib/hosted-providers.server"
 import { HttpError } from "@/lib/http.server"
 import { hashToken } from "@/lib/tokens.server"
-import type { DocumentWorkflowParams } from "@/workflows/document-workflow"
+import type {
+  DocumentWorkflowParams,
+  DocumentWorkflowTarget,
+} from "@/workflows/document-workflow"
 
 export interface CreateJobResult {
   job: HostedJobAccepted
   replayed: boolean
 }
 
-interface NormalizedTarget {
-  executionId: string
-  includeRaw: boolean
-  options?: Record<string, unknown>
-  outputs: Array<ParseOutput>
-  pages?: Array<number>
+type NormalizedTarget = DocumentWorkflowTarget & {
   position: number
-  provider: ProviderId
 }
 
-type UnvalidatedProviderTarget = Omit<HostedProviderTarget, "options"> & {
-  options?: Record<string, unknown>
+type UnvalidatedProviderTarget = Omit<
+  HostedProviderTarget,
+  "providerOptions"
+> & {
+  providerOptions?: Record<string, unknown>
 }
 
 type CreateDocumentJobInput = Omit<HostedJobCreateInput, "providers"> & {
@@ -56,8 +59,7 @@ export async function createDocumentJob(
 ): Promise<CreateJobResult> {
   const db = createDb(env.DB)
   const jobId = crypto.randomUUID()
-  const outputs = [...new Set(input.outputs)]
-  const targets = normalizeTargets(input, outputs)
+  const targets = normalizeTargets(input)
   const idempotencyKeyHash = await hashToken(idempotencyKey)
   const requestHash = await hashToken(
     JSON.stringify({
@@ -130,11 +132,8 @@ export async function createDocumentJob(
         db.insert(documentExecution).values({
           createdAt: now,
           id: target.executionId,
-          includeRaw: target.includeRaw,
           jobId,
-          options: target.options,
           outputs: target.outputs,
-          pages: target.pages,
           position: target.position,
           provider: target.provider,
           status: "queued",
@@ -285,17 +284,23 @@ export async function getExecutionResult(
 }
 
 function normalizeTargets(
-  input: CreateDocumentJobInput,
-  defaultOutputs: Array<ParseOutput>
+  input: CreateDocumentJobInput
 ): Array<NormalizedTarget> {
   return input.providers.map((target, position) => ({
     executionId: crypto.randomUUID(),
     includeRaw: target.includeRaw ?? false,
-    ...(target.options && { options: target.options }),
-    outputs: [...new Set(target.outputs ?? defaultOutputs)],
+    outputs: [
+      ...new Set<ParseOutput>(target.outputs ?? [DEFAULT_PARSE_OUTPUT]),
+    ],
+    ...(target.pageFields && {
+      pageFields: [...new Set(target.pageFields)],
+    }),
     ...(target.pages && { pages: [...new Set(target.pages)] }),
     position,
     provider: target.provider,
+    ...(target.providerOptions && {
+      providerOptions: target.providerOptions,
+    }),
   }))
 }
 
@@ -308,8 +313,14 @@ function validateTargets(
   const configured = createHostedProviders(env, { jobId, requestId })
   for (const target of targets) {
     const provider = configured[target.provider]
+    if (target.pageFields && !target.outputs.includes("pages")) {
+      throw new HttpError(400, "pageFields requires the pages output.", {
+        code: "invalid_page_fields",
+      })
+    }
     try {
       assertProviderOutputs(provider, target.outputs)
+      assertProviderPageFields(provider, target.pageFields)
     } catch (error) {
       throw new HttpError(
         400,
@@ -317,8 +328,8 @@ function validateTargets(
         { code: "unsupported_provider_output" }
       )
     }
-    if (target.options) {
-      validateHostedProviderOptions(target.provider, target.options)
+    if (target.providerOptions) {
+      validateHostedProviderOptions(target.provider, target.providerOptions)
     }
   }
 }

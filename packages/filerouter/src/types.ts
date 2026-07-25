@@ -42,6 +42,24 @@ export type ParseOutput = (typeof parseOutputIds)[number]
 
 export const DEFAULT_PARSE_OUTPUT = "markdown" satisfies ParseOutput
 
+export const parsePageFieldIds = [
+  "blocks",
+  "confidence",
+  "dimensions",
+  "footer",
+  "header",
+  "html",
+  "images",
+  "json",
+  "links",
+  "markdown",
+  "metadata",
+  "tables",
+  "text",
+] as const
+
+export type ParsePageField = (typeof parsePageFieldIds)[number]
+
 export type ParseInput =
   | string
   | URL
@@ -91,6 +109,8 @@ export interface ParseOptions {
   /** Include the complete provider response. This may substantially increase result size. */
   includeRaw?: boolean
   outputs?: Array<ParseOutput>
+  /** Fields to retain on each page when `outputs` includes `pages`. */
+  pageFields?: Array<ParsePageField>
   /** One-based document page numbers. Providers receive their native representation. */
   pages?: Array<number>
   provider?: string
@@ -210,9 +230,6 @@ export interface CompareResult {
 export interface ProviderCapabilities {
   execution: "async" | "sync"
   features?: Array<
-    | "blocks"
-    | "cancel"
-    | "confidence"
     | "classification"
     | "ocr"
     | "office-conversion"
@@ -221,6 +238,7 @@ export interface ProviderCapabilities {
     | "structured-extraction"
   >
   outputs: Array<ParseOutput>
+  pageFields?: Array<ParsePageField>
 }
 
 export type ProviderJobState = Record<string, boolean | null | number | string>

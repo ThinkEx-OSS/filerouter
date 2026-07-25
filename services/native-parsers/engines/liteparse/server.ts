@@ -20,6 +20,7 @@ import {
   readObject,
   readOptionalBoolean,
 } from "../shared/options.ts"
+import { selectNativeParserResult } from "../shared/selection.ts"
 
 const ENGINE_VERSION = runtimePackage.dependencies["@llamaindex/liteparse"]
 const MAX_INPUT_BYTES = 100 * 1024 * 1024
@@ -110,7 +111,10 @@ async function parseDocument(
     const screenshots = providerOptions.screenshots
       ? await parser.screenshot(source.input, pages)
       : []
-    return normalizeResult(result, screenshots, parser.getConfig())
+    return selectNativeParserResult(
+      normalizeResult(result, screenshots, parser.getConfig()),
+      request
+    )
   } finally {
     await source.cleanup()
   }

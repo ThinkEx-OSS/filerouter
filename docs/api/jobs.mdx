@@ -55,13 +55,21 @@ curl https://filerouter.dev/api/v1/jobs \
   --header "Idempotency-Key: job-01J2Y9QX3M" \
   --data '{
     "documentId": "550e8400-e29b-41d4-a716-446655440000",
-    "outputs": ["markdown"],
     "providers": [
-      { "provider": "llamaparse" },
-      { "provider": "liteparse", "options": { "ocr": "auto" } }
+      { "provider": "llamaparse", "outputs": ["markdown", "tables"] },
+      {
+        "provider": "liteparse",
+        "outputs": ["pages"],
+        "pageFields": ["markdown"],
+        "providerOptions": { "ocr": "auto" }
+      }
     ]
-  }'
+}'
 ```
+
+If a target omits `outputs`, FileRouter requests `markdown`. `pageFields`
+requires the `pages` output and limits the fields retained on each page.
+`pageNumber` and `warnings` are always retained.
 
 A new job returns `202 Accepted`. Reusing the key with the same request returns
 the existing job and `Idempotent-Replayed: true`; changing the request returns a

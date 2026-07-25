@@ -63,13 +63,19 @@ export function mistralOcr(
   return {
     capabilities: {
       execution: "sync",
-      features: [
+      features: ["page-selection", "structured-extraction"],
+      outputs: OUTPUTS,
+      pageFields: [
         "blocks",
         "confidence",
-        "page-selection",
-        "structured-extraction",
+        "dimensions",
+        "footer",
+        "header",
+        "images",
+        "links",
+        "markdown",
+        "tables",
       ],
-      outputs: OUTPUTS,
     },
     id: PROVIDER_ID,
     name: "Mistral OCR",
