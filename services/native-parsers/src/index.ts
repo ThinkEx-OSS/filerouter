@@ -9,17 +9,17 @@ import {
   serializeError,
 } from "./observability"
 
-const PDF_INSPECTOR_POOL_SIZE = 2
-const LITEPARSE_POOL_SIZE = 1
+const PDF_INSPECTOR_POOL_SIZE = 4
+const LITEPARSE_POOL_SIZE = 4
 
 export class PdfInspectorContainer extends Container {
   defaultPort = 8080
-  sleepAfter = "1m"
+  sleepAfter = "5m"
 }
 
 export class LiteParseContainer extends Container {
   defaultPort = 8080
-  sleepAfter = "1m"
+  sleepAfter = "5m"
 }
 
 type ParserPool = {

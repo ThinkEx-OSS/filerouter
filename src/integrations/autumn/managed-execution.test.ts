@@ -86,8 +86,8 @@ describe("managed execution pricing", () => {
     if (!estimate) {
       throw new Error("Expected a native parser estimate.")
     }
-    expect(estimate.rawCostUsd).toBeCloseTo(0.0004556)
-    expect(estimate.credits).toBeCloseTo(0.50116)
+    expect(estimate.rawCostUsd).toBeCloseTo(0.0006084, 7)
+    expect(estimate.credits).toBeCloseTo(0.66924, 5)
   })
 
   test("records idempotent provider events", async () => {

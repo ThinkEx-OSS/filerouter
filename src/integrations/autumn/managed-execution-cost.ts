@@ -62,9 +62,9 @@ function providerCostUsd(provider: ParsedProviderOutcome): number | undefined {
       return undefined
     case "liteparse":
       return containerCostUsd(provider.durationMs, {
-        diskGb: 8,
-        memoryGib: 4,
-        vcpu: 0.5,
+        diskGb: 12,
+        memoryGib: 6,
+        vcpu: 1,
       })
     case "pdf-inspector":
       return containerCostUsd(provider.durationMs, {

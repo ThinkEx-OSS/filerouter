@@ -38,8 +38,8 @@
       "class_name": "LiteParseContainer",
       "image": "./engines/liteparse/Dockerfile",
       "image_build_context": "./engines",
-      "instance_type": "standard-1",
-      "max_instances": 2,
+      "instance_type": "standard-2",
+      "max_instances": 4,
     },
   ],
   "durable_objects": {
