@@ -9,7 +9,7 @@ import type {
 import type { ProviderId } from "./catalog"
 
 export const FILEROUTER_API_KEY_PREFIX = "fr_"
-export const FILEROUTER_VERSION = "0.4.0" // x-release-please-version
+export const FILEROUTER_VERSION = "0.4.1" // x-release-please-version
 export const FILEROUTER_CLI_CLIENT_ID = "filerouter-cli"
 export const FILEROUTER_CLI_SCOPE = "jobs:create jobs:read"
 export const FILEROUTER_DEFAULT_API_URL = "https://filerouter.dev"
