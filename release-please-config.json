@@ -7,10 +7,12 @@
     ".": {
       "extra-files": [
         {
+          "jsonpath": "$.version",
           "path": "packages/filerouter/package.json",
           "type": "json"
         },
         {
+          "jsonpath": "$.version",
           "path": "packages/cli/package.json",
           "type": "json"
         },
