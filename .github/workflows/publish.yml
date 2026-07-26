@@ -129,12 +129,12 @@ jobs:
         shell: bash
         run: |
           tag="v$RELEASE_VERSION"
-          existing_commit=$(git rev-list -n 1 "$tag" 2>/dev/null || true)
-          if test -n "$existing_commit" && test "$existing_commit" != "$GITHUB_SHA"; then
-            echo "$tag already points to $existing_commit, not $GITHUB_SHA" >&2
-            exit 1
-          fi
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            existing_commit=$(git rev-list -n 1 "$tag" 2>/dev/null || true)
+            if test -n "$existing_commit" && test "$existing_commit" != "$GITHUB_SHA"; then
+              echo "$tag already points to $existing_commit, not $GITHUB_SHA" >&2
+              exit 1
+            fi
             gh release create "$tag" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
