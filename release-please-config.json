@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "b752a146619c905dd1a7f891b66db5b496f2b383",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "packages": {
+    ".": {
+      "extra-files": [
+        {
+          "path": "packages/filerouter/package.json",
+          "type": "json"
+        },
+        {
+          "path": "packages/cli/package.json",
+          "type": "json"
+        },
+        {
+          "path": "packages/filerouter/src/hosted.ts",
+          "type": "generic"
+        }
+      ],
+      "package-name": "filerouter",
+      "release-type": "simple",
+      "version-file": "version.txt"
+    }
+  }
+}
