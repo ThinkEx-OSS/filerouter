@@ -34,4 +34,4 @@ jobs:
         shell: bash
         run: |
           head_branch=$(jq --exit-status --raw-output '.headBranchName' <<< "$PR")
-          gh workflow run ci.yml --ref "$head_branch"
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$head_branch"
