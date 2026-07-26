@@ -9,9 +9,21 @@ const exec = promisify(execFile)
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const sdkPackage = await readJson("packages/filerouter/package.json")
 const cliPackage = await readJson("packages/cli/package.json")
+const releaseManifest = await readJson(".release-please-manifest.json")
+const releaseVersion = (
+  await readFile(join(root, "version.txt"), "utf8")
+).trim()
 
-if (sdkPackage.version !== cliPackage.version) {
-  throw new Error("SDK and CLI package versions must match.")
+for (const [source, version] of [
+  ["CLI package", cliPackage.version],
+  ["release manifest", releaseManifest["."]],
+  ["version file", releaseVersion],
+]) {
+  if (version !== sdkPackage.version) {
+    throw new Error(
+      `${source} version ${version} does not match SDK version ${sdkPackage.version}.`
+    )
+  }
 }
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(sdkPackage.version)) {
   throw new Error(`Invalid release version: ${sdkPackage.version}`)

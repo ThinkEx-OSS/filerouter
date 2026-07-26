@@ -1,0 +1,33 @@
+name: Prepare release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Update release pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          skip-github-release: true
+      - name: Verify release pull request
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.release.outputs.pr }}
+        shell: bash
+        run: |
+          head_branch=$(jq --exit-status --raw-output '.headBranchName' <<< "$PR")
+          gh workflow run ci.yml --ref "$head_branch"
