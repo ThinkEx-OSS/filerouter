@@ -38,7 +38,7 @@ of your application to one provider.
 | **Keep one application contract** | Use normalized pages, outputs, timing, usage, warnings, and errors       |
 | **Choose where processing runs**  | Use managed hosted jobs or direct/BYOK calls from your own runtime       |
 
-[Explore pipeline recipes →](https://docs.filerouter.dev/guides/overview)
+[Explore recipes →](https://docs.filerouter.dev/guides/overview)
 
 ## Get started
 
