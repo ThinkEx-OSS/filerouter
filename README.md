@@ -38,11 +38,6 @@ of your application to one provider.
 | **Keep one application contract** | Use normalized pages, outputs, timing, usage, warnings, and errors       |
 | **Choose where processing runs**  | Use managed hosted jobs or direct/BYOK calls from your own runtime       |
 
-`compare()` is a concurrent fan-out, not an automatic router. Your application
-decides what wins and when another engine should run.
-
-Native document- and page-level policy routing is in development.
-
 [Explore pipeline recipes →](https://docs.filerouter.dev/guides/overview)
 
 ## Get started
