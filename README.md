@@ -14,17 +14,19 @@
 </p>
 
 <p align="center">
-  <strong>Compare and switch document parsers without rebuilding your pipeline.</strong>
+  <strong>Infrastructure for the document parsing pipeline you need.</strong>
 </p>
 
-Every parsing engine brings its own uploads, authentication, asynchronous jobs,
-polling, retries, errors, and response formats. FileRouter puts them behind one
-TypeScript SDK, CLI, and API.
+FileRouter provides the SDK, CLI, API, and durable execution primitives for
+building document parsing pipelines across engines.
 
-Compare engines on your own documents, switch providers, and build the routing
-or fallback logic your application needs. Optimize output quality, cost,
-latency, and reliability without tying the rest of your pipeline to one
-provider.
+Switch providers, compare them on your own documents, and compose the routing
+or fallback logic your application needs. FileRouter handles the uploads,
+asynchronous jobs, polling, retries, errors, and normalized results behind one
+interface.
+
+Improve output quality, cost, latency, and reliability without tying the rest
+of your application to one provider.
 
 ## What FileRouter gives you
 
