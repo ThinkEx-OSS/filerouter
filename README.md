@@ -14,51 +14,45 @@
 </p>
 
 <p align="center">
-  <strong>Composable engines. Durable document jobs.</strong>
+  <strong>Compare and switch document parsers without rebuilding your pipeline.</strong>
 </p>
 
-FileRouter is one TypeScript SDK and CLI for hosted parsers and commercial
-engines. Pick the engine that fits each document, compare a few side by side,
-or call providers directly with your own keys. FileRouter runs the durable
-jobs: uploads, retries, results, and cleanup.
+Every parsing engine brings its own uploads, authentication, asynchronous jobs,
+polling, retries, errors, and response formats. FileRouter puts them behind one
+TypeScript SDK, CLI, and API.
 
-## What FileRouter handles
+Compare engines on your own documents, switch providers, and build the routing
+or fallback logic your application needs. Optimize output quality, cost,
+latency, and reliability without tying the rest of your pipeline to one
+provider.
 
-Each engine has its own SDK, input rules, options, async job flow, and response
-shape. Mixing cheap paths with heavier parsers usually means rebuilding the
-same document pipeline. FileRouter handles that work behind one interface:
+## What FileRouter gives you
 
-- **Inputs:** pass a file path, URL, `File`, `Blob`, buffer, or stream.
-- **Engine adapters:** keep each provider's authentication and options separate
-  without changing the rest of your app.
-- **Long-running jobs:** hosted processing manages uploads, provider submission,
-  polling, timeouts, result storage, and cleanup.
-- **Consistent results:** work with the same page numbering, outputs, timing,
-  warnings, and errors across engines.
-- **Side-by-side comparisons:** fan out one document across engines and keep
-  each success or failure in one result.
+| Need                              | FileRouter                                                               |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| **Switch providers**              | Change engines without changing input or result handling                 |
+| **Compare real documents**        | Run one document across engines and retain every success or failure      |
+| **Build routing and fallback**    | Compose cheap-first, parallel, escalation, or fallback flows in your app |
+| **Keep one application contract** | Use normalized pages, outputs, timing, usage, warnings, and errors       |
+| **Choose where processing runs**  | Use managed hosted jobs or direct/BYOK calls from your own runtime       |
 
-Start with a cheap engine for simple pages. Escalate or bake off later without
-another document integration. Recipe guides live in the
-[docs](https://docs.filerouter.dev/guides/overview).
+`compare()` is a concurrent fan-out, not an automatic router. Your application
+decides what wins and when another engine should run.
+
+Native document- and page-level policy routing is in development.
+
+[Explore pipeline recipes →](https://docs.filerouter.dev/guides/overview)
 
 ## Get started
-
-Install the SDK:
 
 ```bash
 npm install @file_router/sdk
 ```
 
-Parse a document with the hosted API:
-
 ```ts
 import { FileRouter } from "@file_router/sdk"
 
-const router = new FileRouter({
-  apiKey: process.env.FILEROUTER_API_KEY,
-})
-
+const router = new FileRouter()
 const result = await router.parse("https://example.com/report.pdf", {
   provider: "liteparse",
   outputs: ["markdown"],
@@ -67,52 +61,39 @@ const result = await router.parse("https://example.com/report.pdf", {
 console.log(result.outputs.markdown)
 ```
 
-Or use the CLI:
-
 ```bash
 npx @file_router/cli@latest login
-npx @file_router/cli@latest parse report.pdf
+npx @file_router/cli@latest compare report.pdf \
+  --providers liteparse,llamaparse,mistral-ocr \
+  --outputs markdown
 ```
 
 ## Hosted or direct
 
-|                       | Hosted API                             | Direct with your keys                  |
-| --------------------- | -------------------------------------- | -------------------------------------- |
-| Best for              | The fastest setup                      | Keeping provider calls in your runtime |
-| Authentication        | A FileRouter API key                   | Your provider API keys                 |
-| Document sent through | FileRouter, then the selected provider | The selected provider only             |
-| Billing               | FileRouter credits                     | Provider billing                       |
-| TypeScript            | `FileRouter`                           | `DirectFileRouter`                     |
-| CLI                   | Default after `filerouter login`       | Add `--local`                          |
+|                       | Hosted                                         | Direct/BYOK                            |
+| --------------------- | ---------------------------------------------- | -------------------------------------- |
+| Best for              | Managed comparisons and durable jobs           | Keeping provider calls in your runtime |
+| Document sent through | FileRouter, then each selected provider        | Each selected provider only            |
+| Execution             | Managed uploads, polling, retries, and results | Runs in your process                   |
+| Billing               | FileRouter credits                             | Provider billing                       |
+| TypeScript            | `FileRouter`                                   | `DirectFileRouter`                     |
+| CLI                   | Default after `filerouter login`               | Add `--local`                          |
 
-Credits pay for hosted processing. Each account receives 5,000 free credits each month, purchased credits never expire, and direct requests do not use FileRouter credits.
+Neither mode silently falls back to the other. Credits pay for hosted
+processing. Each account receives 5,000 free credits each month, purchased
+credits never expire, and direct requests do not use FileRouter credits.
 
-Direct TypeScript example:
-
-```ts
-import { DirectFileRouter } from "@file_router/sdk"
-import { llamaparse } from "@file_router/sdk/llamaparse"
-
-const router = new DirectFileRouter({
-  providers: { llamaparse: llamaparse() },
-})
-
-const result = await router.parse("./report.pdf", {
-  provider: "llamaparse",
-  outputs: ["markdown"],
-})
-```
+[Read about processing modes →](https://docs.filerouter.dev/concepts/processing-modes)
 
 ## Engines
 
-- **LiteParse** for cheap, open-source parsing with optional OCR, screenshots,
-  and Office conversion.
-- **PDF Inspector** for fast PDF classification and text-layer inspection.
-- **Mistral OCR** for OCR with structured document output.
-- **Datalab** for document conversion and extraction.
-- **LlamaParse** for layout-aware document parsing.
-
-More engines are coming.
+| Engine            | Useful for                                                                | Hosted | Direct/BYOK |
+| ----------------- | ------------------------------------------------------------------------- | :----: | :---------: |
+| **LiteParse**     | Lightweight parsing with optional OCR, screenshots, and Office conversion |  Yes   |      —      |
+| **PDF Inspector** | Fast PDF classification and text-layer inspection                         |  Yes   |      —      |
+| **Mistral OCR**   | OCR with structured document output                                       |  Yes   |     Yes     |
+| **Datalab**       | Document conversion and extraction                                        |  Yes   |     Yes     |
+| **LlamaParse**    | Layout-aware document parsing                                             |  Yes   |     Yes     |
 
 <details>
 <summary><strong>Tech stack</strong></summary>
@@ -167,6 +148,8 @@ pnpm test
 
 - [Website](https://filerouter.dev)
 - [Documentation](https://docs.filerouter.dev)
+- [Security](SECURITY.md)
+- [Privacy](https://filerouter.dev/privacy)
 - [Discord](https://discord.gg/dtPnzkqCcG)
 - [GitHub](https://github.com/ThinkEx-OSS/filerouter)
 - [X](https://x.com/trythinkex)
