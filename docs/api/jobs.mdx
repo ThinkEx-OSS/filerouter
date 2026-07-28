@@ -33,19 +33,19 @@ curl https://filerouter.dev/api/v1/documents \
 The response contains an immutable document ID that can be reused across jobs
 until its `expiresAt` time, seven days after upload.
 
-Delete the document, its jobs, and retained results before then when you no
-longer need them:
+Release the source and retained results while preserving job history when you
+no longer need the artifacts:
 
 ```bash
-curl https://filerouter.dev/api/v1/documents/DOCUMENT_ID \
-  --request DELETE \
+curl https://filerouter.dev/api/v1/documents/DOCUMENT_ID/release \
+  --request POST \
   --header "Authorization: Bearer $FILEROUTER_API_KEY"
 ```
 
 ## Create a job
 
 Each provider entry is an independent execution. Provider-specific options stay
-on that target instead of leaking into the rest of the job.
+on that entry instead of leaking into the rest of the job.
 
 ```bash
 curl https://filerouter.dev/api/v1/jobs \
@@ -56,8 +56,13 @@ curl https://filerouter.dev/api/v1/jobs \
   --data '{
     "documentId": "550e8400-e29b-41d4-a716-446655440000",
     "providers": [
-      { "provider": "llamaparse", "outputs": ["markdown", "tables"] },
       {
+        "key": "primary",
+        "provider": "llamaparse",
+        "outputs": ["markdown", "tables"]
+      },
+      {
+        "key": "inspection",
         "provider": "liteparse",
         "outputs": ["pages"],
         "pageFields": ["markdown"],
@@ -67,7 +72,9 @@ curl https://filerouter.dev/api/v1/jobs \
 }'
 ```
 
-If a target omits `outputs`, FileRouter requests `markdown`. `pageFields`
+`key` is a caller-defined identifier unique within the job. It lets one
+provider appear more than once with different options. If an entry omits
+`outputs`, FileRouter requests `markdown`. `pageFields`
 requires the `pages` output and limits the fields retained on each page.
 `pageNumber` and `warnings` are always retained.
 
@@ -83,7 +90,7 @@ curl https://filerouter.dev/api/v1/jobs/550e8400-e29b-41d4-a716-446655440000 \
 ```
 
 Jobs move through `queued`, `running`, and then `complete` or `failed`. The job
-contains one execution per provider, including its status, duration, usage, and
+contains one execution per provider entry, including its key, provider, status, duration, usage, and
 result availability. Results stay separate so one slow or failed provider does
 not hide successful work.
 
@@ -95,7 +102,7 @@ curl https://filerouter.dev/api/v1/executions/EXECUTION_ID/result \
 The TypeScript SDK's `parse` and `compare` methods perform these steps for you.
 Use `router.documents`, `router.jobs`, and `router.executions` when your app
 needs to persist IDs or compose its own workflow. Use
-`router.jobs.waitForExecution(job, provider)` to consume one provider without
+`router.jobs.waitForExecution(job, execution)` to consume one execution without
 waiting for the complete job. Call
-`router.documents.delete(documentId)` to remove a document and its retained job
-data immediately.
+`router.documents.release(documentId)` to remove stored artifacts or
+`router.documents.delete(documentId)` to remove the document and its job history.
