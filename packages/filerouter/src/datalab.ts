@@ -28,6 +28,7 @@ const OUTPUTS = [
   "json",
   "markdown",
   "metadata",
+  "pages",
 ] satisfies Array<ParseOutput>
 
 export interface DatalabProviderOptions {
@@ -61,6 +62,8 @@ export interface DatalabParseOptions {
   output_format?: Array<DatalabOutputFormat> | string
   page_range?: string
   paginate?: boolean
+  processing_location?: string
+  /** @deprecated Use `processing_location`. */
   processing_region?: string
   raw?: Record<string, boolean | number | string>
   save_checkpoint?: boolean
@@ -81,20 +84,20 @@ interface DatalabSubmitResponse {
 
 export function datalab(
   options: DatalabProviderOptions = {}
-): FileRouterProvider<DatalabProviderOptions> {
+): FileRouterProvider {
   const jobs = datalabJobs(options)
   return {
     capabilities: {
       execution: "async",
       features: ["page-selection"],
       outputs: OUTPUTS,
+      pageFields: ["html", "json", "markdown", "metadata"],
     },
     id: PROVIDER_ID,
     jobs,
     name: "Datalab",
     parse: (input, parseOptions) =>
       parseDatalab(input, parseOptions, jobs, options.pollingIntervalMs),
-    raw: options,
   }
 }
 
@@ -235,7 +238,13 @@ async function createFormData(
     ...raw,
     ...native,
   })) {
-    if (key !== "file" && key !== "file_url" && key !== "output_format") {
+    if (
+      value !== undefined &&
+      value !== null &&
+      key !== "file" &&
+      key !== "file_url" &&
+      key !== "output_format"
+    ) {
       body.set(key, formValue(value))
     }
   }
@@ -254,6 +263,13 @@ async function createFormData(
     "output_format",
     nativeOutputFormats(nativeOptions.output_format, outputs).join(",")
   )
+  if (
+    outputs.includes("pages") &&
+    (parseOptions.pageFields === undefined ||
+      parseOptions.pageFields.includes("markdown"))
+  ) {
+    body.set("include_markdown_in_chunks", "true")
+  }
   if (parseOptions.pages) {
     body.set("page_range", parseOptions.pages.map((page) => page - 1).join(","))
   }
@@ -268,7 +284,7 @@ function normalizeDatalab(
   includeRaw: boolean,
   startedAt: Date
 ): ParseResult {
-  const pages = readRecords(raw.pages).map(normalizePage)
+  const pages = normalizePages(raw.json)
   const markdown = readString(raw.markdown)
   const html = readString(raw.html)
   const json = raw.json
@@ -302,6 +318,7 @@ function normalizeDatalab(
       json,
       markdown,
       metadata,
+      pages,
     }),
     pageCount,
     provider: PROVIDER_ID,
@@ -324,26 +341,71 @@ function normalizeDatalab(
   }
 }
 
+function normalizePages(value: unknown): Array<ParsePage> {
+  if (!isRecord(value)) {
+    return []
+  }
+  return readRecords(value.children)
+    .filter((block) => block.block_type === "Page")
+    .map(normalizePage)
+}
+
 function normalizePage(raw: Record<string, unknown>, index: number): ParsePage {
-  const html = readString(raw.html)
-  const markdown = readString(raw.markdown)
-  const text = readString(raw.text)
+  const children = readRecords(raw.children)
+  const html = readString(raw.html) ?? joinBlockField(children, "html")
+  const markdown =
+    readString(raw.markdown) ?? joinBlockField(children, "markdown")
+  const metadata = {
+    ...(raw.bbox !== undefined && { bbox: raw.bbox }),
+    ...(typeof raw.id === "string" && { blockId: raw.id }),
+    ...(raw.polygon !== undefined && { polygon: raw.polygon }),
+    ...(raw.section_hierarchy !== undefined && {
+      sectionHierarchy: raw.section_hierarchy,
+    }),
+  }
 
   return {
     ...(html && { html }),
-    ...(raw.json !== undefined && { json: raw.json }),
+    json: raw,
     ...(markdown && { markdown }),
-    ...(isRecord(raw.metadata) && { metadata: raw.metadata }),
-    pageNumber: readNumber(raw.page_number) ?? index + 1,
-    ...(text && { text }),
+    ...(Object.keys(metadata).length > 0 && { metadata }),
+    pageNumber: datalabPageNumber(raw, index),
     warnings: [],
   }
+}
+
+function datalabPageNumber(
+  page: Record<string, unknown>,
+  index: number
+): number {
+  const explicit = readNumber(page.page_number)
+  if (
+    explicit !== undefined &&
+    Number.isSafeInteger(explicit) &&
+    explicit > 0
+  ) {
+    return explicit
+  }
+  const id = readString(page.id)
+  const zeroBased = id?.match(/(?:^|\/)page\/(\d+)(?:\/|$)/i)?.[1]
+  return zeroBased === undefined ? index + 1 : Number(zeroBased) + 1
+}
+
+function joinBlockField(
+  blocks: Array<Record<string, unknown>>,
+  field: "html" | "markdown"
+): string | undefined {
+  const values = blocks.flatMap((block) => {
+    const value = readString(block[field])
+    return value ? [value] : []
+  })
+  return values.length > 0 ? values.join("\n\n") : undefined
 }
 
 function datalabOutputs(
   outputs: Array<ParseOutput>
 ): Array<DatalabOutputFormat> {
-  const supported = new Set<string>()
+  const supported = new Set<DatalabOutputFormat>()
   for (const output of outputs) {
     if (
       output === "chunks" ||
@@ -353,14 +415,14 @@ function datalabOutputs(
     ) {
       supported.add(output)
     }
-    if (["images", "metadata"].includes(output)) {
+    if (output === "images" || output === "metadata" || output === "pages") {
       supported.add("json")
     }
   }
   if (supported.size === 0) {
     supported.add(DEFAULT_PARSE_OUTPUT)
   }
-  return [...supported] as Array<DatalabOutputFormat>
+  return [...supported]
 }
 
 function nativeOutputFormats(

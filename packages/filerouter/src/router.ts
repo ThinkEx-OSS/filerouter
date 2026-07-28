@@ -6,6 +6,7 @@ import {
   assertPages,
   assertTimeoutMs,
 } from "./internal/provider-options"
+import { withTimeout } from "./internal/timeout"
 import { DEFAULT_PARSE_OUTPUT } from "./types"
 import type {
   CompareOptions,
@@ -52,19 +53,28 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     assertPageFields(outputs, options.pageFields)
     assertProviderOutputs(provider, outputs)
     assertProviderPageFields(provider, options.pageFields)
-    const normalizedInput = await resolveParseInput(input)
 
-    try {
-      return selectPageFields(
-        await provider.parse(normalizedInput, { ...options, outputs }),
-        options.pageFields
-      )
-    } catch (error) {
-      throw toFileRouterError(error, {
-        code: "ParseFailed",
-        providerId: provider.id,
-      })
+    const run = async (signal: AbortSignal | undefined) => {
+      const normalizedInput = await resolveParseInput(input, signal)
+      try {
+        return selectPageFields(
+          await provider.parse(normalizedInput, {
+            ...options,
+            outputs,
+            ...(signal && { signal }),
+          }),
+          options.pageFields
+        )
+      } catch (error) {
+        throw toFileRouterError(error, {
+          code: "ParseFailed",
+          providerId: provider.id,
+        })
+      }
     }
+    return options.timeoutMs === undefined
+      ? run(options.signal)
+      : withTimeout(options.timeoutMs, options.signal, run)
   }
 
   async compare(
@@ -77,27 +87,33 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     const outputs = options.outputs ?? [DEFAULT_PARSE_OUTPUT]
     assertPageFields(outputs, options.pageFields)
     const providerIds = options.providers ?? Object.keys(this.#providers)
-    const normalizedInput = await resolveParseInput(input)
-    const providers = await Promise.all(
-      providerIds.map((providerId) =>
-        this.#compareProvider(providerId, normalizedInput, {
-          ...options,
-          outputs,
-        })
+    const run = async (signal: AbortSignal | undefined) => {
+      const normalizedInput = await resolveParseInput(input, signal)
+      const providers = await Promise.all(
+        providerIds.map((providerId) =>
+          this.#compareProvider(providerId, normalizedInput, {
+            ...options,
+            outputs,
+            ...(signal && { signal }),
+          })
+        )
       )
-    )
-    const completedAt = new Date()
+      const completedAt = new Date()
 
-    return {
-      input: describeInput(input),
-      outputs,
-      providers,
-      timing: {
-        completedAt: completedAt.toISOString(),
-        durationMs: completedAt.getTime() - startedAt.getTime(),
-        startedAt: startedAt.toISOString(),
-      },
+      return {
+        input: describeInput(input),
+        outputs,
+        providers,
+        timing: {
+          completedAt: completedAt.toISOString(),
+          durationMs: completedAt.getTime() - startedAt.getTime(),
+          startedAt: startedAt.toISOString(),
+        },
+      }
     }
+    return options.timeoutMs === undefined
+      ? run(options.signal)
+      : withTimeout(options.timeoutMs, options.signal, run)
   }
 
   async #compareProvider(
@@ -186,10 +202,6 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     return provider
   }
 }
-
-export const createDirectFileRouter = <Providers extends ProviderMap>(
-  opts: DirectFileRouterOptions<Providers>
-): DirectFileRouter<Providers> => new DirectFileRouter(opts)
 
 export const assertProviderOutputs = (
   provider: FileRouterProvider,

@@ -265,12 +265,11 @@ export interface ProviderJobs {
   ) => Promise<ProviderJobReference>
 }
 
-export interface FileRouterProvider<Raw = unknown> {
+export interface FileRouterProvider {
   readonly capabilities: ProviderCapabilities
   readonly id: string
   readonly jobs?: ProviderJobs
   readonly name: string
-  readonly raw?: Raw
   parse: (input: ProviderInput, options: ParseOptions) => Promise<ParseResult>
 }
 

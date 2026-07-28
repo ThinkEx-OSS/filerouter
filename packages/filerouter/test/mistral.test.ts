@@ -161,4 +161,54 @@ describe("Mistral OCR provider", () => {
       expect.any(Object)
     )
   })
+
+  test("requests optional provider data for selected page fields", async () => {
+    const process = vi.fn().mockResolvedValue({
+      model: "mistral-ocr-latest",
+      pages: [
+        {
+          dimensions: null,
+          images: [],
+          index: 0,
+          markdown: "# Page",
+          tables: [],
+        },
+      ],
+      usageInfo: { docSizeBytes: 10, pagesProcessed: 1 },
+    })
+    const router = new DirectFileRouter({
+      providers: {
+        mistral: mistralOcr({
+          client: {
+            files: { delete: vi.fn(), upload: vi.fn() },
+            ocr: { process },
+          },
+        }),
+      },
+    })
+
+    await router.parse("https://example.com/report.pdf", {
+      outputs: ["pages"],
+      pageFields: [
+        "blocks",
+        "confidence",
+        "footer",
+        "header",
+        "images",
+        "tables",
+      ],
+    })
+
+    expect(process).toHaveBeenCalledWith(
+      expect.objectContaining({
+        confidenceScoresGranularity: "page",
+        extractFooter: true,
+        extractHeader: true,
+        includeBlocks: true,
+        includeImageBase64: true,
+        tableFormat: "markdown",
+      }),
+      expect.any(Object)
+    )
+  })
 })

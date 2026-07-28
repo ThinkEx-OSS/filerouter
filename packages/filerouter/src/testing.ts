@@ -34,7 +34,6 @@ export const fakeProvider = (
     },
     id,
     name: opts.name ?? "Fake Provider",
-    raw: opts,
     parse: (
       _input: ProviderInput,
       options: ParseOptions
