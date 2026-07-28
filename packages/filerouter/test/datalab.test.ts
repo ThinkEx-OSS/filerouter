@@ -44,7 +44,6 @@ describe("Datalab provider", () => {
           datalab: {
             add_block_ids: true,
             mode: "accurate",
-            output_format: "json",
           },
           llamaparse: { tier: "fast" },
         },
@@ -183,7 +182,9 @@ describe("Datalab provider", () => {
                     markdown: "Third",
                   },
                 ],
+                html: "<p>Third</p>",
                 id: "/page/2/Page/2",
+                markdown: "Third",
               },
             ],
           },
