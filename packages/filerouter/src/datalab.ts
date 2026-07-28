@@ -12,6 +12,7 @@ import type {
   ParseOptions,
   ParseOutput,
   ParsePage,
+  ParsePageField,
   ParseResult,
   ProviderJobReference,
   ProviderJobs,
@@ -41,35 +42,27 @@ export interface DatalabProviderOptions {
 }
 
 export type DatalabMode = "accurate" | "balanced" | "fast"
-export type DatalabOutputFormat = "chunks" | "html" | "json" | "markdown"
+type DatalabOutputFormat = "chunks" | "html" | "json" | "markdown"
 
 /** Per-request options named after Datalab's Convert API fields. */
 export interface DatalabParseOptions {
   add_block_ids?: boolean
   additional_config?: string
-  checkpoint_id?: string
   disable_image_captions?: boolean
   disable_image_extraction?: boolean
   eval_rubric_id?: number
   extras?: string
   fence_synthetic_captions?: boolean
-  format_lines?: boolean
-  image_resolution?: number
   include_markdown_in_chunks?: boolean
   max_pages?: number
   mode?: DatalabMode
   model_override_settings?: string
-  output_format?: Array<DatalabOutputFormat> | string
-  page_range?: string
   paginate?: boolean
   processing_location?: string
-  /** @deprecated Use `processing_location`. */
-  processing_region?: string
   raw?: Record<string, boolean | number | string>
   save_checkpoint?: boolean
   skip_cache?: boolean
   token_efficient_markdown?: boolean
-  use_llm?: boolean
   webhook_url?: string
   word_bboxes?: boolean
   workflowstepdata_id?: number
@@ -198,26 +191,30 @@ async function getDatalabJob(
   })
   assertSuccessful(raw)
 
-  const status = readString(raw.status)?.toLowerCase()
-  if (status === "complete" || status === "completed") {
+  const status = readString(raw.status)
+  if (status === "complete") {
     return {
       result: normalizeDatalab(
         raw,
         job.id,
         parseOptions.outputs ?? [DEFAULT_PARSE_OUTPUT],
+        parseOptions.pageFields,
         parseOptions.includeRaw === true,
         new Date(job.submittedAt)
       ),
       status: "complete",
     }
   }
-  if (["cancelled", "error", "failed"].includes(status ?? "")) {
+  if (status === "failed") {
     return {
-      error: readString(raw.error) ?? `Datalab job ${status}.`,
+      error: readString(raw.error) ?? "Datalab job failed.",
       status: "failed",
     }
   }
-  return { status: status === "running" ? "running" : "pending" }
+  if (status === "processing") {
+    return { status: "running" }
+  }
+  throw datalabParseError("Datalab returned an invalid job status.")
 }
 
 async function createFormData(
@@ -244,7 +241,8 @@ async function createFormData(
       value !== null &&
       key !== "file" &&
       key !== "file_url" &&
-      key !== "output_format"
+      key !== "output_format" &&
+      key !== "page_range"
     ) {
       body.set(key, formValue(value))
     }
@@ -260,10 +258,7 @@ async function createFormData(
   if (mode) {
     body.set("mode", mode)
   }
-  body.set(
-    "output_format",
-    nativeOutputFormats(nativeOptions.output_format, outputs).join(",")
-  )
+  body.set("output_format", datalabOutputs(outputs).join(","))
   if (
     outputs.includes("pages") &&
     (parseOptions.pageFields === undefined ||
@@ -283,12 +278,14 @@ function normalizeDatalab(
   raw: Record<string, unknown>,
   id: string,
   requestedOutputs: Array<ParseOutput>,
+  requestedPageFields: Array<ParsePageField> | undefined,
   includeRaw: boolean,
   startedAt: Date
 ): ParseResult {
-  const pageBlocks = datalabPageBlocks(raw.json)
-  const pages = requestedOutputs.includes("pages")
-    ? pageBlocks.map(normalizePage)
+  const pagesRequested = requestedOutputs.includes("pages")
+  const pageBlocks = datalabPageBlocks(raw.json, pagesRequested)
+  const pages = pagesRequested
+    ? pageBlocks.map((page) => normalizePage(page, requestedPageFields))
     : []
   const markdown = readString(raw.markdown)
   const html = readString(raw.html)
@@ -300,8 +297,7 @@ function normalizeDatalab(
   const costBreakdown = isRecord(raw.cost_breakdown)
     ? raw.cost_breakdown
     : undefined
-  const totalCost =
-    readNumber(costBreakdown?.total) ?? readNumber(raw.total_cost)
+  const totalCost = readNumber(costBreakdown?.total)
   const metadata = {
     ...(isRecord(raw.metadata) ? raw.metadata : {}),
     ...(typeof raw.checkpoint_id === "string" && {
@@ -346,8 +342,14 @@ function normalizeDatalab(
   }
 }
 
-function datalabPageBlocks(value: unknown): Array<Record<string, unknown>> {
+function datalabPageBlocks(
+  value: unknown,
+  required: boolean
+): Array<Record<string, unknown>> {
   if (!isRecord(value)) {
+    if (required) {
+      throw datalabParseError("Datalab did not return JSON page output.")
+    }
     return []
   }
   return readRecords(value.children).filter(
@@ -355,10 +357,20 @@ function datalabPageBlocks(value: unknown): Array<Record<string, unknown>> {
   )
 }
 
-function normalizePage(raw: Record<string, unknown>, index: number): ParsePage {
+function normalizePage(
+  raw: Record<string, unknown>,
+  requestedFields: Array<ParsePageField> | undefined
+): ParsePage {
   const blocks = indexDatalabBlocks(raw)
-  const html = resolveBlockField(raw, "html", blocks)
-  const markdown = resolveBlockField(raw, "markdown", blocks)
+  const allFields = requestedFields === undefined
+  const html =
+    allFields || requestedFields.includes("html")
+      ? resolveBlockField(raw, "html", blocks)
+      : undefined
+  const markdown =
+    allFields || requestedFields.includes("markdown")
+      ? resolveBlockField(raw, "markdown", blocks)
+      : undefined
   const metadata = {
     ...(raw.bbox !== undefined && { bbox: raw.bbox }),
     ...(typeof raw.id === "string" && { blockId: raw.id }),
@@ -373,26 +385,19 @@ function normalizePage(raw: Record<string, unknown>, index: number): ParsePage {
     json: raw,
     ...(markdown && { markdown }),
     ...(Object.keys(metadata).length > 0 && { metadata }),
-    pageNumber: datalabPageNumber(raw, index),
+    pageNumber: datalabPageNumber(raw),
     warnings: [],
   }
 }
 
-function datalabPageNumber(
-  page: Record<string, unknown>,
-  index: number
-): number {
-  const explicit = readNumber(page.page_number)
-  if (
-    explicit !== undefined &&
-    Number.isSafeInteger(explicit) &&
-    explicit > 0
-  ) {
-    return explicit
-  }
+function datalabPageNumber(page: Record<string, unknown>): number {
   const id = readString(page.id)
   const zeroBased = id?.match(/(?:^|\/)page\/(\d+)(?:\/|$)/i)?.[1]
-  return zeroBased === undefined ? index + 1 : Number(zeroBased) + 1
+  const pageNumber = zeroBased === undefined ? NaN : Number(zeroBased) + 1
+  if (!Number.isSafeInteger(pageNumber) || pageNumber <= 0) {
+    throw datalabParseError("Datalab returned a page with an invalid ID.")
+  }
+  return pageNumber
 }
 
 function indexDatalabBlocks(
@@ -424,27 +429,42 @@ function resolveBlockField(
   const resolve = (block: Record<string, unknown>): string | undefined => {
     const value = readString(block[field])
     if (!value) {
-      const children = readRecords(block.children).flatMap((child) => {
-        const childValue = resolve(child)
-        return childValue ? [childValue] : []
-      })
-      return children.length > 0 ? children.join("\n\n") : undefined
+      return undefined
     }
     return value.replace(
       /<content-ref\b[^>]*\bsrc=(["'])([^"']+)\1[^>]*>\s*<\/content-ref>/gi,
-      (reference, _quote: string, childId: string) => {
+      (_reference, _quote: string, childId: string) => {
         const child = blocks.get(childId)
-        if (!child || visiting.has(childId)) {
-          return reference
+        if (!child) {
+          throw datalabParseError(
+            `Datalab page references a missing block: ${childId}.`
+          )
+        }
+        if (visiting.has(childId)) {
+          throw datalabParseError(
+            `Datalab page contains a cyclic block reference: ${childId}.`
+          )
         }
         visiting.add(childId)
         const resolved = resolve(child)
         visiting.delete(childId)
-        return resolved ?? reference
+        if (resolved === undefined) {
+          throw datalabParseError(
+            `Datalab block is missing ${field}: ${childId}.`
+          )
+        }
+        return resolved
       }
     )
   }
   return resolve(root)
+}
+
+function datalabParseError(message: string): FileRouterError {
+  return new FileRouterError(message, {
+    code: "ParseFailed",
+    providerId: PROVIDER_ID,
+  })
 }
 
 function datalabOutputs(
@@ -466,36 +486,6 @@ function datalabOutputs(
   }
   if (supported.size === 0) {
     supported.add(DEFAULT_PARSE_OUTPUT)
-  }
-  return [...supported]
-}
-
-function nativeOutputFormats(
-  value: DatalabParseOptions["output_format"],
-  outputs: Array<ParseOutput>
-): Array<DatalabOutputFormat> {
-  const native = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? value.split(",").map((format) => format.trim())
-      : []
-  const supported = new Set<DatalabOutputFormat>(datalabOutputs(outputs))
-  for (const format of native) {
-    if (
-      format !== "chunks" &&
-      format !== "html" &&
-      format !== "json" &&
-      format !== "markdown"
-    ) {
-      throw new FileRouterError(
-        `Unsupported Datalab output format: ${format}`,
-        {
-          code: "ParseFailed",
-          providerId: PROVIDER_ID,
-        }
-      )
-    }
-    supported.add(format)
   }
   return [...supported]
 }

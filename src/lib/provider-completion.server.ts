@@ -9,7 +9,6 @@ const TERMINAL_WORKFLOW_STATUSES = new Set([
   "complete",
   "errored",
   "terminated",
-  "unknown",
 ])
 
 type CompletionProvider = "datalab" | "llamaparse"
