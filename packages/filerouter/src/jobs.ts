@@ -225,14 +225,6 @@ function serializeJobInput(input: HostedJobCreateInput): string {
     )
   }
   if (
-    new Set(input.providers.map((provider) => provider.key)).size !==
-    input.providers.length
-  ) {
-    throw new FileRouterError("Each provider key must be unique.", {
-      code: "InvalidInput",
-    })
-  }
-  if (
     input.metadata &&
     Object.keys(input.metadata).length > MAX_HOSTED_METADATA_ENTRIES
   ) {
@@ -242,7 +234,11 @@ function serializeJobInput(input: HostedJobCreateInput): string {
     )
   }
   for (const target of input.providers) {
-    if (target.key.trim().length === 0 || target.key.length > 64) {
+    if (
+      typeof target.key !== "string" ||
+      target.key.trim().length === 0 ||
+      target.key.length > 64
+    ) {
       throw new FileRouterError(
         "Provider keys must be non-blank and at most 64 characters.",
         { code: "InvalidInput" }
@@ -252,6 +248,14 @@ function serializeJobInput(input: HostedJobCreateInput): string {
       target.outputs ?? [DEFAULT_PARSE_OUTPUT],
       target.pageFields
     )
+  }
+  if (
+    new Set(input.providers.map((provider) => provider.key)).size !==
+    input.providers.length
+  ) {
+    throw new FileRouterError("Each provider key must be unique.", {
+      code: "InvalidInput",
+    })
   }
   return stringifyJson(input)
 }
