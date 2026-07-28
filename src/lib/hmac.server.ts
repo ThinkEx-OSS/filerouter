@@ -20,7 +20,7 @@ export async function verifyHmac(
   signature: string
 ): Promise<boolean> {
   try {
-    return crypto.subtle.verify(
+    return await crypto.subtle.verify(
       "HMAC",
       await signingKey(secret, purpose, ["verify"]),
       fromBase64Url(signature).buffer as ArrayBuffer,

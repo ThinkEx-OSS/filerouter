@@ -219,6 +219,10 @@ api.post(
   "/api/v1/provider-completions/:jobId/:executionId",
   async (context) => {
     const { executionId, jobId } = context.req.param()
+    Object.assign(context.get("requestEvent"), {
+      execution_id: executionId,
+      job_id: jobId,
+    })
     return receiveProviderCompletion(
       context.req.raw,
       context.env,

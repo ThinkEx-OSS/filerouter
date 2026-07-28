@@ -202,6 +202,12 @@ describe("FileRouter Worker", () => {
       testEnv
     )
     expect(activeRelease.status).toBe(409)
+    await expect(activeRelease.json()).resolves.toMatchObject({
+      code: "document_active",
+    })
+    expect(
+      await testEnv.FILEROUTER_FILES.head(`documents/${document.id}/source`)
+    ).not.toBeNull()
 
     const deleted = await api.fetch(
       new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
@@ -364,6 +370,7 @@ describe("FileRouter Worker", () => {
     const resultKey = `executions/${executionId}/result.json`
     await env.FILEROUTER_FILES.put(resultKey, "{}")
     const now = Math.floor(Date.now() / 1_000)
+    const historicalJobId = crypto.randomUUID()
     await env.DB.batch([
       env.DB.prepare(
         "UPDATE document_job SET status = 'complete' WHERE id = ?"
@@ -371,6 +378,31 @@ describe("FileRouter Worker", () => {
       env.DB.prepare(
         "UPDATE document_execution SET status = 'complete', duration_ms = 10, page_count = 1, result_key = ?, result_expires_at = ?, completed_at = ? WHERE id = ?"
       ).bind(resultKey, now + 3_600, now, executionId),
+      env.DB.prepare(
+        "INSERT INTO document_job (id, user_id, document_id, status, idempotency_key_hash, request_hash, metering_status, created_at, updated_at) VALUES (?, ?, ?, 'complete', ?, ?, 'skipped', ?, ?)"
+      ).bind(
+        historicalJobId,
+        userId,
+        storedDocument.id,
+        `historical-${historicalJobId}`,
+        historicalJobId,
+        now,
+        now
+      ),
+      ...Array.from({ length: 101 }, (_, index) =>
+        env.DB.prepare(
+          "INSERT INTO document_execution (id, job_id, key, provider, position, status, outputs, error_message, created_at, updated_at, completed_at) VALUES (?, ?, ?, 'liteparse', ?, 'failed', ?, 'historical failure', ?, ?, ?)"
+        ).bind(
+          `historical-execution-${index}`,
+          historicalJobId,
+          `historical-${index}`,
+          index,
+          JSON.stringify(["markdown"]),
+          now,
+          now,
+          now
+        )
+      ),
     ])
 
     const released = await api.fetch(
@@ -389,6 +421,13 @@ describe("FileRouter Worker", () => {
       await env.FILEROUTER_FILES.head(`documents/${storedDocument.id}/source`)
     ).toBeNull()
     expect(await env.FILEROUTER_FILES.head(resultKey)).toBeNull()
+    await expect(
+      env.DB.prepare(
+        "SELECT result_expires_at FROM document_execution WHERE id = ?"
+      )
+        .bind("historical-execution-0")
+        .first<{ result_expires_at: number | null }>()
+    ).resolves.toEqual({ result_expires_at: null })
     const preservedJob = await api.fetch(
       new Request(`https://filerouter.test/api/v1/jobs/${accepted.id}`, {
         headers: { Authorization: `Bearer ${apiKey}` },

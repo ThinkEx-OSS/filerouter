@@ -1,4 +1,4 @@
-import { and, eq, inArray, notExists } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, notExists } from "drizzle-orm"
 
 import { document, documentExecution, documentJob } from "@/db/schema"
 import { createDb } from "@/db/server"
@@ -49,37 +49,32 @@ export async function releaseDocumentArtifacts(
     })
   }
 
-  const executions = await db
-    .select({
-      id: documentExecution.id,
-      resultKey: documentExecution.resultKey,
-    })
-    .from(documentExecution)
-    .innerJoin(documentJob, eq(documentExecution.jobId, documentJob.id))
+  const documentJobIds = db
+    .select({ id: documentJob.id })
+    .from(documentJob)
     .where(eq(documentJob.documentId, id))
+  const resultKeys = await db
+    .select({ key: documentExecution.resultKey })
+    .from(documentExecution)
+    .where(inArray(documentExecution.jobId, documentJobIds))
     .all()
   await deleteR2Objects(env.FILEROUTER_FILES, [
     releasable.objectKey,
-    ...executions.map((execution) => execution.resultKey),
+    ...resultKeys.map((result) => result.key),
   ])
 
-  const releaseDocument = db
-    .update(document)
-    .set({ objectKey: null, updatedAt: now })
-    .where(and(eq(document.id, id), eq(document.userId, userId)))
-  if (executions.length === 0) {
-    await releaseDocument
-    return
-  }
   await db.batch([
-    releaseDocument,
+    db
+      .update(document)
+      .set({ objectKey: null, updatedAt: now })
+      .where(and(eq(document.id, id), eq(document.userId, userId))),
     db
       .update(documentExecution)
       .set({ resultExpiresAt: now, resultKey: null, updatedAt: now })
       .where(
-        inArray(
-          documentExecution.id,
-          executions.map((execution) => execution.id)
+        and(
+          isNotNull(documentExecution.resultKey),
+          inArray(documentExecution.jobId, documentJobIds)
         )
       ),
   ])
@@ -113,17 +108,21 @@ export async function deleteDocument(
       .filter((job) => job.status === "queued" || job.status === "running")
       .map((job) => terminateWorkflow(env.DOCUMENT_WORKFLOW, job.id))
   )
-  const jobIds = jobs.map((job) => job.id)
-  const resultKeys =
-    jobIds.length === 0
-      ? []
-      : (
-          await db
-            .select({ key: documentExecution.resultKey })
-            .from(documentExecution)
-            .where(inArray(documentExecution.jobId, jobIds))
-            .all()
-        ).map((execution) => execution.key)
+  const resultKeys = (
+    await db
+      .select({ key: documentExecution.resultKey })
+      .from(documentExecution)
+      .where(
+        inArray(
+          documentExecution.jobId,
+          db
+            .select({ id: documentJob.id })
+            .from(documentJob)
+            .where(eq(documentJob.documentId, id))
+        )
+      )
+      .all()
+  ).map((execution) => execution.key)
   await deleteR2Objects(env.FILEROUTER_FILES, [stored.objectKey, ...resultKeys])
   await db
     .delete(document)
