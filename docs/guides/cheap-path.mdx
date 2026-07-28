@@ -63,6 +63,7 @@ async function parseClaim(claimId: string, filePath: string) {
         documentId: document.id,
         providers: [
           {
+            key: "initial",
             outputs: ["markdown", "pages"],
             provider: "liteparse",
             pageFields: ["markdown"],
@@ -73,9 +74,13 @@ async function parseClaim(claimId: string, filePath: string) {
       { idempotencyKey: `job:${claimId}:liteparse` }
     )
 
+    const initialRef = cheapAccepted.executions.find(
+      (item) => item.key === "initial"
+    )
+    if (!initialRef) throw new Error("Initial execution was not created.")
     const cheapExec = await router.jobs.waitForExecution(
       cheapAccepted,
-      "liteparse"
+      initialRef
     )
     if (cheapExec.status === "complete" && cheapExec.resultAvailable) {
       const cheap = await router.executions.result(cheapExec.id)
@@ -88,22 +93,30 @@ async function parseClaim(claimId: string, filePath: string) {
       {
         documentId: document.id,
         providers: [
-          { outputs: ["markdown", "tables"], provider: "llamaparse" },
+          {
+            key: "secondary",
+            outputs: ["markdown", "tables"],
+            provider: "llamaparse",
+          },
         ],
       },
       { idempotencyKey: `job:${claimId}:llamaparse` }
     )
 
+    const secondaryRef = strongAccepted.executions.find(
+      (item) => item.key === "secondary"
+    )
+    if (!secondaryRef) throw new Error("Secondary execution was not created.")
     const strongExec = await router.jobs.waitForExecution(
       strongAccepted,
-      "llamaparse"
+      secondaryRef
     )
     if (strongExec.status !== "complete" || !strongExec.resultAvailable) {
       throw new Error("Strong parse did not complete.")
     }
     return await router.executions.result(strongExec.id)
   } finally {
-    await router.documents.delete(document.id)
+    await router.documents.release(document.id)
   }
 }
 ```

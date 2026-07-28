@@ -50,12 +50,14 @@ try {
     documentId: document.id,
     providers: [
       {
+        key: "initial",
         provider: "liteparse",
         outputs: ["markdown", "pages"],
         pageFields: ["markdown"],
         providerOptions: { ocr: "auto" },
       },
       {
+        key: "secondary",
         provider: "llamaparse",
         outputs: ["markdown", "tables"],
         providerOptions: { tier: "agentic" },
@@ -63,20 +65,23 @@ try {
     ],
   })
 
-  const execution = await router.jobs.waitForExecution(job, "liteparse")
+  const executionRef = job.executions.find((item) => item.key === "initial")
+  if (!executionRef) throw new Error("Initial execution was not created.")
+  const execution = await router.jobs.waitForExecution(job, executionRef)
   if (execution.status === "complete" && execution.resultAvailable) {
     const result = await router.executions.result(execution.id)
     console.log(result.outputs.markdown)
   }
 } finally {
-  await router.documents.delete(document.id)
+  await router.documents.release(document.id)
 }
 ```
 
 For step-by-step recipes, see [Guides](/guides/overview).
 
-`waitForExecution` lets an application consume one provider as soon as it
-finishes without waiting for the other executions in the job.
+`waitForExecution` lets an application consume one execution as soon as it
+finishes without waiting for the others. Provider keys are caller-defined labels;
+FileRouter does not assign roles or decide which result wins.
 
 ## Built-in providers
 

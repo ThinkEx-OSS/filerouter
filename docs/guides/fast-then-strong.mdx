@@ -30,33 +30,39 @@ try {
     documentId: document.id,
     providers: [
       {
+        key: "preview",
         outputs: ["markdown", "pages"],
         provider: "liteparse",
         pageFields: ["markdown"],
         providerOptions: { ocr: "auto" },
       },
       {
+        key: "full",
         outputs: ["markdown", "pages"],
         provider: "llamaparse",
       },
     ],
   })
 
-  const preview = await router.jobs.waitForExecution(job, "liteparse")
+  const previewRef = job.executions.find((item) => item.key === "preview")
+  if (!previewRef) throw new Error("Preview execution was not created.")
+  const preview = await router.jobs.waitForExecution(job, previewRef)
   if (preview.status === "complete" && preview.resultAvailable) {
     const fast = await router.executions.result(preview.id)
     // Render draft UI from fast.outputs.markdown
     console.log("preview", fast.outputs.markdown?.slice(0, 200))
   }
 
-  const strong = await router.jobs.waitForExecution(job, "llamaparse")
+  const fullRef = job.executions.find((item) => item.key === "full")
+  if (!fullRef) throw new Error("Full execution was not created.")
+  const strong = await router.jobs.waitForExecution(job, fullRef)
   if (strong.status === "complete" && strong.resultAvailable) {
     const full = await router.executions.result(strong.id)
     // Replace draft UI with full.outputs.markdown
     console.log("final", full.timing.durationMs, full.pageCount)
   }
 } finally {
-  await router.documents.delete(document.id)
+  await router.documents.release(document.id)
 }
 ```
 
@@ -64,7 +70,8 @@ try {
 
 - One stored document. Both engines see the same bytes.
 - Executions are independent. A slow or failed LlamaParse run does not erase a finished LiteParse result.
-- `waitForExecution` returns when that provider hits `complete` or `failed`. Sibling work can keep running.
+- `waitForExecution` returns when that execution hits `complete` or `failed`. Sibling work can keep running.
+- `preview` and `full` are caller-defined keys for this application; FileRouter does not assign those roles.
 
 ## Output rules
 

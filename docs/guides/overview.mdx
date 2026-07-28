@@ -37,13 +37,14 @@ They are application-owned patterns. FileRouter does not auto-pick engines or fa
 
 ## Primitives cheat sheet
 
-| Piece                         | Role                                         |
-| ----------------------------- | -------------------------------------------- |
-| `documents.create` / `delete` | Store once; remove source + retained results |
-| `jobs.create`                 | Start one or more provider executions        |
-| `jobs.waitForExecution`       | Unblock when a single provider finishes      |
-| `jobs.wait`                   | Wait until the whole job ends                |
-| `executions.result`           | Fetch a normalized `ParseResult`             |
-| `parse` / `compare`           | Convenience wrappers over the same resources |
+| Piece                          | Role                                          |
+| ------------------------------ | --------------------------------------------- |
+| `documents.create` / `release` | Store once; release source + retained results |
+| `documents.delete`             | Remove the document and its job history       |
+| `jobs.create`                  | Start one or more provider executions         |
+| `jobs.waitForExecution`        | Unblock when a single execution finishes      |
+| `jobs.wait`                    | Wait until the whole job ends                 |
+| `executions.result`            | Fetch a normalized `ParseResult`              |
+| `parse` / `compare`            | Convenience wrappers over the same resources  |
 
 See [How FileRouter works](/concepts/how-it-works) for the contract, and [Documents and jobs](/api/jobs) for the HTTP shape.

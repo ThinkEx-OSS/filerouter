@@ -25,7 +25,9 @@ const document = await router.documents.create("./claim.pdf", {
 const accepted = await router.jobs.create(
   {
     documentId: document.id,
-    providers: [{ outputs: ["markdown"], provider: "liteparse" }],
+    providers: [
+      { key: "primary", outputs: ["markdown"], provider: "liteparse" },
+    ],
   },
   { idempotencyKey: `job:${claimId}:liteparse` }
 )
@@ -65,13 +67,15 @@ try {
   const accepted = await router.jobs.create(
     {
       documentId: document.id,
-      providers: [{ outputs: ["markdown"], provider: "liteparse" }],
+      providers: [
+        { key: "primary", outputs: ["markdown"], provider: "liteparse" },
+      ],
     },
     { idempotencyKey: `job:${claimId}:liteparse` }
   )
 
   const job = await router.jobs.wait(accepted)
-  const execution = job.executions.find((item) => item.provider === "liteparse")
+  const execution = job.executions.find((item) => item.key === "primary")
 
   if (execution?.status === "complete" && execution.resultAvailable) {
     const result = await router.executions.result(execution.id)
@@ -79,11 +83,13 @@ try {
     console.log(result.pageCount, result.timing.durationMs)
   }
 } finally {
-  await router.documents.delete(document.id)
+  await router.documents.release(document.id)
 }
 ```
 
-`documents.delete` removes the source, related jobs, and retained results. Prefer it at the end of ingest handlers and one-shot tools.
+`documents.release` removes the source and retained results while preserving job and execution records. It refuses while a job is active.
+
+`documents.delete` removes the document, related jobs, and retained results. Use it when you do not need the history.
 
 For hosted `parse` / `compare`, delete via the returned resources when you no longer need retained outputs:
 
@@ -92,7 +98,7 @@ const parsed = await router.parse("./claim.pdf", {
   provider: "liteparse",
   outputs: ["markdown"],
 })
-await router.documents.delete(parsed.resources.documentId)
+await router.documents.release(parsed.resources.documentId)
 ```
 
 ## Partial failure
