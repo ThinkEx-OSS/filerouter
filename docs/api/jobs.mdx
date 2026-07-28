@@ -34,7 +34,8 @@ The response contains an immutable document ID that can be reused across jobs
 until its `expiresAt` time, seven days after upload.
 
 Release the source and retained results while preserving job history when you
-no longer need the artifacts:
+no longer need the artifacts. Every job for the document must be terminal;
+release returns `409 document_active` while any job is queued or running.
 
 ```bash
 curl https://filerouter.dev/api/v1/documents/DOCUMENT_ID/release \
@@ -78,9 +79,9 @@ provider appear more than once with different options. If an entry omits
 requires the `pages` output and limits the fields retained on each page.
 `pageNumber` and `warnings` are always retained.
 
-A new job returns `202 Accepted`. Reusing the key with the same request returns
-the existing job and `Idempotent-Replayed: true`; changing the request returns a
-conflict.
+A new job returns `202 Accepted`. Reusing the same `Idempotency-Key` header with
+the same request returns the existing job and `Idempotent-Replayed: true`;
+changing the request with that header returns a conflict.
 
 ## Poll and retrieve results
 

@@ -45,6 +45,7 @@ const document = await router.documents.create(stream, {
   mimeType: "application/pdf",
 })
 
+let jobId: string | undefined
 try {
   const job = await router.jobs.create({
     documentId: document.id,
@@ -64,6 +65,7 @@ try {
       },
     ],
   })
+  jobId = job.id
 
   const executionRef = job.executions.find((item) => item.key === "initial")
   if (!executionRef) throw new Error("Initial execution was not created.")
@@ -73,6 +75,7 @@ try {
     console.log(result.outputs.markdown)
   }
 } finally {
+  if (jobId) await router.jobs.wait(jobId)
   await router.documents.release(document.id)
 }
 ```
