@@ -3,7 +3,7 @@ export async function deleteR2Objects(
   keys: Array<string | null>
 ): Promise<void> {
   const uniqueKeys = [...new Set(keys.filter((key): key is string => !!key))]
-  if (uniqueKeys.length > 0) {
-    await bucket.delete(uniqueKeys)
+  for (let index = 0; index < uniqueKeys.length; index += 1000) {
+    await bucket.delete(uniqueKeys.slice(index, index + 1000))
   }
 }
