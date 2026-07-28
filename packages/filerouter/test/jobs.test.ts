@@ -1,31 +1,58 @@
 import { describe, expect, test, vi } from "vite-plus/test"
 
 import { FileRouter } from "../src/client"
-import { MAX_HOSTED_JOB_REQUEST_BYTES } from "../src/hosted"
+import {
+  MAX_HOSTED_JOB_REQUEST_BYTES,
+  MAX_HOSTED_JOB_EXECUTIONS,
+} from "../src/hosted"
 
 describe("hosted resources", () => {
   test("creates recoverable jobs from stored documents", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(Response.json({ id: "job-1", status: "queued" }))
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        executions: [
+          {
+            id: "execution-1",
+            key: "primary",
+            provider: "llamaparse",
+          },
+        ],
+        id: "job-1",
+        status: "queued",
+      })
+    )
     const client = createClient(fetchMock)
 
     await expect(
       client.jobs.create(
         {
           documentId: "document-1",
-          providers: [{ outputs: ["markdown"], provider: "llamaparse" }],
+          providers: [
+            {
+              key: "primary",
+              outputs: ["markdown"],
+              provider: "llamaparse",
+            },
+          ],
         },
         { idempotencyKey: "job-create-1" }
       )
-    ).resolves.toEqual({ id: "job-1", status: "queued" })
+    ).resolves.toEqual({
+      executions: [
+        { id: "execution-1", key: "primary", provider: "llamaparse" },
+      ],
+      id: "job-1",
+      status: "queued",
+    })
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
     expect(headers.get("idempotency-key")).toBe("job-create-1")
     await expect(
       new Request("https://example.com", fetchMock.mock.calls[0]?.[1]).json()
     ).resolves.toEqual({
       documentId: "document-1",
-      providers: [{ outputs: ["markdown"], provider: "llamaparse" }],
+      providers: [
+        { key: "primary", outputs: ["markdown"], provider: "llamaparse" },
+      ],
     })
   })
 
@@ -46,7 +73,7 @@ describe("hosted resources", () => {
     expect(statuses).toEqual(["queued", "running", "complete"])
   })
 
-  test("waits for one provider without waiting for the whole job", async () => {
+  test("waits for one execution without waiting for the whole job", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -68,9 +95,13 @@ describe("hosted resources", () => {
     const statuses: Array<string> = []
 
     await expect(
-      createClient(fetchMock).jobs.waitForExecution("job-2", "liteparse", {
-        onStatus: (value) => statuses.push(value.status),
-      })
+      createClient(fetchMock).jobs.waitForExecution(
+        "job-2",
+        "execution-liteparse",
+        {
+          onStatus: (value) => statuses.push(value.status),
+        }
+      )
     ).resolves.toMatchObject({ provider: "liteparse", status: "complete" })
     expect(statuses).toEqual(["queued", "complete"])
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -110,7 +141,34 @@ describe("hosted resources", () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
-  test("rejects ambiguous or oversized jobs before sending them", async () => {
+  test("accepts repeated providers with distinct execution keys", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        executions: [
+          {
+            id: "execution-1",
+            key: "accurate OCR",
+            provider: "llamaparse",
+          },
+          { id: "execution-2", key: "second", provider: "llamaparse" },
+        ],
+        id: "job-1",
+        status: "queued",
+      })
+    )
+
+    await createClient(fetchMock).jobs.create({
+      documentId: "document-1",
+      providers: [
+        { key: "accurate OCR", provider: "llamaparse" },
+        { key: "second", provider: "llamaparse" },
+      ],
+    })
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  test("rejects invalid or oversized jobs before sending them", async () => {
     const fetchMock = vi.fn<typeof fetch>()
     const jobs = createClient(fetchMock).jobs
     const base = {
@@ -120,7 +178,10 @@ describe("hosted resources", () => {
     await expect(
       jobs.create({
         ...base,
-        providers: [{ provider: "llamaparse" }, { provider: "llamaparse" }],
+        providers: [
+          { key: "duplicate", provider: "llamaparse" },
+          { key: "duplicate", provider: "liteparse" },
+        ],
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     await expect(jobs.create({ ...base, providers: [] })).rejects.toMatchObject(
@@ -131,7 +192,19 @@ describe("hosted resources", () => {
     await expect(
       jobs.create({
         ...base,
-        providers: [{ pageFields: ["markdown"], provider: "llamaparse" }],
+        providers: [{ key: " ", provider: "llamaparse" }],
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    await expect(
+      jobs.create({
+        ...base,
+        providers: [
+          {
+            key: "primary",
+            pageFields: ["markdown"],
+            provider: "llamaparse",
+          },
+        ],
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     await expect(
@@ -140,7 +213,7 @@ describe("hosted resources", () => {
         metadata: Object.fromEntries(
           Array.from({ length: 51 }, (_, index) => [`key-${index}`, "value"])
         ),
-        providers: [{ provider: "llamaparse" }],
+        providers: [{ key: "primary", provider: "llamaparse" }],
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     await expect(
@@ -148,6 +221,7 @@ describe("hosted resources", () => {
         ...base,
         providers: [
           {
+            key: "primary",
             providerOptions: {
               agentic_options: {
                 custom_prompt: "x".repeat(MAX_HOSTED_JOB_REQUEST_BYTES),
@@ -156,6 +230,18 @@ describe("hosted resources", () => {
             provider: "llamaparse",
           },
         ],
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    await expect(
+      jobs.create({
+        ...base,
+        providers: Array.from(
+          { length: MAX_HOSTED_JOB_EXECUTIONS + 1 },
+          (_, index) => ({
+            key: `target-${index}`,
+            provider: "liteparse" as const,
+          })
+        ),
       })
     ).rejects.toMatchObject({ code: "InvalidInput" })
     expect(fetchMock).not.toHaveBeenCalled()
@@ -193,6 +279,7 @@ function execution(
     createdAt: "2026-07-18T00:00:00.000Z",
     id: `execution-${provider}`,
     jobId: "job",
+    key: provider,
     outputs: ["markdown"],
     provider,
     resultAvailable: status === "complete",

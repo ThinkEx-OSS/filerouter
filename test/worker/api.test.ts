@@ -22,6 +22,9 @@ describe("FileRouter Worker", () => {
     expect(response.status).toBe(200)
     expect(specification.openapi).toBe("3.1.0")
     expect(specification.paths).toHaveProperty("/api/v1/documents")
+    expect(specification.paths).toHaveProperty(
+      "/api/v1/documents/{documentId}/release"
+    )
     expect(specification.paths).toHaveProperty("/api/v1/jobs")
     expect(specification.paths).toHaveProperty(
       "/api/v1/executions/{executionId}/result"
@@ -96,8 +99,13 @@ describe("FileRouter Worker", () => {
         body: JSON.stringify({
           documentId: document.id,
           providers: [
-            { outputs: ["markdown"], provider: "llamaparse" },
             {
+              key: "primary",
+              outputs: ["markdown"],
+              provider: "llamaparse",
+            },
+            {
+              key: "fallback",
               outputs: ["pages"],
               pageFields: ["markdown"],
               provider: "liteparse",
@@ -115,7 +123,14 @@ describe("FileRouter Worker", () => {
       testEnv
     )
     expect(jobResponse.status).toBe(202)
-    const accepted = await jobResponse.json<{ id: string }>()
+    const accepted = await jobResponse.json<{
+      executions: Array<{ id: string; key: string; provider: string }>
+      id: string
+    }>()
+    expect(accepted.executions).toEqual([
+      expect.objectContaining({ key: "primary", provider: "llamaparse" }),
+      expect.objectContaining({ key: "fallback", provider: "liteparse" }),
+    ])
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         id: accepted.id,
@@ -143,15 +158,15 @@ describe("FileRouter Worker", () => {
     const storedJob = await job.json<{
       createdAt: string
       documentId: string
-      executions: Array<{ provider: string; status: string }>
+      executions: Array<{ key: string; provider: string; status: string }>
       id: string
       status: string
     }>()
     expect(storedJob).toMatchObject({
       documentId: document.id,
       executions: [
-        { provider: "llamaparse", status: "queued" },
-        { provider: "liteparse", status: "queued" },
+        { key: "primary", provider: "llamaparse", status: "queued" },
+        { key: "fallback", provider: "liteparse", status: "queued" },
       ],
       id: accepted.id,
       status: "queued",
@@ -175,6 +190,18 @@ describe("FileRouter Worker", () => {
       testEnv
     )
     expect(deniedDelete.status).toBe(401)
+
+    const activeRelease = await api.fetch(
+      new Request(
+        `https://filerouter.test/api/v1/documents/${document.id}/release`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          method: "POST",
+        }
+      ),
+      testEnv
+    )
+    expect(activeRelease.status).toBe(409)
 
     const deleted = await api.fetch(
       new Request(`https://filerouter.test/api/v1/documents/${document.id}`, {
@@ -268,7 +295,7 @@ describe("FileRouter Worker", () => {
         new Request("https://filerouter.test/api/v1/jobs", {
           body: JSON.stringify({
             documentId: stored.id,
-            providers: [{ provider: "llamaparse" }],
+            providers: [{ key: "primary", provider: "llamaparse" }],
           }),
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -290,6 +317,97 @@ describe("FileRouter Worker", () => {
     expect(replayedJob.status).toBe(200)
     expect(replayedJob.headers.get("idempotent-replayed")).toBe("true")
     expect(create).toHaveBeenCalledOnce()
+
+    await cleanupUser(userId)
+  })
+
+  test("releases artifacts without deleting completed job history", async () => {
+    const userId = "user-release-artifacts"
+    const apiKey = await createApiKey(userId)
+    const testEnv = envWithWorkflow(vi.fn().mockResolvedValue({}))
+    const documentResponse = await api.fetch(
+      new Request("https://filerouter.test/api/v1/documents", {
+        body: "%PDF-release",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/octet-stream",
+          "Idempotency-Key": "document-release-1",
+        },
+        method: "POST",
+      }),
+      testEnv
+    )
+    const storedDocument = await documentResponse.json<{ id: string }>()
+    const jobResponse = await api.fetch(
+      new Request("https://filerouter.test/api/v1/jobs", {
+        body: JSON.stringify({
+          documentId: storedDocument.id,
+          providers: [{ key: "primary", provider: "liteparse" }],
+        }),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": "job-release-1",
+        },
+        method: "POST",
+      }),
+      testEnv
+    )
+    const accepted = await jobResponse.json<{
+      executions: Array<{ id: string }>
+      id: string
+    }>()
+    const executionId = accepted.executions[0]?.id
+    if (!executionId) {
+      throw new Error("Expected an execution reference.")
+    }
+    const resultKey = `executions/${executionId}/result.json`
+    await env.FILEROUTER_FILES.put(resultKey, "{}")
+    const now = Math.floor(Date.now() / 1_000)
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE document_job SET status = 'complete' WHERE id = ?"
+      ).bind(accepted.id),
+      env.DB.prepare(
+        "UPDATE document_execution SET status = 'complete', duration_ms = 10, page_count = 1, result_key = ?, result_expires_at = ?, completed_at = ? WHERE id = ?"
+      ).bind(resultKey, now + 3_600, now, executionId),
+    ])
+
+    const released = await api.fetch(
+      new Request(
+        `https://filerouter.test/api/v1/documents/${storedDocument.id}/release`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          method: "POST",
+        }
+      ),
+      testEnv
+    )
+
+    expect(released.status).toBe(204)
+    expect(
+      await env.FILEROUTER_FILES.head(`documents/${storedDocument.id}/source`)
+    ).toBeNull()
+    expect(await env.FILEROUTER_FILES.head(resultKey)).toBeNull()
+    const preservedJob = await api.fetch(
+      new Request(`https://filerouter.test/api/v1/jobs/${accepted.id}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }),
+      testEnv
+    )
+    expect(preservedJob.status).toBe(200)
+    await expect(preservedJob.json()).resolves.toMatchObject({
+      executions: [
+        {
+          id: executionId,
+          key: "primary",
+          resultAvailable: false,
+          status: "complete",
+        },
+      ],
+      id: accepted.id,
+      status: "complete",
+    })
 
     await cleanupUser(userId)
   })

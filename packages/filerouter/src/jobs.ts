@@ -2,15 +2,16 @@ import { FileRouterError } from "./errors"
 import {
   HOSTED_JOBS_PATH,
   MAX_HOSTED_JOB_REQUEST_BYTES,
+  MAX_HOSTED_JOB_EXECUTIONS,
   MAX_HOSTED_METADATA_ENTRIES,
 } from "./hosted"
 import type {
   HostedExecution,
+  HostedExecutionReference,
+  HostedProviderTarget,
   HostedJob,
   HostedJobAccepted,
-  HostedProviderTarget,
 } from "./hosted"
-import type { ProviderId } from "./catalog"
 import type { HostedTransport } from "./internal/hosted-transport"
 import { assertPageFields } from "./internal/provider-options"
 import { abortableSleep } from "./internal/sleep"
@@ -58,7 +59,7 @@ export interface FileRouterJobs {
   ): Promise<HostedJob>
   waitForExecution(
     job: HostedJobAccepted | string,
-    provider: ProviderId,
+    execution: HostedExecutionReference | string,
     options?: HostedExecutionWaitOptions
   ): Promise<HostedExecution>
 }
@@ -113,14 +114,19 @@ export class HostedJobs implements FileRouterJobs {
 
   waitForExecution(
     job: HostedJobAccepted | string,
-    provider: ProviderId,
+    execution: HostedExecutionReference | string,
     options: HostedExecutionWaitOptions = {}
   ): Promise<HostedExecution> {
     return withTimeout(
       options.timeoutMs ?? DEFAULT_HOSTED_JOB_TIMEOUT_MS,
       options.signal,
       (signal) =>
-        this.#waitForExecution(jobId(job), provider, signal, options.onStatus)
+        this.#waitForExecution(
+          jobId(job),
+          executionId(execution),
+          signal,
+          options.onStatus
+        )
     )
   }
 
@@ -146,19 +152,19 @@ export class HostedJobs implements FileRouterJobs {
 
   async #waitForExecution(
     id: string,
-    provider: ProviderId,
+    executionId: string,
     signal: AbortSignal,
     onStatus?: (execution: HostedExecution) => void
   ): Promise<HostedExecution> {
     let previousStatus: HostedExecution["status"] | undefined
     for await (const job of this.#pollJobs(id, signal)) {
       const execution = job.executions.find(
-        (candidate) => candidate.provider === provider
+        (candidate) => candidate.id === executionId
       )
       if (!execution) {
         if (job.status === "complete" || job.status === "failed") {
           throw new FileRouterError(
-            `Hosted job ${id} does not include provider ${provider}.`,
+            `Hosted job ${id} does not include execution ${executionId}.`,
             { code: "InvalidInput" }
           )
         }
@@ -173,8 +179,8 @@ export class HostedJobs implements FileRouterJobs {
       }
       if (job.status === "complete" || job.status === "failed") {
         throw new FileRouterError(
-          `Hosted job ${id} ended before ${provider} reached a terminal status.`,
-          { code: "ParseFailed", providerId: provider }
+          `Hosted job ${id} ended before execution ${executionId} reached a terminal status.`,
+          { code: "ParseFailed" }
         )
       }
     }
@@ -195,6 +201,10 @@ function jobId(job: HostedJobAccepted | string): string {
   return typeof job === "string" ? job : job.id
 }
 
+function executionId(execution: HostedExecutionReference | string): string {
+  return typeof execution === "string" ? execution : execution.id
+}
+
 export function assertHostedJobDraft(input: HostedJobCreateDraft): void {
   serializeJobInput({
     ...input,
@@ -208,11 +218,17 @@ function serializeJobInput(input: HostedJobCreateInput): string {
       code: "InvalidInput",
     })
   }
+  if (input.providers.length > MAX_HOSTED_JOB_EXECUTIONS) {
+    throw new FileRouterError(
+      `Hosted jobs accept at most ${MAX_HOSTED_JOB_EXECUTIONS} provider executions.`,
+      { code: "InvalidInput" }
+    )
+  }
   if (
-    new Set(input.providers.map((target) => target.provider)).size !==
+    new Set(input.providers.map((provider) => provider.key)).size !==
     input.providers.length
   ) {
-    throw new FileRouterError("Each provider may appear only once.", {
+    throw new FileRouterError("Each provider key must be unique.", {
       code: "InvalidInput",
     })
   }
@@ -226,6 +242,12 @@ function serializeJobInput(input: HostedJobCreateInput): string {
     )
   }
   for (const target of input.providers) {
+    if (target.key.trim().length === 0 || target.key.length > 64) {
+      throw new FileRouterError(
+        "Provider keys must be non-blank and at most 64 characters.",
+        { code: "InvalidInput" }
+      )
+    }
     assertPageFields(
       target.outputs ?? [DEFAULT_PARSE_OUTPUT],
       target.pageFields

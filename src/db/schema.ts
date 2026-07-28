@@ -248,6 +248,7 @@ export const documentExecution = sqliteTable(
     jobId: text("job_id")
       .notNull()
       .references(() => documentJob.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
     provider: text("provider").$type<ProviderId>().notNull(),
     position: integer("position").notNull(),
     status: text("status", { enum: hostedExecutionStatuses })
@@ -279,5 +280,6 @@ export const documentExecution = sqliteTable(
   (table) => [
     index("document_execution_job_id_idx").on(table.jobId),
     index("document_execution_result_expires_at_idx").on(table.resultExpiresAt),
+    uniqueIndex("document_execution_job_id_key_idx").on(table.jobId, table.key),
   ]
 )

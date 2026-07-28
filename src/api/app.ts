@@ -24,6 +24,7 @@ import {
   getJobRoute,
   IdempotencyKeySchema,
   listProvidersRoute,
+  releaseDocumentRoute,
 } from "@/api/contracts"
 import { problemResponse } from "@/api/problem"
 import {
@@ -40,7 +41,10 @@ import {
 } from "@/lib/document-jobs.server"
 import { getProviderSourceResponse } from "@/lib/document-source.server"
 import { createDocument, getDocument } from "@/lib/documents.server"
-import { deleteDocument } from "@/lib/document-deletion.server"
+import {
+  deleteDocument,
+  releaseDocumentArtifacts,
+} from "@/lib/document-deletion.server"
 import { HttpError } from "@/lib/http.server"
 import { hostedProviderCatalog } from "@/lib/hosted-providers.server"
 import {
@@ -48,6 +52,7 @@ import {
   serializeError,
   type WideEvent,
 } from "@/observability/log"
+import { receiveProviderCompletion } from "@/lib/provider-completion.server"
 
 type ApiRequestEvent = Partial<WideEvent> & {
   credential_id?: string
@@ -210,6 +215,19 @@ api.notFound((context) => {
   )
 })
 
+api.post(
+  "/api/v1/provider-completions/:jobId/:executionId",
+  async (context) => {
+    const { executionId, jobId } = context.req.param()
+    return receiveProviderCompletion(
+      context.req.raw,
+      context.env,
+      jobId,
+      executionId
+    )
+  }
+)
+
 const limitDocumentJsonBody = bodyLimit({
   maxSize: MAX_HOSTED_JOB_REQUEST_BYTES,
   onError: () => {
@@ -233,6 +251,7 @@ api.use(
   `${HOSTED_DOCUMENTS_PATH}/:documentId`,
   requireApiKey((method) => (method === "DELETE" ? "create" : "read"))
 )
+api.use(`${HOSTED_DOCUMENTS_PATH}/:documentId/release`, requireApiKey("create"))
 api.use(
   HOSTED_JOBS_PATH,
   requireApiKey("create"),
@@ -335,6 +354,17 @@ api.openapi(deleteDocumentRoute, async (context) => {
   const { documentId } = context.req.valid("param")
   context.get("requestEvent").document_id = documentId
   await deleteDocument(documentId, context.get("principal").userId, context.env)
+  return context.body(null, 204)
+})
+
+api.openapi(releaseDocumentRoute, async (context) => {
+  const { documentId } = context.req.valid("param")
+  context.get("requestEvent").document_id = documentId
+  await releaseDocumentArtifacts(
+    documentId,
+    context.get("principal").userId,
+    context.env
+  )
   return context.body(null, 204)
 })
 
