@@ -1,6 +1,6 @@
 ---
 title: "Idempotency and cleanup"
-description: "Safe retries, retention windows, and deleting hosted documents."
+description: "Safe retries, retention windows, and cleaning up hosted documents."
 ---
 
 Hosted FileRouter is a job system: store a document, run executions, retain results for a while, then clean up. Treat document IDs, job IDs, and idempotency keys as part of your application contract.
@@ -47,7 +47,7 @@ From the hosted product rules:
 | Normalized results | Available while retained; tied to the document cleanup window |
 | Job records        | Scheduled for deletion after 30 days                          |
 
-Storage in these windows does not consume credits. Do not rely on expiry for sensitive data. Delete when the workflow finishes.
+Storage in these windows does not consume credits. Do not rely on expiry for sensitive data. Release stored artifacts when the workflow finishes.
 
 ## Cleanup after a job
 
@@ -91,7 +91,7 @@ try {
 
 `documents.delete` removes the document, related jobs, and retained results. Use it when you do not need the history.
 
-For hosted `parse` / `compare`, delete via the returned resources when you no longer need retained outputs:
+For hosted `parse` / `compare`, release via the returned resources when you no longer need retained outputs:
 
 ```ts
 const parsed = await router.parse("./claim.pdf", {

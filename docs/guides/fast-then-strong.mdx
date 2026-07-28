@@ -13,7 +13,7 @@ If you want to **avoid** starting the expensive engine until the cheap one looks
 2. Create one job with a fast engine and a stronger engine.
 3. `waitForExecution` on the fast provider and render.
 4. `waitForExecution` on the strong provider and replace or merge.
-5. Delete the document when you are done.
+5. Release the stored artifacts when you are done.
 
 ```ts
 import { FileRouter } from "@file_router/sdk"
