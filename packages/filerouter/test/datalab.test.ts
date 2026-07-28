@@ -155,11 +155,25 @@ describe("Datalab provider", () => {
                 block_type: "Page",
                 children: [
                   {
-                    html: "<h1>First</h1>",
-                    markdown: "# First",
+                    block_type: "SectionHeader",
+                    children: [
+                      {
+                        block_type: "Text",
+                        html: "First",
+                        id: "/page/0/Text/2",
+                        markdown: "First",
+                      },
+                    ],
+                    html: "<h1><content-ref src='/page/0/Text/2'></content-ref></h1>",
+                    id: "/page/0/SectionHeader/1",
+                    markdown:
+                      "# <content-ref src='/page/0/Text/2'></content-ref>",
                   },
                 ],
+                html: "<content-ref src='/page/0/SectionHeader/1'></content-ref>",
                 id: "/page/0/Page/0",
+                markdown:
+                  "<content-ref src='/page/0/SectionHeader/1'></content-ref>",
               },
               {
                 block_type: "Page",
@@ -220,6 +234,47 @@ describe("Datalab provider", () => {
     expect((body as FormData).get("output_format")).toBe("json")
     expect((body as FormData).get("include_markdown_in_chunks")).toBe("true")
     expect((body as FormData).get("page_range")).toBe("0,2")
+  })
+
+  test("preserves an explicit markdown-in-JSON opt-out", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          request_check_url: "https://www.datalab.to/api/v1/convert/request-2",
+          request_id: "request-2",
+          success: true,
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          json: { children: [] },
+          page_count: 0,
+          status: "complete",
+          success: true,
+        })
+      )
+    const router = new DirectFileRouter({
+      providers: {
+        datalab: datalab({
+          apiKey: "test-key",
+          fetch: fetchMock,
+          pollingIntervalMs: 0,
+        }),
+      },
+    })
+
+    await router.parse("https://example.com/report.pdf", {
+      outputs: ["pages"],
+      pageFields: ["markdown"],
+      providerOptions: {
+        datalab: { include_markdown_in_chunks: false },
+      },
+    })
+
+    const body = fetchMock.mock.calls[0]?.[1]?.body
+    expect(body).toBeInstanceOf(FormData)
+    expect((body as FormData).get("include_markdown_in_chunks")).toBe("false")
   })
 
   test("rejects untrusted polling URLs", async () => {

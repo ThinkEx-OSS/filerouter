@@ -232,12 +232,13 @@ async function createFormData(
     PROVIDER_ID
   )
   const { raw, ...native } = nativeOptions
-
-  for (const [key, value] of Object.entries({
+  const nativeFields = {
     ...options.raw,
     ...raw,
     ...native,
-  })) {
+  }
+
+  for (const [key, value] of Object.entries(nativeFields)) {
     if (
       value !== undefined &&
       value !== null &&
@@ -266,7 +267,8 @@ async function createFormData(
   if (
     outputs.includes("pages") &&
     (parseOptions.pageFields === undefined ||
-      parseOptions.pageFields.includes("markdown"))
+      parseOptions.pageFields.includes("markdown")) &&
+    nativeFields.include_markdown_in_chunks === undefined
   ) {
     body.set("include_markdown_in_chunks", "true")
   }
@@ -284,13 +286,16 @@ function normalizeDatalab(
   includeRaw: boolean,
   startedAt: Date
 ): ParseResult {
-  const pages = normalizePages(raw.json)
+  const pageBlocks = datalabPageBlocks(raw.json)
+  const pages = requestedOutputs.includes("pages")
+    ? pageBlocks.map(normalizePage)
+    : []
   const markdown = readString(raw.markdown)
   const html = readString(raw.html)
   const json = raw.json
   const chunks = raw.chunks
   const images = normalizeImages(raw.images)
-  const pageCount = readNumber(raw.page_count) ?? pages.length
+  const pageCount = readNumber(raw.page_count) ?? pageBlocks.length
   const qualityScore = readNumber(raw.parse_quality_score)
   const costBreakdown = isRecord(raw.cost_breakdown)
     ? raw.cost_breakdown
@@ -341,20 +346,19 @@ function normalizeDatalab(
   }
 }
 
-function normalizePages(value: unknown): Array<ParsePage> {
+function datalabPageBlocks(value: unknown): Array<Record<string, unknown>> {
   if (!isRecord(value)) {
     return []
   }
-  return readRecords(value.children)
-    .filter((block) => block.block_type === "Page")
-    .map(normalizePage)
+  return readRecords(value.children).filter(
+    (block) => block.block_type === "Page"
+  )
 }
 
 function normalizePage(raw: Record<string, unknown>, index: number): ParsePage {
-  const children = readRecords(raw.children)
-  const html = readString(raw.html) ?? joinBlockField(children, "html")
-  const markdown =
-    readString(raw.markdown) ?? joinBlockField(children, "markdown")
+  const blocks = indexDatalabBlocks(raw)
+  const html = resolveBlockField(raw, "html", blocks)
+  const markdown = resolveBlockField(raw, "markdown", blocks)
   const metadata = {
     ...(raw.bbox !== undefined && { bbox: raw.bbox }),
     ...(typeof raw.id === "string" && { blockId: raw.id }),
@@ -391,15 +395,56 @@ function datalabPageNumber(
   return zeroBased === undefined ? index + 1 : Number(zeroBased) + 1
 }
 
-function joinBlockField(
-  blocks: Array<Record<string, unknown>>,
-  field: "html" | "markdown"
+function indexDatalabBlocks(
+  root: Record<string, unknown>
+): Map<string, Record<string, unknown>> {
+  const blocks = new Map<string, Record<string, unknown>>()
+  const pending = [root]
+  while (pending.length > 0) {
+    const block = pending.pop()
+    if (!block) {
+      continue
+    }
+    const id = readString(block.id)
+    if (id) {
+      blocks.set(id, block)
+    }
+    pending.push(...readRecords(block.children))
+  }
+  return blocks
+}
+
+function resolveBlockField(
+  root: Record<string, unknown>,
+  field: "html" | "markdown",
+  blocks: Map<string, Record<string, unknown>>
 ): string | undefined {
-  const values = blocks.flatMap((block) => {
+  const rootId = readString(root.id)
+  const visiting = new Set(rootId ? [rootId] : [])
+  const resolve = (block: Record<string, unknown>): string | undefined => {
     const value = readString(block[field])
-    return value ? [value] : []
-  })
-  return values.length > 0 ? values.join("\n\n") : undefined
+    if (!value) {
+      const children = readRecords(block.children).flatMap((child) => {
+        const childValue = resolve(child)
+        return childValue ? [childValue] : []
+      })
+      return children.length > 0 ? children.join("\n\n") : undefined
+    }
+    return value.replace(
+      /<content-ref\b[^>]*\bsrc=(["'])([^"']+)\1[^>]*>\s*<\/content-ref>/gi,
+      (reference, _quote: string, childId: string) => {
+        const child = blocks.get(childId)
+        if (!child || visiting.has(childId)) {
+          return reference
+        }
+        visiting.add(childId)
+        const resolved = resolve(child)
+        visiting.delete(childId)
+        return resolved ?? reference
+      }
+    )
+  }
+  return resolve(root)
 }
 
 function datalabOutputs(

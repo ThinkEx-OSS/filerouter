@@ -56,6 +56,7 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
 
     const run = async (signal: AbortSignal | undefined) => {
       const normalizedInput = await resolveParseInput(input, signal)
+      signal?.throwIfAborted()
       try {
         return selectPageFields(
           await provider.parse(normalizedInput, {
@@ -89,6 +90,7 @@ export class DirectFileRouter<Providers extends ProviderMap = ProviderMap> {
     const providerIds = options.providers ?? Object.keys(this.#providers)
     const run = async (signal: AbortSignal | undefined) => {
       const normalizedInput = await resolveParseInput(input, signal)
+      signal?.throwIfAborted()
       const providers = await Promise.all(
         providerIds.map((providerId) =>
           this.#compareProvider(providerId, normalizedInput, {

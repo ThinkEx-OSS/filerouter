@@ -200,6 +200,17 @@ describe("hosted resources", () => {
         ...base,
         providers: [
           {
+            key: undefined as unknown as string,
+            provider: "llamaparse",
+          },
+        ],
+      })
+    ).rejects.toMatchObject({ code: "InvalidInput" })
+    await expect(
+      jobs.create({
+        ...base,
+        providers: [
+          {
             key: "primary",
             pageFields: ["markdown"],
             provider: "llamaparse",
