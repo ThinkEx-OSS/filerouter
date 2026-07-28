@@ -71,7 +71,7 @@ const LLAMAPARSE_OUTPUTS: Array<ParseOutput> = [
 
 export const llamaparse = (
   opts: LlamaParseProviderOptions = {}
-): FileRouterProvider<LlamaParseClient | undefined> => {
+): FileRouterProvider => {
   const jobs = llamaParseJobs(opts)
   return {
     capabilities: {
@@ -83,7 +83,6 @@ export const llamaparse = (
     id: "llamaparse",
     jobs,
     name: "LlamaParse",
-    raw: opts.client,
     parse: async (input, options) => {
       const job = await jobs.submit(input, options)
       return waitForProviderJob(

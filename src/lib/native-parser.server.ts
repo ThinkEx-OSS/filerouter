@@ -94,9 +94,6 @@ async function parseNative(
   }
 
   const startedAt = new Date()
-  const supportedPageFields = new Set(config.capabilities.pageFields)
-  const selectedNativePageFields =
-    options.pageFields?.filter((field) => supportedPageFields.has(field)) ?? []
   const response = await config.fetch(
     new Request(`https://native-parsers.internal/v1/${config.id}/parse`, {
       headers: {
@@ -106,7 +103,7 @@ async function parseNative(
               options.outputs && { outputs: options.outputs }),
             ...(!options.includeRaw &&
               options.pageFields && {
-                pageFields: selectedNativePageFields,
+                pageFields: options.pageFields,
               }),
             ...(options.pages && { pages: options.pages }),
             ...(options.providerOptions?.[config.id] && {

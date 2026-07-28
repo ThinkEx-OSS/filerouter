@@ -136,6 +136,92 @@ describe("Datalab provider", () => {
     })
   })
 
+  test("normalizes page-level JSON into portable pages", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          request_check_url: "https://www.datalab.to/api/v1/convert/request-1",
+          request_id: "request-1",
+          success: true,
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          json: {
+            children: [
+              {
+                bbox: [0, 0, 100, 100],
+                block_type: "Page",
+                children: [
+                  {
+                    html: "<h1>First</h1>",
+                    markdown: "# First",
+                  },
+                ],
+                id: "/page/0/Page/0",
+              },
+              {
+                block_type: "Page",
+                children: [
+                  {
+                    html: "<p>Third</p>",
+                    markdown: "Third",
+                  },
+                ],
+                id: "/page/2/Page/2",
+              },
+            ],
+          },
+          page_count: 2,
+          status: "complete",
+          success: true,
+        })
+      )
+    const router = new DirectFileRouter({
+      providers: {
+        datalab: datalab({
+          apiKey: "test-key",
+          fetch: fetchMock,
+          pollingIntervalMs: 0,
+        }),
+      },
+    })
+
+    const result = await router.parse("https://example.com/report.pdf", {
+      outputs: ["pages"],
+      pageFields: ["html", "json", "markdown", "metadata"],
+      pages: [1, 3],
+    })
+
+    expect(result.outputs.pages).toEqual([
+      {
+        html: "<h1>First</h1>",
+        json: expect.objectContaining({ id: "/page/0/Page/0" }),
+        markdown: "# First",
+        metadata: {
+          bbox: [0, 0, 100, 100],
+          blockId: "/page/0/Page/0",
+        },
+        pageNumber: 1,
+        warnings: [],
+      },
+      {
+        html: "<p>Third</p>",
+        json: expect.objectContaining({ id: "/page/2/Page/2" }),
+        markdown: "Third",
+        metadata: { blockId: "/page/2/Page/2" },
+        pageNumber: 3,
+        warnings: [],
+      },
+    ])
+    const body = fetchMock.mock.calls[0]?.[1]?.body
+    expect(body).toBeInstanceOf(FormData)
+    expect((body as FormData).get("output_format")).toBe("json")
+    expect((body as FormData).get("include_markdown_in_chunks")).toBe("true")
+    expect((body as FormData).get("page_range")).toBe("0,2")
+  })
+
   test("rejects untrusted polling URLs", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({

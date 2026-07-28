@@ -21,6 +21,7 @@ import type {
   ParseOptions,
   ParseOutput,
   ParsePage,
+  ParsePageField,
   ParseResult,
   ProviderInput,
 } from "./types"
@@ -59,7 +60,7 @@ export type MistralOcrParseOptions = Partial<Omit<OCRRequest, "document">>
 
 export function mistralOcr(
   options: MistralOcrProviderOptions = {}
-): FileRouterProvider<MistralClient | undefined> {
+): FileRouterProvider {
   return {
     capabilities: {
       execution: "sync",
@@ -80,7 +81,6 @@ export function mistralOcr(
     id: PROVIDER_ID,
     name: "Mistral OCR",
     parse: (input, parseOptions) => parseMistral(input, parseOptions, options),
-    raw: options.client,
   }
 }
 
@@ -96,6 +96,8 @@ async function parseMistral(
     PROVIDER_ID
   )
   const outputs = parseOptions.outputs ?? [DEFAULT_PARSE_OUTPUT]
+  const pageFieldRequested = (field: ParsePageField): boolean =>
+    parseOptions.pageFields?.includes(field) === true
   const requestOptions = mistralRequestOptions(parseOptions)
   let uploadedFileId: string | undefined
 
@@ -115,14 +117,23 @@ async function parseMistral(
       ...native,
       document,
       includeImageBase64:
-        outputs.includes("images") || native.includeImageBase64 === true,
+        outputs.includes("images") ||
+        pageFieldRequested("images") ||
+        native.includeImageBase64 === true,
       model: native.model ?? options.model ?? "mistral-ocr-4-0",
       ...(parseOptions.pages && {
         pages: parseOptions.pages.map((page) => page - 1),
       }),
-      ...(outputs.includes("tables") && {
+      ...((outputs.includes("tables") || pageFieldRequested("tables")) && {
         tableFormat: native.tableFormat ?? "markdown",
       }),
+      ...(pageFieldRequested("blocks") && { includeBlocks: true }),
+      ...(pageFieldRequested("confidence") && {
+        confidenceScoresGranularity:
+          native.confidenceScoresGranularity ?? "page",
+      }),
+      ...(pageFieldRequested("footer") && { extractFooter: true }),
+      ...(pageFieldRequested("header") && { extractHeader: true }),
     }
     const response = await client.ocr.process(request, requestOptions)
 

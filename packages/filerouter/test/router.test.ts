@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test"
+import { describe, expect, test, vi } from "vite-plus/test"
 
 import {
   DirectFileRouter,
@@ -136,6 +136,17 @@ describe("DirectFileRouter", () => {
     await expect(router.parse("sample.pdf", { pages: [0] })).rejects.toThrow(
       "Pages must be positive, one-based integers."
     )
+  })
+
+  test("applies a direct timeout before starting provider work", async () => {
+    const provider = fakeProvider()
+    const parse = vi.spyOn(provider, "parse")
+    const router = new DirectFileRouter({ providers: { fake: provider } })
+
+    await expect(
+      router.parse(new Blob(["document"]), { timeoutMs: 0 })
+    ).rejects.toMatchObject({ code: "Timeout" })
+    expect(parse).not.toHaveBeenCalled()
   })
 
   test("serializes DirectFileRouter errors from another package copy", () => {
