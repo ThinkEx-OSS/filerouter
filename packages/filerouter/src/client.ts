@@ -6,6 +6,7 @@ import type {
   HostedDocumentCreateOptions,
   HostedDocumentDeleteOptions,
   HostedDocumentGetOptions,
+  HostedDocumentReleaseOptions,
 } from "./documents"
 import { FileRouterError } from "./errors"
 import { HostedExecutions } from "./executions"
@@ -16,10 +17,10 @@ import type {
 import { FILEROUTER_DEFAULT_API_URL } from "./hosted"
 import type {
   HostedCompareResult,
+  HostedProviderTarget,
   HostedJob,
   HostedParseResult,
   HostedProviderOptions,
-  HostedProviderTarget,
 } from "./hosted"
 import { describeInput } from "./internal/input"
 import { HostedTransport } from "./internal/hosted-transport"
@@ -124,7 +125,7 @@ export class FileRouter {
       options,
       async ({ documentId, job, signal }) => {
         const execution = job.executions.find(
-          (candidate) => candidate.provider === provider
+          (candidate) => candidate.key === provider
         )
         if (!execution || execution.status !== "complete") {
           throw executionError(execution?.error?.message ?? job.error)
@@ -164,8 +165,9 @@ export class FileRouter {
           providers: results,
           resources: {
             documentId,
-            executions: job.executions.map(({ id, provider }) => ({
+            executions: job.executions.map(({ id, key, provider }) => ({
               id,
+              key,
               provider,
             })),
             jobId: job.id,
@@ -313,6 +315,7 @@ function providerTarget(
     ...(options.pageFields && { pageFields: options.pageFields }),
     ...(options.pages && { pages: options.pages }),
     ...(value !== undefined && { providerOptions: value }),
+    key: provider,
     provider,
   } as HostedProviderTarget
 }
@@ -349,6 +352,7 @@ export type {
   HostedDocumentCreateOptions,
   HostedDocumentDeleteOptions,
   HostedDocumentGetOptions,
+  HostedDocumentReleaseOptions,
   HostedExecutionResultOptions,
   HostedExecutionWaitOptions,
   HostedJobCreateInput,

@@ -15,6 +15,7 @@ export const FILEROUTER_CLI_SCOPE = "jobs:create jobs:read"
 export const FILEROUTER_DEFAULT_API_URL = "https://filerouter.dev"
 export const MAX_HOSTED_JOB_REQUEST_BYTES = 64 * 1024
 export const MAX_HOSTED_METADATA_ENTRIES = 50
+export const MAX_HOSTED_JOB_EXECUTIONS = 25
 
 export const HOSTED_DOCUMENTS_PATH = "/api/v1/documents"
 export const HOSTED_EXECUTIONS_PATH = "/api/v1/executions"
@@ -53,6 +54,7 @@ export interface HostedDocument {
 
 interface HostedProviderTargetBase {
   includeRaw?: boolean
+  key: string
   outputs?: Array<ParseOutput>
   pageFields?: Array<ParsePageField>
   pages?: Array<number>
@@ -76,6 +78,7 @@ export interface HostedExecution {
   error?: { code?: string; message: string }
   id: string
   jobId: string
+  key: string
   outputs: Array<ParseOutput>
   pageCount?: number
   provider: ProviderId
@@ -97,6 +100,7 @@ export interface HostedJob {
 }
 
 export interface HostedJobAccepted {
+  executions: Array<HostedExecutionReference>
   id: string
   status: HostedJobStatus
 }
@@ -109,6 +113,7 @@ export interface HostedProvider {
 
 export interface HostedExecutionReference {
   id: string
+  key: string
   provider: ProviderId
 }
 

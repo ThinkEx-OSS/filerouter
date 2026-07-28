@@ -9,6 +9,7 @@ import {
   hostedExecutionStatuses,
   hostedJobStatuses,
   MAX_HOSTED_METADATA_ENTRIES,
+  MAX_HOSTED_JOB_EXECUTIONS,
 } from "@file_router/sdk/hosted"
 import { providerIds } from "@file_router/sdk/catalog"
 
@@ -65,6 +66,12 @@ const DocumentSchema = z
 const ProviderTargetSchema = z
   .object({
     includeRaw: z.boolean().optional(),
+    key: z
+      .string()
+      .max(64)
+      .refine((value) => value.trim().length > 0, {
+        message: "Provider key cannot be blank.",
+      }),
     outputs: z.array(ParseOutputSchema).min(1).optional(),
     pageFields: z.array(ParsePageFieldSchema).min(1).optional(),
     pages: z.array(z.number().int().positive()).min(1).optional(),
@@ -86,15 +93,18 @@ export const CreateJobRequestSchema = z
         }
       )
       .optional(),
-    providers: z.array(ProviderTargetSchema).min(1).max(providerIds.length),
+    providers: z
+      .array(ProviderTargetSchema)
+      .min(1)
+      .max(MAX_HOSTED_JOB_EXECUTIONS),
   })
   .strict()
   .superRefine((value, context) => {
-    const providers = value.providers.map((target) => target.provider)
-    if (new Set(providers).size !== providers.length) {
+    const keys = value.providers.map((provider) => provider.key)
+    if (new Set(keys).size !== keys.length) {
       context.addIssue({
         code: "custom",
-        message: "Each provider may appear only once per job.",
+        message: "Each provider key must be unique per job.",
         path: ["providers"],
       })
     }
@@ -114,6 +124,7 @@ const ExecutionSchema = z
     error: ExecutionErrorSchema.optional(),
     id: ExecutionIdSchema,
     jobId: JobIdSchema,
+    key: z.string(),
     outputs: z.array(ParseOutputSchema),
     pageCount: z.number().int().nonnegative().optional(),
     provider: ProviderIdSchema,
@@ -144,7 +155,17 @@ const JobSchema = z
   .openapi("Job")
 
 const JobAcceptedSchema = z
-  .object({ id: JobIdSchema, status: z.enum(hostedJobStatuses) })
+  .object({
+    executions: z.array(
+      z.object({
+        id: ExecutionIdSchema,
+        key: z.string(),
+        provider: ProviderIdSchema,
+      })
+    ),
+    id: JobIdSchema,
+    status: z.enum(hostedJobStatuses),
+  })
   .openapi("JobAccepted")
 
 const ProblemSchema = z
@@ -237,6 +258,25 @@ export const deleteDocumentRoute = createRoute({
   },
   security: [{ BearerAuth: [] }],
   summary: "Delete a document",
+  tags: ["Documents"],
+})
+
+export const releaseDocumentRoute = createRoute({
+  description:
+    "Deletes retained source and result artifacts after document jobs finish while preserving job and execution records.",
+  method: "post",
+  path: `${HOSTED_DOCUMENTS_PATH}/{documentId}/release`,
+  request: { params: z.object({ documentId: DocumentIdSchema }) },
+  responses: {
+    204: { description: "Document artifacts released" },
+    400: problem,
+    401: problem,
+    409: problem,
+    429: problem,
+    500: problem,
+  },
+  security: [{ BearerAuth: [] }],
+  summary: "Release document artifacts",
   tags: ["Documents"],
 })
 

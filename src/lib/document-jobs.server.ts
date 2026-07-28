@@ -36,10 +36,11 @@ export interface CreateJobResult {
 }
 
 type NormalizedTarget = DocumentWorkflowTarget & {
+  key: string
   position: number
 }
 
-type UnvalidatedProviderTarget = Omit<
+type UnvalidatedExecutionTarget = Omit<
   HostedProviderTarget,
   "providerOptions"
 > & {
@@ -47,7 +48,7 @@ type UnvalidatedProviderTarget = Omit<
 }
 
 type CreateDocumentJobInput = Omit<HostedJobCreateInput, "providers"> & {
-  providers: Array<UnvalidatedProviderTarget>
+  providers: Array<UnvalidatedExecutionTarget>
 }
 
 export async function createDocumentJob(
@@ -133,6 +134,7 @@ export async function createDocumentJob(
           createdAt: now,
           id: target.executionId,
           jobId,
+          key: target.key,
           outputs: target.outputs,
           position: target.position,
           provider: target.provider,
@@ -172,7 +174,7 @@ export async function createDocumentJob(
     },
     jobId,
     requestId,
-    targets: targets.map(({ position: _, ...target }) => target),
+    targets: targets.map(({ key: _, position: __, ...target }) => target),
     userId,
   }
   try {
@@ -182,7 +184,18 @@ export async function createDocumentJob(
     throw error
   }
 
-  return { job: { id: jobId, status: "queued" }, replayed: false }
+  return {
+    job: {
+      executions: targets.map(({ executionId, key, provider }) => ({
+        id: executionId,
+        key,
+        provider,
+      })),
+      id: jobId,
+      status: "queued",
+    },
+    replayed: false,
+  }
 }
 
 function documentIsAvailable(
@@ -296,6 +309,7 @@ function normalizeTargets(
       pageFields: [...new Set(target.pageFields)],
     }),
     ...(target.pages && { pages: [...new Set(target.pages)] }),
+    key: target.key,
     position,
     provider: target.provider,
     ...(target.providerOptions && {
@@ -357,6 +371,7 @@ function serializeExecution(
     }),
     id: execution.id,
     jobId: execution.jobId,
+    key: execution.key,
     outputs: execution.outputs,
     ...(execution.pageCount !== null && { pageCount: execution.pageCount }),
     provider: execution.provider,
@@ -419,8 +434,22 @@ async function replayJob(
       { code: "idempotency_conflict" }
     )
   }
+  const executions = await db
+    .select({
+      id: documentExecution.id,
+      key: documentExecution.key,
+      provider: documentExecution.provider,
+    })
+    .from(documentExecution)
+    .where(eq(documentExecution.jobId, existing.id))
+    .orderBy(documentExecution.position)
+    .all()
   return {
-    job: { id: existing.id, status: existing.status },
+    job: {
+      executions,
+      id: existing.id,
+      status: existing.status,
+    },
     replayed: true,
   }
 }

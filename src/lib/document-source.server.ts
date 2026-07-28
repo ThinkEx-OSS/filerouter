@@ -1,9 +1,10 @@
 import { normalizeDocumentFileName } from "@file_router/sdk"
 
+import { signHmac, verifyHmac } from "@/lib/hmac.server"
 import { HttpError } from "@/lib/http.server"
 
 const SOURCE_URL_TTL_SECONDS = 30 * 60
-const encoder = new TextEncoder()
+const SOURCE_TOKEN_PURPOSE = "filerouter-source-v2"
 
 export async function createProviderSourceUrl(
   env: Cloudflare.Env,
@@ -159,13 +160,11 @@ async function signSourceToken(
   fileName: string,
   expires: number
 ): Promise<string> {
-  const key = await sourceSigningKey(secret, ["sign"])
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    sourceTokenPayload(documentId, fileName, expires).buffer as ArrayBuffer
+  return signHmac(
+    secret,
+    SOURCE_TOKEN_PURPOSE,
+    sourceTokenPayload(documentId, fileName, expires)
   )
-  return toBase64Url(new Uint8Array(signature))
 }
 
 async function verifySourceToken(
@@ -175,29 +174,11 @@ async function verifySourceToken(
   expires: number,
   token: string
 ): Promise<boolean> {
-  try {
-    const key = await sourceSigningKey(secret, ["verify"])
-    return crypto.subtle.verify(
-      "HMAC",
-      key,
-      fromBase64Url(token).buffer as ArrayBuffer,
-      sourceTokenPayload(documentId, fileName, expires).buffer as ArrayBuffer
-    )
-  } catch {
-    return false
-  }
-}
-
-function sourceSigningKey(
-  secret: string,
-  usages: KeyUsage[]
-): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    encoder.encode(`filerouter-source-v2:${secret}`),
-    { hash: "SHA-256", name: "HMAC" },
-    false,
-    usages
+  return verifyHmac(
+    secret,
+    SOURCE_TOKEN_PURPOSE,
+    sourceTokenPayload(documentId, fileName, expires),
+    token
   )
 }
 
@@ -205,8 +186,8 @@ function sourceTokenPayload(
   documentId: string,
   fileName: string,
   expires: number
-): Uint8Array {
-  return encoder.encode(`${documentId}\n${fileName}\n${expires}`)
+): string {
+  return `${documentId}\n${fileName}\n${expires}`
 }
 
 function parseExpiration(value: string | undefined): number | undefined {
@@ -217,22 +198,4 @@ function parseExpiration(value: string | undefined): number | undefined {
   return Number.isSafeInteger(expires) && expires >= Date.now() / 1000
     ? expires
     : undefined
-}
-
-function toBase64Url(value: Uint8Array): string {
-  return btoa(String.fromCharCode(...value))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/, "")
-}
-
-function fromBase64Url(value: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) {
-    throw new Error("Invalid source token.")
-  }
-  const padded = value
-    .replaceAll("-", "+")
-    .replaceAll("_", "/")
-    .padEnd(Math.ceil(value.length / 4) * 4, "=")
-  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0))
 }

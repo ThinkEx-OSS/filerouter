@@ -37,7 +37,13 @@ describe("FileRouter", () => {
     })
     expect(readJsonBody(fetchMock, 1)).toEqual({
       documentId: "document-1",
-      providers: [{ outputs: ["markdown"], provider: "llamaparse" }],
+      providers: [
+        {
+          key: "llamaparse",
+          outputs: ["markdown"],
+          provider: "llamaparse",
+        },
+      ],
     })
   })
 
@@ -115,7 +121,7 @@ describe("FileRouter", () => {
     })
   })
 
-  test("maps provider options onto explicit execution targets", async () => {
+  test("maps provider options onto explicit provider entries", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(Response.json(document("document-3")))
@@ -142,6 +148,7 @@ describe("FileRouter", () => {
     expect(readJsonBody(fetchMock, 1)).toMatchObject({
       providers: [
         {
+          key: "llamaparse",
           pageFields: ["markdown"],
           pages: [1, 3],
           provider: "llamaparse",
@@ -179,8 +186,8 @@ describe("FileRouter", () => {
     expect(comparison.resources).toEqual({
       documentId: "document-4",
       executions: [
-        { id: "execution-4a", provider: "llamaparse" },
-        { id: "execution-4b", provider: "liteparse" },
+        { id: "execution-4a", key: "llamaparse", provider: "llamaparse" },
+        { id: "execution-4b", key: "liteparse", provider: "liteparse" },
       ],
       jobId: "job-4",
     })
@@ -272,6 +279,20 @@ describe("FileRouter", () => {
       expect.objectContaining({ method: "DELETE" })
     )
   })
+
+  test("releases stored artifacts without deleting job history", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await expect(
+      createClient(fetchMock).documents.release("document-6")
+    ).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.com/api/v1/documents/document-6/release",
+      expect.objectContaining({ method: "POST" })
+    )
+  })
 })
 
 function createClient(fetchMock: typeof fetch): FileRouter {
@@ -305,6 +326,7 @@ function execution(
     durationMs: 10,
     id,
     jobId: "job",
+    key: provider,
     outputs: ["markdown"],
     provider,
     resultAvailable: true,

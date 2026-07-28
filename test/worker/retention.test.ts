@@ -221,6 +221,7 @@ function storedExecution(input: {
   return {
     id: input.id,
     jobId: input.jobId,
+    key: input.id,
     outputs: ["markdown" as const],
     position: 0,
     provider: "llamaparse" as const,

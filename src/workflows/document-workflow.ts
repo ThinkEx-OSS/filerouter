@@ -26,6 +26,10 @@ import { captureServerTelemetry } from "@/integrations/posthog/server"
 import { createProviderSourceUrl } from "@/lib/document-source.server"
 import { resultExpiresAt } from "@/lib/document-retention"
 import { createHostedProviders } from "@/lib/hosted-providers.server"
+import {
+  providerCompletionEventType,
+  withProviderCompletion,
+} from "@/lib/provider-completion.server"
 import { emitWideEvent, serializeError } from "@/observability/log"
 import {
   storeProviderResult,
@@ -60,12 +64,13 @@ const PROVIDER_STATUS_STEP = {
   timeout: "1 minute",
 } as const satisfies WorkflowStepConfig
 
+const PROVIDER_COMPLETION_TIMEOUT = "10 seconds"
+const PROVIDER_POLL_INTERVAL = "2 seconds"
+
 const METERING_STEP = {
   retries: { backoff: "exponential", delay: "5 seconds", limit: 5 },
   timeout: "1 minute",
 } as const satisfies WorkflowStepConfig
-
-const SYNC_PROVIDER_ATTEMPTS = 4
 
 type ProviderStepStatus =
   | { status: "pending" | "running" }
@@ -113,6 +118,7 @@ export class DocumentWorkflow extends WorkflowEntrypoint<
             configured[target.provider],
             target,
             input,
+            params.jobId,
             this.env
           )
         )
@@ -188,6 +194,7 @@ async function processExecution(
   provider: FileRouterProvider,
   target: DocumentWorkflowTarget,
   input: ProviderInput,
+  jobId: string,
   env: Cloudflare.Env
 ): Promise<ProviderOutcome> {
   const startedAt = Date.now()
@@ -195,7 +202,7 @@ async function processExecution(
 
   try {
     outcome = provider.jobs
-      ? await processAsyncProvider(step, provider, target, input, env)
+      ? await processAsyncProvider(step, provider, target, input, jobId, env)
       : await processSyncProvider(step, provider, target, input, env)
   } catch (error) {
     outcome = {
@@ -218,36 +225,19 @@ async function processSyncProvider(
   input: ProviderInput,
   env: Cloudflare.Env
 ): Promise<Extract<ProviderOutcome, { status: "parsed" }>> {
-  for (let attempt = 1; attempt <= SYNC_PROVIDER_ATTEMPTS; attempt += 1) {
-    try {
-      return await step.do(
-        `process ${target.executionId} ${attempt}`,
-        PROVIDER_EXECUTION_STEP,
-        async () =>
-          storeProviderResult(
-            env.FILEROUTER_FILES,
-            target.executionId,
-            selectPageFields(
-              await provider.parse(input, parseOptions(target)),
-              target.pageFields
-            )
-          )
+  return step.do(
+    `process ${target.executionId}`,
+    PROVIDER_EXECUTION_STEP,
+    async () =>
+      storeProviderResult(
+        env.FILEROUTER_FILES,
+        target.executionId,
+        selectPageFields(
+          await provider.parse(input, parseOptions(target)),
+          target.pageFields
+        )
       )
-    } catch (error) {
-      if (
-        attempt === SYNC_PROVIDER_ATTEMPTS ||
-        !FileRouterError.isInstance(error) ||
-        !error.retryable
-      ) {
-        throw error
-      }
-      await step.sleep(
-        `wait to retry ${target.executionId} ${attempt}`,
-        `${attempt} second${attempt === 1 ? "" : "s"}`
-      )
-    }
-  }
-  throw new Error("Sync provider retry loop exhausted.")
+  )
 }
 
 async function processAsyncProvider(
@@ -255,16 +245,31 @@ async function processAsyncProvider(
   provider: FileRouterProvider,
   target: DocumentWorkflowTarget,
   input: ProviderInput,
+  jobId: string,
   env: Cloudflare.Env
 ): Promise<Extract<ProviderOutcome, { status: "parsed" }>> {
   const jobs = provider.jobs
   if (!jobs) {
     throw new Error(`Provider ${provider.id} does not support durable jobs.`)
   }
+  const completionEvent = providerCompletionEventType(
+    target.provider,
+    target.executionId
+  )
+  const options = parseOptions(target)
   const job = await step.do(
     `submit ${target.executionId}`,
     PROVIDER_EXECUTION_STEP,
-    () => jobs.submit(input, parseOptions(target))
+    async () => {
+      const providerOptions = await withProviderCompletion(
+        env,
+        jobId,
+        target.executionId,
+        target.provider,
+        target.providerOptions
+      )
+      return jobs.submit(input, parseOptions(target, providerOptions))
+    }
   )
   const deadline = new Date(job.submittedAt).getTime() + 14 * 60 * 1000
   let attempt = 0
@@ -275,7 +280,7 @@ async function processAsyncProvider(
       `check ${target.executionId} ${attempt}`,
       PROVIDER_STATUS_STEP,
       async () => {
-        const current = await jobs.get(job, parseOptions(target))
+        const current = await jobs.get(job, options)
         if (current.status !== "complete") {
           return current
         }
@@ -295,7 +300,22 @@ async function processAsyncProvider(
         providerId: provider.id,
       })
     }
-    await step.sleep(`wait for ${target.executionId} ${attempt}`, "10 seconds")
+    if (completionEvent) {
+      try {
+        await step.waitForEvent(`wait for ${target.executionId} ${attempt}`, {
+          timeout: PROVIDER_COMPLETION_TIMEOUT,
+          type: completionEvent,
+        })
+      } catch {
+        // A timeout is the polling watchdog when a provider webhook is delayed
+        // or lost. The next provider status request remains authoritative.
+      }
+    } else {
+      await step.sleep(
+        `wait for ${target.executionId} ${attempt}`,
+        PROVIDER_POLL_INTERVAL
+      )
+    }
   }
 
   throw new FileRouterError(`${provider.id} job timed out.`, {
@@ -442,16 +462,19 @@ async function markWorkflowFailure(
   })
 }
 
-function parseOptions(target: DocumentWorkflowTarget) {
+function parseOptions(
+  target: DocumentWorkflowTarget,
+  providerOptions = target.providerOptions
+) {
   return {
     includeRaw: target.includeRaw,
     outputs: target.outputs,
     ...(target.pageFields && { pageFields: target.pageFields }),
     ...(target.pages && { pages: target.pages }),
     provider: target.provider,
-    ...(target.providerOptions && {
+    ...(providerOptions && {
       providerOptions: {
-        [target.provider]: target.providerOptions,
+        [target.provider]: providerOptions,
       } satisfies ProviderParseOptions,
     }),
   }
