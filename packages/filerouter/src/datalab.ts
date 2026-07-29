@@ -371,20 +371,24 @@ function normalizePage(
     allFields || requestedFields.includes("markdown")
       ? resolveBlockField(raw, "markdown", blocks)
       : undefined
-  const metadata = {
-    ...(raw.bbox !== undefined && { bbox: raw.bbox }),
-    ...(typeof raw.id === "string" && { blockId: raw.id }),
-    ...(raw.polygon !== undefined && { polygon: raw.polygon }),
-    ...(raw.section_hierarchy !== undefined && {
-      sectionHierarchy: raw.section_hierarchy,
-    }),
-  }
+  const json = allFields || requestedFields.includes("json") ? raw : undefined
+  const metadata =
+    allFields || requestedFields.includes("metadata")
+      ? {
+          ...(raw.bbox !== undefined && { bbox: raw.bbox }),
+          ...(typeof raw.id === "string" && { blockId: raw.id }),
+          ...(raw.polygon !== undefined && { polygon: raw.polygon }),
+          ...(raw.section_hierarchy !== undefined && {
+            sectionHierarchy: raw.section_hierarchy,
+          }),
+        }
+      : undefined
 
   return {
     ...(html && { html }),
-    json: raw,
+    ...(json && { json }),
     ...(markdown && { markdown }),
-    ...(Object.keys(metadata).length > 0 && { metadata }),
+    ...(metadata && Object.keys(metadata).length > 0 && { metadata }),
     pageNumber: datalabPageNumber(raw),
     warnings: [],
   }

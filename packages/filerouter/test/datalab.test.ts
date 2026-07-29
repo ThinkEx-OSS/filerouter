@@ -249,8 +249,18 @@ describe("Datalab provider", () => {
       )
       .mockResolvedValueOnce(
         Response.json({
-          json: { children: [] },
-          page_count: 0,
+          json: {
+            children: [
+              {
+                bbox: [0, 0, 100, 100],
+                block_type: "Page",
+                html: "<p>First</p>",
+                id: "/page/0/Page/0",
+                markdown: "First",
+              },
+            ],
+          },
+          page_count: 1,
           status: "complete",
           success: true,
         })
@@ -265,7 +275,7 @@ describe("Datalab provider", () => {
       },
     })
 
-    await router.parse("https://example.com/report.pdf", {
+    const result = await router.parse("https://example.com/report.pdf", {
       outputs: ["pages"],
       pageFields: ["markdown"],
       providerOptions: {
@@ -276,6 +286,13 @@ describe("Datalab provider", () => {
     const body = fetchMock.mock.calls[0]?.[1]?.body
     expect(body).toBeInstanceOf(FormData)
     expect((body as FormData).get("include_markdown_in_chunks")).toBe("false")
+    expect(result.outputs.pages).toEqual([
+      {
+        markdown: "First",
+        pageNumber: 1,
+        warnings: [],
+      },
+    ])
   })
 
   test("rejects untrusted polling URLs", async () => {
