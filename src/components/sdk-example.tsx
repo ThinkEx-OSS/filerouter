@@ -11,7 +11,8 @@ const router = new FileRouter()
 // Fast hosted engine for simple pages
 const result = await router.parse(file, {
   provider: "liteparse",
-  outputs: ["markdown", "tables"],
+  outputs: ["markdown", "pages"],
+  pageFields: ["markdown"],
 })`,
   compare: `import { FileRouter } from "@file_router/sdk"
 

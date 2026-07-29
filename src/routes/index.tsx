@@ -149,7 +149,8 @@ function App() {
             Building blocks for the pipeline you want.
           </h2>
           <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
-            Focused engines for cheap paths, hard docs, and durable jobs.
+            Compare engines on your own documents, choose the tradeoffs, and
+            compose the execution policy you need.
           </p>
 
           <RoutingCanvas />
@@ -163,11 +164,9 @@ function App() {
               Same interface for every engine.
             </h2>
             <p className="mt-4 max-w-lg leading-7 text-muted-foreground">
-              Point at{" "}
-              <span className="font-mono text-foreground">liteparse</span> or{" "}
-              <span className="font-mono text-foreground">pdf-inspector</span>{" "}
-              for simple pages, a heavier engine when you need it. Same typed
-              result.
+              Switch engines or compare several without rebuilding uploads,
+              jobs, or result handling. Keep the same typed result with
+              provider-specific options when you need them.
             </p>
           </div>
 
@@ -187,7 +186,7 @@ function App() {
             Assemble the pipeline. We run the jobs.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Pick the engines that fit each document. FileRouter handles durable
+            Switch, compare, or combine engines while FileRouter handles durable
             execution, retries, results, and cleanup.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
