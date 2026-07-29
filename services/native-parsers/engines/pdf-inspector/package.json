@@ -10,7 +10,7 @@
     "@firecrawl/pdf-inspector": "1.11.1"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "typescript": "^6"
+    "@types/node": "^26",
+    "typescript": "^7"
   }
 }

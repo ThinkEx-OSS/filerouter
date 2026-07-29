@@ -77,15 +77,15 @@
     "file-type": "22.0.1"
   },
   "devDependencies": {
-    "@llamaindex/llama-cloud": "^2.10.0",
+    "@llamaindex/llama-cloud": "^2.13.0",
     "@mistralai/mistralai": "^2.5.0",
-    "@types/node": "^22",
+    "@types/node": "^26",
     "tsup": "^8.5.1",
-    "typescript": "^6",
+    "typescript": "^7",
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@llamaindex/llama-cloud": "^2.10.0",
+    "@llamaindex/llama-cloud": "^2.13.0",
     "@mistralai/mistralai": "^2.5.0"
   },
   "peerDependenciesMeta": {
