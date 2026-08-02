@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vite-plus/test"
 import { createNativeParserProvider } from "@/lib/native-parser.server"
 
 const nativeResult = {
-  engine: { id: "liteparse", version: "2.8.0" },
+  engine: { id: "liteparse", version: "2.10.1" },
   markdown: "# Parsed",
   metadata: { ocrEnabled: true },
   pageCount: 1,
@@ -63,7 +63,7 @@ describe("hosted native parser transport", () => {
       outputs: {
         markdown: "# Parsed",
         metadata: {
-          engine: { id: "liteparse", version: "2.8.0" },
+          engine: { id: "liteparse", version: "2.10.1" },
           ocrEnabled: true,
         },
         pages: [

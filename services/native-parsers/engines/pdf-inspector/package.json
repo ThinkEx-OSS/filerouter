@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@firecrawl/pdf-inspector": "1.11.1"
+    "@firecrawl/pdf-inspector": "1.11.2"
   },
   "devDependencies": {
     "@types/node": "^22",
