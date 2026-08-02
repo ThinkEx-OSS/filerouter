@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@file_router/sdk": "workspace:*",
-    "@llamaindex/llama-cloud": "^2.10.0",
+    "@llamaindex/llama-cloud": "^2.13.0",
     "@mistralai/mistralai": "^2.5.0",
     "citty": "^0.2.2"
   },
