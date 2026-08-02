@@ -41,6 +41,3 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
-
-minimumReleaseAgeExclude:
-  - "@cloudflare/workers-types@5.20260721.1"
