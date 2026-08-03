@@ -7,10 +7,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@llamaindex/liteparse": "2.8.0"
+    "@llamaindex/liteparse": "2.10.1"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "typescript": "^6"
+    "@types/node": "^26",
+    "typescript": "^7"
   }
 }
