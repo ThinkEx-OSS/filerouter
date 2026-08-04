@@ -13,7 +13,13 @@ import { FileRouter } from "@file_router/sdk"
 const router = new FileRouter()
 
 const comparison = await router.compare("./contracts/sample.pdf", {
-  providers: ["liteparse", "pdf-inspector", "llamaparse", "mistral-ocr"],
+  providers: [
+    "anydoc",
+    "liteparse",
+    "pdf-inspector",
+    "llamaparse",
+    "mistral-ocr",
+  ],
   outputs: ["markdown"],
 })
 
@@ -41,7 +47,10 @@ for (const attempt of comparison.providers) {
 await router.documents.delete(comparison.resources.documentId)
 ```
 
-Request outputs every selected engine supports. `markdown` is the safe shared choice for LiteParse, PDF Inspector, and the commercial adapters. Asking for `tables` with LiteParse or PDF Inspector in the same compare will fail job creation.
+Request outputs every selected engine supports. `markdown` is the safe shared
+choice for Anydoc, LiteParse, PDF Inspector, and the commercial adapters.
+Asking for `pages` with Anydoc, or `tables` with any native parser, will fail job
+creation.
 
 ## What to score
 

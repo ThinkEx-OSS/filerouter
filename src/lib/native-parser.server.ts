@@ -41,7 +41,7 @@ const nativeResultSchema = z
   .object({
     engine: z
       .object({
-        id: z.enum(["liteparse", "pdf-inspector"]),
+        id: z.enum(["anydoc", "liteparse", "pdf-inspector"]),
         version: z.string(),
       })
       .strict(),
@@ -61,7 +61,10 @@ const nativeFailureSchema = z
   })
   .passthrough()
 
-type NativeParserId = Extract<ProviderId, "liteparse" | "pdf-inspector">
+type NativeParserId = Extract<
+  ProviderId,
+  "anydoc" | "liteparse" | "pdf-inspector"
+>
 
 type NativeParserConfig = {
   capabilities: FileRouterProvider["capabilities"]

@@ -1,5 +1,6 @@
 import { runCommand } from "citty"
 import { DirectFileRouter } from "@file_router/sdk"
+import { providerIds } from "@file_router/sdk/catalog"
 import { fakeProvider } from "@file_router/sdk/testing"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vite-plus/test"
@@ -16,6 +17,7 @@ function createRuntime() {
   const files = new Map<string, string>()
   const router = new DirectFileRouter({
     providers: {
+      anydoc: fakeProvider({ id: "anydoc" }),
       datalab: fakeProvider({ id: "datalab" }),
       llamaparse: fakeProvider({ id: "llamaparse" }),
       liteparse: fakeProvider({ id: "liteparse" }),
@@ -101,7 +103,7 @@ describe("FileRouter CLI", () => {
     })
 
     const result = JSON.parse(stdout.join(""))
-    expect(result.providers).toHaveLength(5)
+    expect(result.providers).toHaveLength(providerIds.length)
     expect(
       result.providers.every(
         ({ status }: { status: string }) => status === "parsed"

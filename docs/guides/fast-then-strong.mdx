@@ -79,11 +79,15 @@ Hosted job creation validates outputs per provider. If any selected provider doe
 
 | Provider                                 | Useful shared outputs                             |
 | ---------------------------------------- | ------------------------------------------------- |
+| `anydoc`                                 | `markdown`, `metadata`                            |
 | `liteparse`                              | `markdown`, `pages`, `text`, `images`, `metadata` |
 | `pdf-inspector`                          | `markdown`, `pages`, `metadata`                   |
 | `llamaparse` / `mistral-ocr` / `datalab` | broader sets including `tables` on some adapters  |
 
-For a shared job, stick to the intersection (usually `markdown` or `markdown` + `pages`). Need tables only from LlamaParse? Prefer [Cheap path, then escalate](/guides/cheap-path) with a second job, or set per-provider `outputs` on each target.
+For a shared job, stick to the intersection (usually `markdown`; Anydoc does
+not expose physical pages). Need tables only from LlamaParse? Prefer
+[Cheap path, then escalate](/guides/cheap-path) with a second job, or set
+per-provider `outputs` on each target.
 
 ## Related
 

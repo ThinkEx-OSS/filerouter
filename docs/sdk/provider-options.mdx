@@ -22,6 +22,7 @@ Each provider reads only its own namespace:
 - `providerOptions.llamaparse`
 - `providerOptions["mistral-ocr"]`
 - `providerOptions.datalab`
+- `providerOptions.anydoc`
 - `providerOptions.liteparse`
 - `providerOptions["pdf-inspector"]`
 
@@ -40,3 +41,7 @@ image handling, complexity analysis, and screenshots. Transport credentials,
 custom OCR server URLs, passwords, and filesystem paths are rejected. FileRouter
 never silently disables a requested capability; unsupported options fail the
 job explicitly.
+
+Hosted Anydoc and PDF Inspector accept no provider-specific fields. Select only
+their advertised outputs and use common options such as `timeoutMs` where
+applicable.

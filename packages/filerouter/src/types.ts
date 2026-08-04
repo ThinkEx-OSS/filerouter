@@ -25,6 +25,7 @@ export interface LiteParseParseOptions {
 }
 
 export type PdfInspectorParseOptions = Record<string, never>
+export type AnydocParseOptions = Record<string, never>
 
 export const parseOutputIds = [
   "chunks",
@@ -89,6 +90,7 @@ export type ProviderInput =
   | { kind: "url"; url: string }
 
 export interface ProviderOptionsById {
+  anydoc: AnydocParseOptions
   datalab: DatalabParseOptions
   llamaparse: LlamaParseParseOptions
   liteparse: LiteParseParseOptions
@@ -97,6 +99,7 @@ export interface ProviderOptionsById {
 }
 
 export interface ProviderParseOptions {
+  anydoc?: ProviderOptionsById["anydoc"]
   datalab?: ProviderOptionsById["datalab"]
   llamaparse?: ProviderOptionsById["llamaparse"]
   liteparse?: ProviderOptionsById["liteparse"]

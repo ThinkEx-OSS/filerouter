@@ -88,8 +88,9 @@ FileRouter does not assign roles or decide which result wins.
 
 ## Built-in providers
 
-Hosted jobs can select `llamaparse`, `mistral-ocr`, `datalab`, `liteparse`, or
-`pdf-inspector`. LiteParse and PDF Inspector run in separate private parser
-pools so lightweight PDF inspection does not inherit the OCR and Office
-conversion footprint. Every provider advertises its supported outputs and
-page fields, along with its execution model, through its runtime adapter.
+Hosted jobs can select `llamaparse`, `mistral-ocr`, `datalab`, `anydoc`,
+`liteparse`, or `pdf-inspector`. Anydoc, LiteParse, and PDF Inspector run in
+separate private parser pools so fast Office conversion and lightweight PDF
+inspection do not inherit LiteParse's OCR footprint. Every provider advertises
+its supported outputs and page fields, along with its execution model, through
+its runtime adapter.

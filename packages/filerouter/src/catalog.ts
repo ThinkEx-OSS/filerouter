@@ -7,6 +7,7 @@ export const providerIds = [
   "llamaparse",
   "mistral-ocr",
   "datalab",
+  "anydoc",
   "liteparse",
   "pdf-inspector",
 ] as const

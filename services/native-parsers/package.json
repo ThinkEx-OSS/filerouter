@@ -7,7 +7,7 @@
     "deploy": "wrangler deploy --config wrangler.jsonc",
     "deploy:dry-run": "wrangler deploy --config wrangler.jsonc --dry-run",
     "test": "vp test run --config vitest.config.ts",
-    "typecheck": "tsc --noEmit && tsc -p engines/liteparse && tsc -p engines/pdf-inspector && tsc -p engines/shared"
+    "typecheck": "tsc --noEmit && tsc -p engines/anydoc && tsc -p engines/liteparse && tsc -p engines/pdf-inspector && tsc -p engines/shared"
   },
   "dependencies": {
     "@cloudflare/containers": "0.3.7"

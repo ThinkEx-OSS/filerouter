@@ -1,4 +1,4 @@
-export type NativeParserId = "liteparse" | "pdf-inspector"
+export type NativeParserId = "anydoc" | "liteparse" | "pdf-inspector"
 
 export const nativeParserOutputIds = [
   "images",

@@ -59,6 +59,15 @@ export const hostedEngineRows: ReadonlyArray<HostedEngineRow> = [
   branded("datalab", "wordmark-sm"),
   branded("llamaparse", "wordmark"),
   {
+    id: "anydoc",
+    label: "Anydoc",
+    kind: "branded",
+    logo: "/providers/firecrawl.svg",
+    darkLogo: "/providers/firecrawl-dark.svg",
+    logoSize: "wordmark",
+    caption: "Anydoc",
+  },
+  {
     id: "liteparse",
     label: "LiteParse",
     kind: "branded",

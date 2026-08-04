@@ -11,6 +11,7 @@ import {
 
 const PDF_INSPECTOR_POOL_SIZE = 4
 const LITEPARSE_POOL_SIZE = 4
+const ANYDOC_POOL_SIZE = 4
 
 export class PdfInspectorContainer extends Container {
   defaultPort = 8080
@@ -22,11 +23,17 @@ export class LiteParseContainer extends Container {
   sleepAfter = "5m"
 }
 
+export class AnydocContainer extends Container {
+  defaultPort = 8080
+  sleepAfter = "5m"
+}
+
 type ParserPool = {
   binding:
+    | DurableObjectNamespace<AnydocContainer>
     | DurableObjectNamespace<LiteParseContainer>
     | DurableObjectNamespace<PdfInspectorContainer>
-  parser: "liteparse" | "pdf-inspector"
+  parser: "anydoc" | "liteparse" | "pdf-inspector"
   size: number
 }
 
@@ -94,6 +101,13 @@ function parserPool(
   pathname: string,
   env: Cloudflare.Env
 ): ParserPool | undefined {
+  if (pathname === "/v1/anydoc/parse") {
+    return {
+      binding: env.ANYDOC_CONTAINERS,
+      parser: "anydoc",
+      size: ANYDOC_POOL_SIZE,
+    }
+  }
   if (pathname === "/v1/pdf-inspector/parse") {
     return {
       binding: env.PDF_INSPECTOR_CONTAINERS,

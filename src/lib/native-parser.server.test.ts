@@ -25,6 +25,19 @@ function liteParseProvider(fetch: (request: Request) => Promise<Response>) {
   })
 }
 
+function anydocProvider(fetch: (request: Request) => Promise<Response>) {
+  return createNativeParserProvider({
+    capabilities: {
+      execution: "sync",
+      features: ["classification", "office-conversion"],
+      outputs: ["markdown", "metadata"],
+    },
+    fetch,
+    id: "anydoc",
+    name: "Anydoc",
+  })
+}
+
 describe("hosted native parser transport", () => {
   test("passes signed document URLs to the private parser service", async () => {
     const requests: Array<Request> = []
@@ -95,5 +108,40 @@ describe("hosted native parser transport", () => {
         { outputs: ["markdown"] }
       )
     ).rejects.toMatchObject({ code: "ParseFailed" })
+  })
+
+  test("normalizes non-paginated anydoc results", async () => {
+    const provider = anydocProvider(async () =>
+      Response.json({
+        engine: { id: "anydoc", version: "0.1.1" },
+        markdown: "# Parsed Office document",
+        metadata: { format: "docx", paginated: false },
+        pageCount: 0,
+        pages: [],
+        warnings: [],
+      })
+    )
+
+    await expect(
+      provider.parse(
+        {
+          kind: "url",
+          url: "https://filerouter.dev/api/v1/sources/job/report.docx?expires=1&token=x",
+        },
+        { outputs: ["markdown", "metadata"] }
+      )
+    ).resolves.toMatchObject({
+      outputs: {
+        markdown: "# Parsed Office document",
+        metadata: {
+          engine: { id: "anydoc", version: "0.1.1" },
+          format: "docx",
+          paginated: false,
+        },
+      },
+      pageCount: 0,
+      provider: "anydoc",
+      usage: { pages: 0 },
+    })
   })
 })

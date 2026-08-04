@@ -1,0 +1,16 @@
+{
+  "name": "@file_router/anydoc-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@firecrawl/anydoc": "0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^6"
+  }
+}

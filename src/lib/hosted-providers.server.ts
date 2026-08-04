@@ -8,6 +8,7 @@ import { isRecord } from "@/lib/record"
 import { JOB_ID_HEADER, REQUEST_ID_HEADER } from "@/observability/log"
 
 const blockedTransportOptions: Record<ProviderId, ReadonlySet<string>> = {
+  anydoc: new Set(),
   datalab: new Set([
     "checkpoint_id",
     "eval_rubric_id",
@@ -65,6 +66,11 @@ const validateProviderOptions: Record<
   ProviderId,
   (options: Record<string, unknown>) => void
 > = {
+  anydoc(options) {
+    if (Object.keys(options).length > 0) {
+      throw new HttpError(400, "Hosted anydoc accepts no options.")
+    }
+  },
   datalab(options) {
     assertNoBlockedOptions("datalab", options)
     if (isRecord(options.raw)) {
@@ -158,6 +164,16 @@ export function createHostedProviders(
   }
   return {
     ...managed,
+    anydoc: createNativeParserProvider({
+      capabilities: {
+        execution: "sync",
+        features: ["classification", "office-conversion"],
+        outputs: ["markdown", "metadata"],
+      },
+      fetch: nativeFetch,
+      id: "anydoc",
+      name: "Anydoc",
+    }),
     liteparse: createNativeParserProvider({
       capabilities: {
         execution: "sync",

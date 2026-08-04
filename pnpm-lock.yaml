@@ -266,6 +266,19 @@ importers:
         specifier: ^4.118.0
         version: 4.118.0(@cloudflare/workers-types@5.20260801.1)
 
+  services/native-parsers/engines/anydoc:
+    dependencies:
+      '@firecrawl/anydoc':
+        specifier: 0.1.1
+        version: 0.1.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      typescript:
+        specifier: ^6
+        version: 6.0.3
+
   services/native-parsers/engines/liteparse:
     dependencies:
       '@llamaindex/liteparse':
@@ -724,11 +737,11 @@ packages:
 
   '@esbuild-kit/core-utils@3.3.2':
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild-kit/esm-loader@2.6.5':
     resolution: {integrity: sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -1338,6 +1351,56 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@firecrawl/anydoc-darwin-arm64@0.1.1':
+    resolution: {integrity: sha512-Ey3dtTjFRTu4dxSD/Y3yesxrw8W7lpUDMe7KiI31TLmx/hWFfaWQfKIUGmcDxu/QCafL/pBWuEgshMpDm8GXLg==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@firecrawl/anydoc-darwin-x64@0.1.1':
+    resolution: {integrity: sha512-6z+ZFvICgfQKyyLInXWkg/nNUWBrQfcAi57shoLrlYQ7Lw2xAQ1npWb4DrlmMtFpvx24L9z//47j8FZX1MQfGA==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@firecrawl/anydoc-linux-arm64-gnu@0.1.1':
+    resolution: {integrity: sha512-m4m8xh+6s7EguRlHsl0v1ExlkO5iPWBC2diYbT26et7GKF+ypodkAc0Ty5y3kNb4ztNLhVocd+5KPeVYPmJbqA==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@firecrawl/anydoc-linux-arm64-musl@0.1.1':
+    resolution: {integrity: sha512-a/SXa/CeytvK+XpJQEdxvE7kBssLdkRQgsfviPr/w9WPTO9milvU3eeWolci4lVUJOBznBsYkZLnS+ymrJz4hQ==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@firecrawl/anydoc-linux-x64-gnu@0.1.1':
+    resolution: {integrity: sha512-Bo9t/IB1wi4mlCdFZsrStFUCr0Lre3O/nZhYQ0eBcjYiLstx87cgY4B7dpgUAWTaC1Pp6Gm6XgjgeB03m4r7LA==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@firecrawl/anydoc-linux-x64-musl@0.1.1':
+    resolution: {integrity: sha512-tMrnUyxWnbVjub+bLDSQUWLQ0Jpdk6FsJjblt2/QXlmyqX+dv2Pgr5scwBGC59Q9M4xnBvujuM4SXHyVEuY+bQ==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@firecrawl/anydoc-win32-x64-msvc@0.1.1':
+    resolution: {integrity: sha512-HKeNAGWBCErBQO1IKfe/e25Sdn3m0SfT/2F5zjO0Pa3p5AXhgSOcAV3j0mPYqa7sj3KPuqVFdEWWgAdNOScY0Q==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [win32]
+
+  '@firecrawl/anydoc@0.1.1':
+    resolution: {integrity: sha512-zXTRxGQhbogy1dCdGCmfsn6h1/eMmiKpSEyI8nuEJ0IzoEiPzJ9BLkq2ggqc5tc0rKniJsYaHTbnDPS3IKyKCQ==}
+    engines: {node: '>= 20'}
 
   '@firecrawl/pdf-inspector-darwin-arm64@1.11.2':
     resolution: {integrity: sha512-L2Ict3j2V51cBxiCg4Q8AWXwKhMO46It/o1NdHgBwYeHf8tCBxhrts4YGHq9tYmMxFYo3g5E5jAk7pkjMmzlJg==}
@@ -6458,6 +6521,37 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 2.2.0
     optional: true
+
+  '@firecrawl/anydoc-darwin-arm64@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc-darwin-x64@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc-linux-arm64-gnu@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc-linux-arm64-musl@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc-linux-x64-gnu@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc-linux-x64-musl@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc-win32-x64-msvc@0.1.1':
+    optional: true
+
+  '@firecrawl/anydoc@0.1.1':
+    optionalDependencies:
+      '@firecrawl/anydoc-darwin-arm64': 0.1.1
+      '@firecrawl/anydoc-darwin-x64': 0.1.1
+      '@firecrawl/anydoc-linux-arm64-gnu': 0.1.1
+      '@firecrawl/anydoc-linux-arm64-musl': 0.1.1
+      '@firecrawl/anydoc-linux-x64-gnu': 0.1.1
+      '@firecrawl/anydoc-linux-x64-musl': 0.1.1
+      '@firecrawl/anydoc-win32-x64-msvc': 0.1.1
 
   '@firecrawl/pdf-inspector-darwin-arm64@1.11.2':
     optional: true

@@ -3,7 +3,9 @@ title: "Cheap path, then escalate"
 description: "Parse with LiteParse first. Start a heavier engine only when the cheap result is not enough."
 ---
 
-Not every file needs a commercial OCR stack. On **hosted** FileRouter, LiteParse and PDF Inspector run as focused engines. Use them first when the document is likely born-digital or you only need a light pass.
+Not every file needs a commercial OCR stack. On **hosted** FileRouter, Anydoc,
+LiteParse, and PDF Inspector run as focused engines. Use them first when the
+document is likely born-digital or you only need a light pass.
 
 This guide starts the expensive engine **only after** the cheap result looks weak. That is different from [Fast preview, then full parse](/guides/fast-then-strong), which starts both engines immediately for UI latency.
 
@@ -11,8 +13,9 @@ This guide starts the expensive engine **only after** the cheap result looks wea
 
 | Provider                               | Good for                                       | Hosted outputs                                    |
 | -------------------------------------- | ---------------------------------------------- | ------------------------------------------------- |
-| `liteparse`                            | Lightweight markdown, optional OCR             | `markdown`, `pages`, `text`, `images`, `metadata` |
-| `pdf-inspector`                        | Structure / inspection oriented passes         | `markdown`, `pages`, `metadata`                   |
+| `anydoc`                               | Fast, non-paginated Office and EPUB Markdown   | `markdown`, `metadata`                            |
+| `liteparse`                            | Lightweight PDF Markdown, optional OCR         | `markdown`, `pages`, `text`, `images`, `metadata` |
+| `pdf-inspector`                        | Structure / inspection oriented PDF passes     | `markdown`, `pages`, `metadata`                   |
 | `llamaparse`, `mistral-ocr`, `datalab` | Hard scans, complex layouts, richer extraction | Wider sets (often including `tables`)             |
 
 ```ts
@@ -125,7 +128,7 @@ async function parseClaim(claimId: string, filePath: string) {
 
 ## Habits that keep cost down
 
-- Triage with `liteparse` or `pdf-inspector`
+- Triage Office documents with `anydoc`, or PDFs with `liteparse` or `pdf-inspector`
 - Escalate with a second job on the same document, not a second blind `parse()` that re-uploads
 - Request only outputs each engine supports
 - Release stored artifacts when the pipeline finishes

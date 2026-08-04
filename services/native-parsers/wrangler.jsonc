@@ -26,6 +26,14 @@
   },
   "containers": [
     {
+      "name": "filerouter-anydoc",
+      "class_name": "AnydocContainer",
+      "image": "./engines/anydoc/Dockerfile",
+      "image_build_context": "./engines",
+      "instance_type": "basic",
+      "max_instances": 4,
+    },
+    {
       "name": "filerouter-pdf-inspector",
       "class_name": "PdfInspectorContainer",
       "image": "./engines/pdf-inspector/Dockerfile",
@@ -45,6 +53,10 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "ANYDOC_CONTAINERS",
+        "class_name": "AnydocContainer",
+      },
+      {
         "name": "PDF_INSPECTOR_CONTAINERS",
         "class_name": "PdfInspectorContainer",
       },
@@ -58,6 +70,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["PdfInspectorContainer", "LiteParseContainer"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["AnydocContainer"],
     },
   ],
 }

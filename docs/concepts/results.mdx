@@ -43,8 +43,10 @@ interface ParseResult {
 ```
 
 Only requested and supported values appear under `outputs`.
-`pageCount` is the number of pages processed in this result; when a provider
-exposes the source document's total separately, it appears in `metadata`.
+`pageCount` is the number of pages processed in this result. It is `0` for
+non-paginated results such as Anydoc's Office-document Markdown. When a
+provider exposes the source document's total separately, it appears in
+`metadata`.
 
 ## Page fields
 

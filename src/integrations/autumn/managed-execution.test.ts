@@ -88,6 +88,11 @@ describe("managed execution pricing", () => {
     }
     expect(estimate.rawCostUsd).toBeCloseTo(0.0006084, 7)
     expect(estimate.credits).toBeCloseTo(0.66924, 5)
+
+    const anydocEstimate = estimateManagedExecution(
+      parsed({ durationMs: 10_000, pageCount: 0, provider: "anydoc" })
+    )
+    expect(anydocEstimate?.rawCostUsd).toBeCloseTo(0.0003278, 7)
   })
 
   test("records idempotent provider events", async () => {

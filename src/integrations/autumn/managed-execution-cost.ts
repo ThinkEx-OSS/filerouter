@@ -66,6 +66,7 @@ function providerCostUsd(provider: ParsedProviderOutcome): number | undefined {
         memoryGib: 6,
         vcpu: 1,
       })
+    case "anydoc":
     case "pdf-inspector":
       return containerCostUsd(provider.durationMs, {
         diskGb: 4,
