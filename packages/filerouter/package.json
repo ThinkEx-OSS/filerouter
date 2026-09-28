@@ -74,19 +74,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "file-type": "22.0.1"
+    "file-type": "22.1.1"
   },
   "devDependencies": {
-    "@llamaindex/llama-cloud": "^2.10.0",
-    "@mistralai/mistralai": "^2.5.0",
-    "@types/node": "^22",
+    "@llamaindex/llama-cloud": "^2.16.0",
+    "@mistralai/mistralai": "^2.7.0",
+    "@types/node": "^26",
     "tsup": "^8.5.1",
-    "typescript": "^6",
+    "typescript": "^7",
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@llamaindex/llama-cloud": "^2.10.0",
-    "@mistralai/mistralai": "^2.5.0"
+    "@llamaindex/llama-cloud": "^2.16.0",
+    "@mistralai/mistralai": "^2.7.0"
   },
   "peerDependenciesMeta": {
     "@llamaindex/llama-cloud": {
